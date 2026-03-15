@@ -1,18 +1,69 @@
 import Link from "next/link";
-import { ArrowRight, Check, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  FileText,
+  Link2,
+  MessageSquareText,
+  Mic,
+  ScrollText,
+  Upload,
+} from "lucide-react";
 import { redirect } from "next/navigation";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { getOptionalUser } from "@/lib/auth";
+import { isPreviewAuthBypassEnabled } from "@/lib/preview-mode";
 import { hasPublicSupabaseEnv } from "@/lib/public-env";
 
-const LANDING_POINTS = [
-  "Notes from audio, links, PDFs, or pasted text",
-  "Transcript, summary, and structured notes in one place",
-  "A focused workflow without extra screens",
-];
+const INPUTS = [
+  {
+    title: "Record",
+    detail: "Capture live",
+    icon: Mic,
+    accent: "record",
+  },
+  {
+    title: "Upload",
+    detail: "Add audio",
+    icon: Upload,
+    accent: "default",
+  },
+  {
+    title: "Link",
+    detail: "Import a page",
+    icon: Link2,
+    accent: "default",
+  },
+  {
+    title: "Text or PDF",
+    detail: "Paste or upload",
+    icon: FileText,
+    accent: "default",
+  },
+] as const;
+
+const OUTPUTS = [
+  {
+    title: "Transcript",
+    detail: "Clean text",
+    icon: ScrollText,
+  },
+  {
+    title: "Summary",
+    detail: "Structured notes",
+    icon: FileText,
+  },
+  {
+    title: "Chat",
+    detail: "Ask follow-ups",
+    icon: MessageSquareText,
+  },
+] as const;
 
 export default async function HomePage() {
+  const previewAuthBypass = isPreviewAuthBypassEnabled();
+  const entryHref = previewAuthBypass ? "/app" : "/auth/login?next=/app";
+
   if (hasPublicSupabaseEnv) {
     const user = await getOptionalUser();
     if (user) {
@@ -22,16 +73,14 @@ export default async function HomePage() {
 
   return (
     <main className="landing-shell">
-      <header className="ios-nav">
-        <div className="ios-nav-inner">
-          <div className="ios-nav-meta">
-            <div className="ios-nav-title">
-              <BrandLogo compact />
-            </div>
-            <div className="ios-nav-caption">AI notes for lectures</div>
-          </div>
-          <div className="ios-nav-actions">
-            <Link href="/auth/login?next=/app" className="ios-nav-button end">
+      <header className="ios-nav landing-nav">
+        <div className="ios-nav-inner landing-nav-inner">
+          <Link href="/" className="landing-brand-link" aria-label="Syllo home">
+            <BrandLogo compact />
+          </Link>
+
+          <div className="landing-nav-actions">
+            <Link href={entryHref} className="landing-signin-bubble">
               Sign in
             </Link>
           </div>
@@ -39,91 +88,78 @@ export default async function HomePage() {
       </header>
 
       <div className="ios-content">
-        <div className="space-y-6">
-          <section className="mb-20 mt-12">
-            <div className="landing-grid">
-              <div className="space-y-6 max-w-2xl mx-auto text-center">
-                <div className="inline-flex items-center gap-2 rounded-full bg-[var(--tint-soft)] px-3 py-1 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-[var(--tint)] mb-4">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Focused workflow
-                </div>
+        <div className="home-dashboard landing-dashboard pb-10">
+          <section className="dashboard-section landing-hero">
+            <div className="landing-hero-copy">
+              <h1 className="landing-title">Lecture notes, without the clutter.</h1>
+              <p className="landing-lead">
+                Record, upload, paste, or link your source. Get transcript, notes, and chat in one workspace.
+              </p>
+            </div>
 
-                <div className="ios-title-block">
-                  <h1 className="text-[3.5rem] font-bold tracking-[-0.04em] leading-[1.05] mb-4">
-                    Cleaner AI notes for lectures.
-                  </h1>
-                  <p className="ios-subtitle text-[1.2rem] max-w-xl mx-auto">
-                    A minimal space to capture, process, and review course content
-                    with a calm, lightweight app feel.
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-4 sm:flex-row justify-center mt-6">
-                  <Link href="/auth/login?next=/app" className="primary-button sm:w-auto" style={{
-                    backgroundColor: "var(--label)",
-                    color: "var(--canvas)",
-                    padding: "0 2rem",
-                    minHeight: "3.5rem",
-                    fontSize: "1.05rem"
-                  }}>
-                    Get started
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                  <Link href="#kaj-dobis" className="primary-button sm:w-auto" style={{
-                    backgroundColor: "var(--surface-muted)",
-                    color: "var(--label)",
-                    padding: "0 2rem",
-                    minHeight: "3.5rem",
-                    fontSize: "1.05rem"
-                  }}>
-                    See what you get
-                  </Link>
-                </div>
-              </div>
-
-              <div className="landing-spotlight mt-20 grid sm:grid-cols-2 gap-8 text-left">
-                <div className="landing-stat p-6 rounded-[24px]" style={{ backgroundColor: "var(--surface-solid)", border: "1px solid var(--separator)" }}>
-                  <p className="ios-section-label">What you get</p>
-                  <p className="text-[1.2rem] font-semibold mt-2">Transcript, summary, and chat</p>
-                  <p className="ios-row-subtitle mt-2">
-                    The key outputs stay together in a single workspace.
-                  </p>
-                </div>
-
-                <div className="landing-stat p-6 rounded-[24px]" style={{ backgroundColor: "var(--surface-solid)", border: "1px solid var(--separator)" }}>
-                  <p className="ios-section-label">Inputs</p>
-                  <p className="text-[1.2rem] font-semibold mt-2">Audio, link, PDF, or text</p>
-                  <p className="ios-row-subtitle mt-2">
-                    Use the source you already have without changing your workflow.
-                  </p>
-                </div>
-              </div>
+            <div className="landing-cta-row">
+              <Link href={entryHref} className="landing-cta landing-cta-primary">
+                Get started
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <a href="#flow" className="landing-cta landing-cta-secondary">
+                See how it works
+              </a>
             </div>
           </section>
 
-          <section className="ios-section" id="kaj-dobis">
-            <p className="ios-section-label">What you get</p>
-            <div className="ios-group">
-              {LANDING_POINTS.map((item) => (
-                <div key={item} className="ios-row ios-row-static">
-                  <div className="ios-row-icon">
-                    <Check className="h-4 w-4 text-[var(--tint)]" />
+          <section className="dashboard-section" id="flow">
+            <div className="dashboard-section-heading">
+              <h2 className="dashboard-section-title">Start with</h2>
+            </div>
+
+            <div className="note-action-grid">
+              {INPUTS.map((item) => (
+                <article key={item.title} className="note-action-card landing-feature-card">
+                  <span
+                    className={`note-action-card-icon ${
+                      item.accent === "record" ? "record" : ""
+                    }`}
+                  >
+                    <item.icon className="h-5 w-5" />
+                  </span>
+                  <span className="note-action-card-copy">
+                    <span className="note-action-card-label">{item.title}</span>
+                    <span className="note-action-card-detail">{item.detail}</span>
+                  </span>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="dashboard-section">
+            <div className="dashboard-section-heading">
+              <h2 className="dashboard-section-title">Get</h2>
+            </div>
+
+            <div className="landing-output-grid">
+              {OUTPUTS.map((item) => (
+                <article key={item.title} className="dashboard-surface-card landing-output-card">
+                  <div className="note-action-card-icon">
+                    <item.icon className="h-5 w-5" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="ios-row-title">{item}</p>
+                  <div className="landing-output-copy">
+                    <p className="landing-output-title">{item.title}</p>
+                    <p className="landing-output-detail">{item.detail}</p>
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           </section>
 
           {!hasPublicSupabaseEnv ? (
-            <div className="ios-card">
-              <p className="ios-info ios-danger">
-                Missing public `Supabase` environment variables. Fill in
-                `.env.local` before running locally.
-              </p>
-            </div>
+            <section className="dashboard-section">
+              <div className="dashboard-surface-card">
+                <p className="ios-info ios-danger">
+                  Missing public `Supabase` environment variables. Fill in `.env.local`.
+                </p>
+              </div>
+            </section>
           ) : null}
         </div>
       </div>

@@ -42,7 +42,7 @@ function getChrome(pathname: string) {
   if (pathname === "/app/support") {
     return {
       title: "Help",
-      subtitle: "Answers and quick guides",
+      subtitle: "Guides",
       backHref: null,
     };
   }
@@ -50,7 +50,7 @@ function getChrome(pathname: string) {
   if (pathname === "/app/settings") {
     return {
       title: "Settings",
-      subtitle: "Account, appearance, and support",
+      subtitle: "Theme and account",
       backHref: null,
     };
   }

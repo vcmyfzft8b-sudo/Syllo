@@ -15,21 +15,22 @@ export default async function SupportArticlePage({
     notFound();
   }
 
+  const content = article.content.replace(/^# .+\n+/, "");
+
   return (
-    <main className="space-y-6">
-      <section className="ios-card app-hero">
-        <div className="ios-title-block">
-          <p className="ios-section-label">{article.category}</p>
-          <h1 className="ios-large-title">{article.title}</h1>
-          <p className="ios-subtitle">
-            A short guide for the task you want to complete, without extra steps.
-          </p>
+    <main className="home-dashboard pb-8">
+      <section className="dashboard-section">
+        <div>
+          <p className="dashboard-overline">{article.category}</p>
+          <h1 className="dashboard-page-title">{article.title}</h1>
         </div>
       </section>
 
-      <section className="ios-card">
-        <div className="markdown">
-          <MarkdownRenderer content={article.content} />
+      <section className="dashboard-section">
+        <div className="dashboard-surface-card help-article-card">
+          <div className="markdown">
+            <MarkdownRenderer content={content} />
+          </div>
         </div>
       </section>
     </main>

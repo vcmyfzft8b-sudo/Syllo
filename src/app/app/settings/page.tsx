@@ -5,31 +5,44 @@ import { ThemeSettings } from "@/components/theme-settings";
 import { requireUser } from "@/lib/auth";
 import { BRAND_NAME } from "@/lib/brand";
 
-function SettingsRow(props: {
-  href?: string;
+function SettingsLinkCard(props: {
+  href: string;
   icon: React.ComponentType<{ className?: string }>;
   title: string;
-  subtitle?: string;
-  trailing?: React.ReactNode;
+  detail?: string;
 }) {
-  const content = (
-    <div className="ios-row ios-pressable">
-      <div className="ios-row-icon">
-        <props.icon className="h-4 w-4" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="ios-row-title">{props.title}</p>
-        {props.subtitle ? <p className="ios-row-subtitle">{props.subtitle}</p> : null}
-      </div>
-      {props.trailing ?? <ChevronRight className="ios-chevron h-4 w-4" />}
-    </div>
+  return (
+    <Link href={props.href} className="note-action-card compact-link-card">
+      <span className="note-action-card-icon">
+        <props.icon className="h-5 w-5" />
+      </span>
+      <span className="note-action-card-copy">
+        <span className="note-action-card-label">{props.title}</span>
+        {props.detail ? <span className="note-action-card-detail">{props.detail}</span> : null}
+      </span>
+      <ChevronRight className="note-action-card-chevron h-4 w-4" />
+    </Link>
   );
+}
 
-  if (props.href) {
-    return <Link href={props.href}>{content}</Link>;
-  }
-
-  return content;
+function SettingsExternalCard(props: {
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  detail?: string;
+}) {
+  return (
+    <a href={props.href} className="note-action-card compact-link-card">
+      <span className="note-action-card-icon">
+        <props.icon className="h-5 w-5" />
+      </span>
+      <span className="note-action-card-copy">
+        <span className="note-action-card-label">{props.title}</span>
+        {props.detail ? <span className="note-action-card-detail">{props.detail}</span> : null}
+      </span>
+      <ChevronRight className="note-action-card-chevron h-4 w-4" />
+    </a>
+  );
 }
 
 export default async function SettingsPage() {
@@ -37,86 +50,72 @@ export default async function SettingsPage() {
   const email = user.email ?? user.user_metadata.email ?? "Signed-in user";
 
   return (
-    <main className="space-y-6">
-      <div className="space-y-4 mb-8">
-        <div className="ios-title-block mb-2">
-          <p className="ios-section-label tracking-wider uppercase text-xs font-bold text-[var(--secondary-label)] mb-1">Settings</p>
-          <h1 className="ios-large-title">Settings and account.</h1>
-          <p className="ios-subtitle mt-2">
-            Appearance, account, and support stay together in one calm screen.
-          </p>
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-4 mt-8">
-          <div className="p-5 rounded-[18px] bg-[var(--surface-solid)] border border-[var(--separator)]">
-            <p className="ios-section-label text-xs font-bold tracking-wider uppercase">Signed-in account</p>
-            <p className="text-[1.05rem] font-medium mt-2">{email}</p>
-            <p className="ios-row-subtitle mt-1">Active session on this device.</p>
-          </div>
-
-          <div className="p-5 rounded-[18px] bg-[var(--surface-solid)] border border-[var(--separator)]">
-            <p className="ios-section-label text-xs font-bold tracking-wider uppercase">Support</p>
-            <p className="text-[1.05rem] font-medium mt-2">Everything important in one place</p>
-            <p className="ios-row-subtitle mt-1">
-              Change the theme, share the app, or open help articles quickly.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <section className="ios-section">
-        <p className="ios-section-label">Appearance</p>
-        <div className="ios-group">
-          <ThemeSettings />
+    <main className="home-dashboard pb-8">
+      <section className="dashboard-section">
+        <div>
+          <h1 className="dashboard-page-title">Settings</h1>
         </div>
       </section>
 
-      <section className="ios-section">
-        <p className="ios-section-label">Account</p>
-        <div className="ios-group">
-          <SettingsRow
+      <section className="dashboard-section">
+        <div className="dashboard-section-heading">
+          <h2 className="dashboard-section-title">Theme</h2>
+        </div>
+        <ThemeSettings />
+      </section>
+
+      <section className="dashboard-section">
+        <div className="dashboard-section-heading">
+          <h2 className="dashboard-section-title">Account</h2>
+        </div>
+
+        <div className="dashboard-surface-card settings-account-card">
+          <div className="min-w-0">
+            <p className="dashboard-overline">Signed in</p>
+            <p className="settings-account-value">{email}</p>
+          </div>
+
+          <form action="/auth/logout" method="post">
+            <button type="submit" className="settings-inline-action">
+              <Power className="h-4 w-4" />
+              Sign out
+            </button>
+          </form>
+        </div>
+
+        <div className="note-action-grid">
+          <SettingsLinkCard
             href="/app/support/redeem-code"
             icon={Ticket}
             title="Redeem code"
-            subtitle="Add a promo or access code."
+            detail="Add a code"
           />
-          <SettingsRow
+          <SettingsLinkCard
             href="/app/support/privacy-policy"
             icon={Lock}
-            title="Privacy policy"
-            subtitle="How your content is handled."
+            title="Privacy"
+            detail="How notes are handled"
           />
-          <div className="ios-row">
-            <div className="ios-row-icon">
-              <Power className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="ios-row-title">Sign out</p>
-              <p className="ios-row-subtitle">{email}</p>
-            </div>
-            <form action="/auth/logout" method="post">
-              <button type="submit" className="ios-text-button">
-                Sign out
-              </button>
-            </form>
-          </div>
         </div>
       </section>
 
-      <section className="ios-section">
-        <p className="ios-section-label">Support</p>
-        <div className="ios-group">
-          <SettingsRow
+      <section className="dashboard-section">
+        <div className="dashboard-section-heading">
+          <h2 className="dashboard-section-title">Help</h2>
+        </div>
+
+        <div className="note-action-grid">
+          <SettingsExternalCard
             href={`mailto:?subject=${encodeURIComponent(`Try ${BRAND_NAME}`)}&body=${encodeURIComponent(`I am using ${BRAND_NAME} for lecture notes and thought it might be useful for you too.`)}`}
             icon={Send}
-            title="Share the app"
-            subtitle="Send a recommendation by email."
+            title="Share"
+            detail="Send by email"
           />
-          <SettingsRow
+          <SettingsLinkCard
             href="/app/support/feature-request"
             icon={Bell}
-            title="Suggest an improvement"
-            subtitle="Send an idea for the next version."
+            title="Suggest a feature"
+            detail="Send an idea"
           />
         </div>
       </section>

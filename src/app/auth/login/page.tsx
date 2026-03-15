@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
 import { getOptionalUser } from "@/lib/auth";
+import { isPreviewAuthBypassEnabled } from "@/lib/preview-mode";
 import { getPublicEnv } from "@/lib/public-env";
 
 type SearchParams = Promise<{
@@ -14,6 +15,7 @@ export default async function LoginPage({
 }: {
   searchParams?: SearchParams;
 }) {
+  const previewAuthBypass = isPreviewAuthBypassEnabled();
   const user = await getOptionalUser();
   const next = (await searchParams)?.next;
   const redirectUrl = next ?? "/app";
@@ -25,6 +27,10 @@ export default async function LoginPage({
   }
 
   if (user) {
+    redirect(redirectUrl);
+  }
+
+  if (previewAuthBypass) {
     redirect(redirectUrl);
   }
 

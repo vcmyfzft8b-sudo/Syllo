@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { isPreviewAuthBypassEnabled } from "@/lib/preview-mode";
 import { getPublicEnv } from "@/lib/public-env";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 
@@ -38,6 +39,13 @@ async function startGoogleAuth(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  if (isPreviewAuthBypassEnabled()) {
+    const previewUrl = request.nextUrl.clone();
+    previewUrl.pathname = request.nextUrl.searchParams.get("next") ?? "/app";
+    previewUrl.search = "";
+    return NextResponse.redirect(previewUrl, { status: 303 });
+  }
+
   const { siteUrl } = getPublicEnv();
   const loginUrl = new URL("/auth/login", siteUrl);
 
@@ -50,5 +58,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (isPreviewAuthBypassEnabled()) {
+    const previewUrl = request.nextUrl.clone();
+    previewUrl.pathname = request.nextUrl.searchParams.get("next") ?? "/app";
+    previewUrl.search = "";
+    return NextResponse.redirect(previewUrl, { status: 303 });
+  }
+
   return startGoogleAuth(request);
 }
