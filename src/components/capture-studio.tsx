@@ -16,6 +16,8 @@ type CaptureSource = {
   origin: "upload" | "recording";
 };
 
+type CaptureMode = "record" | "upload";
+
 function pickRecorderMimeType() {
   if (typeof window === "undefined" || typeof MediaRecorder === "undefined") {
     return null;
@@ -52,22 +54,26 @@ function readAudioDuration(file: File) {
 
     audio.onerror = () => {
       cleanup();
-      reject(new Error("Trajanja posnetka ni bilo mogoče prebrati."));
+      reject(new Error("The recording duration could not be read."));
     };
   });
 }
 
 function validateAudio(file: File, durationSeconds: number) {
   if (file.size > MAX_AUDIO_BYTES) {
-    throw new Error("Posnetek je prevelik. Trenutna omejitev je 150 MB.");
+    throw new Error("The recording is too large. The current limit is 150 MB.");
   }
 
   if (durationSeconds > MAX_AUDIO_SECONDS) {
-    throw new Error("Posnetek je predolg. Trenutna omejitev je 2 uri.");
+    throw new Error("The recording is too long. The current limit is 2 hours.");
   }
 }
 
-export function CaptureStudio() {
+export function CaptureStudio({
+  initialMode = "record",
+}: {
+  initialMode?: CaptureMode;
+}) {
   const router = useRouter();
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -77,6 +83,7 @@ export function CaptureStudio() {
 
   const [consent, setConsent] = useState(false);
   const [source, setSource] = useState<CaptureSource | null>(null);
+  const [captureMode, setCaptureMode] = useState<CaptureMode>(initialMode);
   const [isRecording, setIsRecording] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +98,10 @@ export function CaptureStudio() {
   useEffect(() => {
     setRecordingSupported(typeof window !== "undefined" && "MediaRecorder" in window);
   }, []);
+
+  useEffect(() => {
+    setCaptureMode(initialMode);
+  }, [initialMode]);
 
   useEffect(() => {
     return () => {
@@ -126,7 +137,7 @@ export function CaptureStudio() {
       setError(
         validationError instanceof Error
           ? validationError.message
-          : "Neveljaven posnetek.",
+          : "Invalid recording.",
       );
     }
   }
@@ -140,6 +151,7 @@ export function CaptureStudio() {
 
     try {
       const durationSeconds = await readAudioDuration(file);
+      setCaptureMode("upload");
       await setNewSource({
         file,
         durationSeconds,
@@ -150,7 +162,7 @@ export function CaptureStudio() {
       setError(
         uploadError instanceof Error
           ? uploadError.message
-          : "Datoteke ni bilo mogoče pripraviti.",
+          : "The file could not be prepared.",
       );
     } finally {
       event.target.value = "";
@@ -159,16 +171,17 @@ export function CaptureStudio() {
 
   async function startRecording() {
     if (!recordingSupported) {
-      setError("Ta brskalnik ne podpira snemanja v aplikaciji.");
+      setError("This browser does not support in-app recording.");
       return;
     }
 
     if (!consent) {
-      setError("Pred snemanjem potrdi dovoljenje za snemanje predavanja.");
+      setError("Confirm recording permission before you start.");
       return;
     }
 
     try {
+      setCaptureMode("record");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       chunksRef.current = [];
@@ -225,7 +238,7 @@ export function CaptureStudio() {
       setError(
         recordError instanceof Error
           ? recordError.message
-          : "Snemanja ni bilo mogoče začeti.",
+          : "Recording could not be started.",
       );
     }
   }
@@ -243,12 +256,12 @@ export function CaptureStudio() {
 
   async function handleSubmit() {
     if (!consent) {
-      setError("Pred nalaganjem potrdi dovoljenje za snemanje in obdelavo.");
+      setError("Confirm recording and processing permission before uploading.");
       return;
     }
 
     if (!source) {
-      setError("Najprej naloži ali posnemi zvočni posnetek.");
+      setError("Upload or record audio first.");
       return;
     }
 
@@ -268,14 +281,14 @@ export function CaptureStudio() {
           mimeType: normalizedMimeType,
           size: source.file.size,
           durationSeconds: Math.max(source.durationSeconds, 1),
-          languageHint: "sl",
+          languageHint: "en",
         }),
       });
 
       const createData = await createResponse.json();
 
       if (!createResponse.ok) {
-        throw new Error(createData.error ?? "Predavanja ni bilo mogoče ustvariti.");
+        throw new Error(createData.error ?? "The lecture could not be created.");
       }
 
       setStage("uploading");
@@ -309,7 +322,7 @@ export function CaptureStudio() {
 
       if (!finalizeResponse.ok) {
         throw new Error(
-          finalizeData.error ?? "Posnetka ni bilo mogoče poslati v obdelavo.",
+          finalizeData.error ?? "The recording could not be sent for processing.",
         );
       }
 
@@ -319,7 +332,7 @@ export function CaptureStudio() {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Obdelave ni bilo mogoče zagnati.",
+          : "Processing could not be started.",
       );
     } finally {
       setIsUploading(false);
@@ -328,154 +341,172 @@ export function CaptureStudio() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-      <section className="rounded-[32px] border border-stone-200/70 bg-[rgba(255,252,247,0.88)] p-6 shadow-[0_30px_80px_rgba(34,25,23,0.08)] backdrop-blur">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-blue-700">
-              Zajem predavanja
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-stone-950">
-              Posnemi ali naloži predavanje.
-            </h2>
-          </div>
-          <div className="rounded-full bg-blue-50 p-3 text-blue-700">
-            <Waves className="h-5 w-5" />
-          </div>
-        </div>
-
-        <label className="mt-6 flex items-start gap-3 rounded-[24px] border border-stone-200 bg-stone-50/80 p-4 text-sm leading-6 text-stone-700">
-          <input
-            checked={consent}
-            onChange={(event) => setConsent(event.target.checked)}
-            type="checkbox"
-            className="mt-1 h-4 w-4 rounded border-stone-300 text-blue-700"
-          />
-          <span>
-            Potrjujem, da imam dovoljenje za snemanje predavanja in za obdelavo
-            posnetka v tej aplikaciji.
-          </span>
-        </label>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+    <div className="space-y-6">
+      <section className="surface-card-strong p-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <button
             type="button"
-            onClick={isRecording ? stopRecording : startRecording}
-            className={cn(
-              "flex min-h-40 flex-col justify-between rounded-[28px] border p-5 text-left transition",
-              isRecording
-                ? "border-rose-200 bg-rose-50 text-rose-900"
-                : "border-stone-200 bg-white hover:border-blue-300 hover:bg-blue-50/60",
-            )}
+            onClick={() => setCaptureMode("record")}
+            className={`rounded-[24px] border px-5 py-5 text-left transition ${
+              captureMode === "record"
+                ? "border-blue-200 bg-[var(--brand-soft)] shadow-[0_10px_24px_rgba(0,113,227,0.08)]"
+                : "border-stone-200 bg-white hover:border-stone-300"
+            }`}
           >
-            <div className="flex items-center justify-between">
-              <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-blue-800">
-                Snemanje
-              </span>
-              {isRecording ? (
-                <PauseCircle className="h-6 w-6" />
-              ) : (
-                <Mic className="h-6 w-6" />
-              )}
+            <div
+              className={`inline-flex rounded-[18px] p-3 ${
+                captureMode === "record"
+                  ? "bg-white text-rose-500"
+                  : "bg-stone-100 text-stone-500"
+              }`}
+            >
+              <Mic className="h-5 w-5" />
             </div>
-            <div>
-              <p className="text-lg font-semibold">
-                {isRecording ? "Ustavi snemanje" : "Posnemi predavanje"}
-              </p>
-              <p className="mt-2 text-sm text-stone-600">
-                {isRecording
-                  ? `Snemanje teče: ${formatTimestamp(elapsedSeconds * 1000)}`
-                  : "Deluje v podprtih mobilnih in namiznih brskalnikih."}
-              </p>
-            </div>
+            <p className="mt-5 text-lg font-semibold tracking-tight text-stone-950">
+              Recording
+            </p>
           </button>
 
-          <label className="flex min-h-40 cursor-pointer flex-col justify-between rounded-[28px] border border-stone-200 bg-white p-5 transition hover:border-blue-300 hover:bg-blue-50/60">
-            <div className="flex items-center justify-between">
-              <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-stone-700">
-                Datoteka
-              </span>
-              <UploadCloud className="h-6 w-6 text-blue-700" />
+          <button
+            type="button"
+            onClick={() => setCaptureMode("upload")}
+            className={`rounded-[24px] border px-5 py-5 text-left transition ${
+              captureMode === "upload"
+                ? "border-blue-200 bg-[var(--brand-soft)] shadow-[0_10px_24px_rgba(0,113,227,0.08)]"
+                : "border-stone-200 bg-white hover:border-stone-300"
+            }`}
+            >
+            <div
+              className={`inline-flex rounded-[18px] p-3 ${
+                captureMode === "upload"
+                  ? "bg-white text-blue-700"
+                  : "bg-stone-100 text-stone-500"
+              }`}
+            >
+              <UploadCloud className="h-5 w-5" />
             </div>
-            <div>
-              <p className="text-lg font-semibold text-stone-950">
-                Naloži posnetek
-              </p>
-              <p className="mt-2 text-sm text-stone-600">
-                MP3, M4A, WAV, OGG ali WEBM. Največ 150 MB oziroma 2 uri.
-              </p>
-            </div>
-            <input
-              type="file"
-              accept="audio/*"
-              onChange={handleFileChange}
-              className="hidden"
-              disabled={!consent || isUploading}
-            />
-          </label>
+            <p className="mt-5 text-lg font-semibold tracking-tight text-stone-950">
+              Upload
+            </p>
+          </button>
         </div>
-
-        {recordingSupported === false && (
-          <p className="mt-4 text-sm text-amber-800">
-            Ta brskalnik ne podpira `MediaRecorder`. Nalaganje datotek še vedno
-            deluje.
-          </p>
-        )}
-
-        {error && (
-          <div className="mt-5 rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-            {error}
-          </div>
-        )}
       </section>
 
-      <section className="rounded-[32px] border border-stone-200/70 bg-[rgba(255,252,247,0.92)] p-6 shadow-[0_30px_80px_rgba(34,25,23,0.08)] backdrop-blur">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-700">
-          Pregled
-        </p>
-        <h3 className="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
-          Izbran posnetek
-        </h3>
-
-        {source ? (
-          <div className="mt-5 space-y-4">
-            <div className="rounded-[24px] border border-stone-200 bg-white p-4">
-              <p className="text-sm font-semibold text-stone-900">
-                {source.file.name}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs text-stone-600">
-                <span>{source.origin === "recording" ? "Posneto v aplikaciji" : "Naložena datoteka"}</span>
-                <span>{(source.file.size / (1024 * 1024)).toFixed(1)} MB</span>
-                <span>{formatTimestamp(source.durationSeconds * 1000)}</span>
-              </div>
+      <section className="surface-card-strong p-7 sm:p-8">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="section-title">
+                {captureMode === "record" ? "Record a lecture" : "Upload a recording"}
+              </h2>
             </div>
+            <div className="rounded-full bg-[var(--brand-soft)] p-3 text-blue-700">
+              <Waves className="h-5 w-5" />
+            </div>
+          </div>
 
-            <audio
-              controls
-              src={source.previewUrl}
-              className="w-full"
+          <label className="surface-muted mt-6 flex items-start gap-3 p-4 text-sm leading-6 text-stone-700">
+            <input
+              checked={consent}
+              onChange={(event) => setConsent(event.target.checked)}
+              type="checkbox"
+              className="mt-1 h-4 w-4 rounded border-stone-300 text-blue-700"
             />
-          </div>
-        ) : (
-          <div className="mt-5 rounded-[24px] border border-dashed border-stone-300 bg-stone-50/80 p-6 text-sm leading-7 text-stone-600">
-            Ko izbereš zvočni posnetek, bo tukaj prikazan predogled predavanja
-            pred pošiljanjem v prepis in ustvarjanje zapiskov.
-          </div>
-        )}
+            <span>
+              I confirm that I have permission to record this lecture and process
+              the recording in this app.
+            </span>
+          </label>
 
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!source || !consent || isUploading}
-          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full border border-blue-500 bg-blue-600 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(37,99,235,0.18)] transition hover:border-blue-600 hover:bg-blue-700 disabled:cursor-not-allowed disabled:border-stone-200 disabled:bg-stone-100 disabled:text-stone-400 disabled:shadow-none"
-          style={{ color: isUploading || !source || !consent ? undefined : "#ffffff" }}
-        >
-          {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {stage === "creating" && "Ustvarjam predavanje"}
-          {stage === "uploading" && "Nalagam zvok"}
-          {stage === "finalizing" && "Začenjam obdelavo"}
-          {stage === "idle" && "Ustvari zapiske iz predavanja"}
-        </button>
+          <div className="mt-6">
+            {captureMode === "record" ? (
+              <button
+                type="button"
+                onClick={isRecording ? stopRecording : startRecording}
+                className={cn(
+                  "flex min-h-64 w-full flex-col justify-between rounded-[30px] border p-7 text-left transition",
+                  isRecording
+                    ? "border-rose-200 bg-rose-50 text-rose-900"
+                    : "border-stone-200 bg-white hover:border-blue-300 hover:bg-[var(--brand-soft)]",
+                )}
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] ${
+                      isRecording
+                        ? "border border-rose-200 bg-white text-rose-700"
+                        : "border border-blue-200 bg-[var(--brand-soft)] text-blue-800"
+                    }`}
+                  >
+                    {isRecording ? "Recording live" : "Ready"}
+                  </span>
+                  {isRecording ? (
+                    <PauseCircle className="h-7 w-7" />
+                  ) : (
+                    <Mic className="h-7 w-7" />
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-[2rem] font-semibold tracking-tight text-stone-950">
+                    {isRecording ? "Stop recording" : "Start recording"}
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-stone-500">
+                    {isRecording
+                      ? `Recording time: ${formatTimestamp(elapsedSeconds * 1000)}`
+                      : "The microphone stays on until you stop it."}
+                  </p>
+                </div>
+              </button>
+            ) : (
+              <label className="flex min-h-64 cursor-pointer flex-col justify-between rounded-[30px] border border-stone-200 bg-white p-7 transition hover:border-blue-300 hover:bg-[var(--brand-soft)]">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-stone-700">
+                    File
+                  </span>
+                  <UploadCloud className="h-7 w-7 text-blue-700" />
+                </div>
+
+                <div>
+                  <p className="text-[2rem] font-semibold tracking-tight text-stone-950">
+                    Choose an audio file
+                  </p>
+                  <p className="mt-2 text-sm leading-7 text-stone-500">
+                    MP3, M4A, WAV, OGG, WEBM.
+                  </p>
+                </div>
+
+                <input
+                  type="file"
+                  accept="audio/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  disabled={!consent || isUploading}
+                />
+              </label>
+            )}
+          </div>
+
+          {recordingSupported === false && (
+            <p className="mt-4 text-sm leading-7 text-amber-800">
+              This browser does not support `MediaRecorder`. File uploads still work.
+            </p>
+          )}
+
+          {error ? <div className="danger-panel mt-5 px-4 py-3 text-sm">{error}</div> : null}
+          <div className="mt-6 flex justify-end">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!source || !consent || isUploading}
+              className="primary-button w-full px-5 py-3.5 text-sm sm:w-auto sm:min-w-64"
+            >
+              {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {stage === "creating" && "Creating lecture"}
+              {stage === "uploading" && "Uploading audio"}
+              {stage === "finalizing" && "Starting processing"}
+              {stage === "idle" && "Create notes"}
+            </button>
+          </div>
       </section>
     </div>
   );

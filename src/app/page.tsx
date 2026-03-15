@@ -1,9 +1,16 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Mic, NotebookTabs, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Sparkles } from "lucide-react";
 import { redirect } from "next/navigation";
 
-import { hasPublicSupabaseEnv } from "@/lib/public-env";
+import { BrandLogo } from "@/components/brand-logo";
 import { getOptionalUser } from "@/lib/auth";
+import { hasPublicSupabaseEnv } from "@/lib/public-env";
+
+const LANDING_POINTS = [
+  "Notes from audio, links, PDFs, or pasted text",
+  "Transcript, summary, and structured notes in one place",
+  "A focused workflow without extra screens",
+];
 
 export default async function HomePage() {
   if (hasPublicSupabaseEnv) {
@@ -14,117 +21,111 @@ export default async function HomePage() {
   }
 
   return (
-    <main className="relative overflow-hidden px-6 py-10 sm:px-10">
-      <div className="mx-auto max-w-6xl">
-        <header className="flex items-center justify-between gap-4">
-          <Link href="/" className="text-sm font-semibold uppercase tracking-[0.32em] text-stone-800">
-            Skripta AI
-          </Link>
-          <Link
-            href="/auth/login?next=/app"
-            className="inline-flex items-center gap-2 rounded-full bg-blue-700 px-5 py-3 text-sm font-semibold !text-white no-underline shadow-[0_12px_30px_rgba(29,78,216,0.28)] transition hover:bg-blue-600"
-            style={{ color: "#ffffff" }}
-          >
-            Prijava z Google
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </header>
-
-        <section className="grid items-end gap-10 py-20 lg:grid-cols-[1.15fr_0.85fr]">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-700">
-              Slovene-first AI zapiski
-            </p>
-            <h1 className="mt-6 max-w-4xl font-serif text-6xl leading-none tracking-tight text-stone-950 sm:text-7xl">
-              Posnemi predavanje. Dobi prepis, povzetek in uporabne zapiske.
-            </h1>
-            <p className="mt-8 max-w-2xl text-lg leading-8 text-stone-600">
-              Skripta AI je zasnovana za slovenske dijake in študente. Po enem
-              posnetku dobiš strukturirane zapiske, ključne teme in klepet nad
-              vsebino z navedbo na transkript.
-            </p>
-
-            <div className="mt-10 flex flex-wrap gap-4">
-              <Link
-                href="/auth/login?next=/app"
-                className="inline-flex items-center gap-2 rounded-full bg-blue-700 px-6 py-3.5 text-sm font-semibold !text-white no-underline shadow-[0_12px_30px_rgba(29,78,216,0.28)] transition hover:bg-blue-600"
-                style={{ color: "#ffffff" }}
-              >
-                Začni z Google prijavo
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                href="#features"
-                className="inline-flex items-center rounded-full border border-stone-300 bg-white px-6 py-3.5 text-sm font-semibold text-stone-900 transition hover:border-stone-400"
-              >
-                Kaj dobiš v MVP
-              </Link>
+    <main className="landing-shell">
+      <header className="ios-nav">
+        <div className="ios-nav-inner">
+          <div className="ios-nav-meta">
+            <div className="ios-nav-title">
+              <BrandLogo compact />
             </div>
-
-            {!hasPublicSupabaseEnv ? (
-              <div className="mt-8 rounded-[24px] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-7 text-amber-900">
-                Manjkajo `Supabase` okoljske spremenljivke. Pred lokalnim
-                zagonom izpolni `.env.local` po vzorcu iz `.env.example`.
-              </div>
-            ) : null}
+            <div className="ios-nav-caption">AI notes for lectures</div>
           </div>
+          <div className="ios-nav-actions">
+            <Link href="/auth/login?next=/app" className="ios-nav-button end">
+              Sign in
+            </Link>
+          </div>
+        </div>
+      </header>
 
-          <div className="rounded-[40px] border border-white/60 bg-[linear-gradient(135deg,rgba(15,58,217,0.96),rgba(19,16,85,0.92))] p-8 text-white shadow-[0_35px_140px_rgba(15,58,217,0.28)]">
-            <div className="flex items-center justify-between">
-              <span className="rounded-full bg-white/12 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em]">
-                Core loop
-              </span>
-              <Sparkles className="h-5 w-5 text-amber-300" />
+      <div className="ios-content">
+        <div className="space-y-6">
+          <section className="mb-20 mt-12">
+            <div className="landing-grid">
+              <div className="space-y-6 max-w-2xl mx-auto text-center">
+                <div className="inline-flex items-center gap-2 rounded-full bg-[var(--tint-soft)] px-3 py-1 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-[var(--tint)] mb-4">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Focused workflow
+                </div>
+
+                <div className="ios-title-block">
+                  <h1 className="text-[3.5rem] font-bold tracking-[-0.04em] leading-[1.05] mb-4">
+                    Cleaner AI notes for lectures.
+                  </h1>
+                  <p className="ios-subtitle text-[1.2rem] max-w-xl mx-auto">
+                    A minimal space to capture, process, and review course content
+                    with a calm, lightweight app feel.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-4 sm:flex-row justify-center mt-6">
+                  <Link href="/auth/login?next=/app" className="primary-button sm:w-auto" style={{
+                    backgroundColor: "var(--label)",
+                    color: "var(--canvas)",
+                    padding: "0 2rem",
+                    minHeight: "3.5rem",
+                    fontSize: "1.05rem"
+                  }}>
+                    Get started
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <Link href="#kaj-dobis" className="primary-button sm:w-auto" style={{
+                    backgroundColor: "var(--surface-muted)",
+                    color: "var(--label)",
+                    padding: "0 2rem",
+                    minHeight: "3.5rem",
+                    fontSize: "1.05rem"
+                  }}>
+                    See what you get
+                  </Link>
+                </div>
+              </div>
+
+              <div className="landing-spotlight mt-20 grid sm:grid-cols-2 gap-8 text-left">
+                <div className="landing-stat p-6 rounded-[24px]" style={{ backgroundColor: "var(--surface-solid)", border: "1px solid var(--separator)" }}>
+                  <p className="ios-section-label">What you get</p>
+                  <p className="text-[1.2rem] font-semibold mt-2">Transcript, summary, and chat</p>
+                  <p className="ios-row-subtitle mt-2">
+                    The key outputs stay together in a single workspace.
+                  </p>
+                </div>
+
+                <div className="landing-stat p-6 rounded-[24px]" style={{ backgroundColor: "var(--surface-solid)", border: "1px solid var(--separator)" }}>
+                  <p className="ios-section-label">Inputs</p>
+                  <p className="text-[1.2rem] font-semibold mt-2">Audio, link, PDF, or text</p>
+                  <p className="ios-row-subtitle mt-2">
+                    Use the source you already have without changing your workflow.
+                  </p>
+                </div>
+              </div>
             </div>
-            <ol className="mt-8 space-y-5 text-sm leading-7 text-blue-50/92">
-              <li className="rounded-[24px] border border-white/10 bg-white/8 p-4">
-                1. Posnemi ali naloži predavanje.
-              </li>
-              <li className="rounded-[24px] border border-white/10 bg-white/8 p-4">
-                2. Samodejno dobiš prepis s časovnimi oznakami.
-              </li>
-              <li className="rounded-[24px] border border-white/10 bg-white/8 p-4">
-                3. Aplikacija pripravi povzetek, ključne teme in zapiske.
-              </li>
-              <li className="rounded-[24px] border border-white/10 bg-white/8 p-4">
-                4. Nad predavanjem lahko postavljaš vprašanja z navedenimi citati.
-              </li>
-            </ol>
-          </div>
-        </section>
+          </section>
 
-        <section id="features" className="grid gap-6 pb-16 md:grid-cols-3">
-          {[
-            {
-              icon: Mic,
-              title: "Zajem brez prekinitev",
-              body: "Snemanje v brskalniku ali nalaganje datoteke za primere, ko imaš posnetek že shranjen.",
-            },
-            {
-              icon: NotebookTabs,
-              title: "Prepis in strukturirani zapiski",
-              body: "Zapiski ostanejo vezani na transkript, zato lahko preveriš vir in hitro najdeš relevanten del predavanja.",
-            },
-            {
-              icon: CheckCircle2,
-              title: "Grounded AI klepet",
-              body: "Vprašanja se rešujejo samo iz trenutnega predavanja, brez mešanja z drugimi zapiski ali spletnimi viri.",
-            },
-          ].map((item) => (
-            <article
-              key={item.title}
-              className="rounded-[28px] border border-stone-200/70 bg-[rgba(255,252,247,0.88)] p-6 shadow-[0_24px_80px_rgba(34,25,23,0.06)]"
-            >
-              <div className="inline-flex rounded-full bg-blue-50 p-3 text-blue-700">
-                <item.icon className="h-5 w-5" />
-              </div>
-              <h2 className="mt-5 text-2xl font-semibold tracking-tight text-stone-950">
-                {item.title}
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-stone-600">{item.body}</p>
-            </article>
-          ))}
-        </section>
+          <section className="ios-section" id="kaj-dobis">
+            <p className="ios-section-label">What you get</p>
+            <div className="ios-group">
+              {LANDING_POINTS.map((item) => (
+                <div key={item} className="ios-row ios-row-static">
+                  <div className="ios-row-icon">
+                    <Check className="h-4 w-4 text-[var(--tint)]" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="ios-row-title">{item}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {!hasPublicSupabaseEnv ? (
+            <div className="ios-card">
+              <p className="ios-info ios-danger">
+                Missing public `Supabase` environment variables. Fill in
+                `.env.local` before running locally.
+              </p>
+            </div>
+          ) : null}
+        </div>
       </div>
     </main>
   );

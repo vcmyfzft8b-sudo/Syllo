@@ -44,7 +44,7 @@ export async function POST(
 
   if (lecture.status !== "ready") {
     return NextResponse.json(
-      { error: "Klepet je na voljo po uspešni obdelavi predavanja." },
+      { error: "Chat is available after the lecture has finished processing." },
       { status: 409 },
     );
   }

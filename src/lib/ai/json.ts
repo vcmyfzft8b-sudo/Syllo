@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { ResponseInput } from "openai/resources/responses/responses";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 
@@ -10,7 +11,7 @@ export async function generateStructuredObject<TSchema extends z.ZodTypeAny>(par
   schema: TSchema;
   schemaName?: string;
   instructions: string;
-  input: string;
+  input: string | ResponseInput;
 }) {
   const env = getServerEnv();
   const openai = getOpenAiClient();

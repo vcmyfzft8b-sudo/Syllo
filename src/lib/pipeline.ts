@@ -57,7 +57,7 @@ async function generateNotesFromTranscript(
         schema: chunkSummarySchema,
         schemaName: "chunk_summary",
         instructions:
-          "You create accurate Slovene study notes from lecture transcripts. Preserve English technical terms when they appear in the source. Never invent missing facts.",
+          "You create accurate English study notes from lecture transcripts. Preserve technical terms from the source when they matter. Never invent missing facts.",
         input: `Lecture chunk ${index + 1}.\nTime range: ${window.startMs}-${window.endMs} ms.\nTranscript:\n${window.text}`,
       }),
     ),
@@ -67,7 +67,7 @@ async function generateNotesFromTranscript(
     schema: noteArtifactSchema,
     schemaName: "note_artifact",
     instructions:
-      "You are preparing final lecture notes for a student in Slovenia. Write in Slovene, preserve English technical terms when they are part of the lecture, and ground every point in the supplied chunk summaries only. The markdown notes should use headings, bullet points, and concise explanations.",
+      "You are preparing final lecture notes in English. Preserve technical terms from the lecture when they are part of the source, and ground every point in the supplied chunk summaries only. The markdown notes should use headings, bullet points, and concise explanations.",
     input: JSON.stringify(
       {
         chunkSummaries: chunkOutputs,
@@ -285,7 +285,7 @@ export async function answerLectureChat(params: {
     schema: chatAnswerSchema,
     schemaName: "chat_answer",
     instructions:
-      "Answer the student in Slovene. Use only the supplied lecture context. If the answer is not fully supported, say that the lecture does not clearly state it. Cite only transcript chunks that are genuinely relevant.",
+      "Answer the student in English. Use only the supplied lecture context. If the answer is not fully supported, say that the lecture does not clearly state it. Cite only transcript chunks that are genuinely relevant.",
     input: JSON.stringify(
       {
         question: params.question,

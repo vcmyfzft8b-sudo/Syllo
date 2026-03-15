@@ -6,28 +6,28 @@ const statusMap: Record<
   { label: string; className: string }
 > = {
   uploading: {
-    label: "Nalaganje",
-    className: "bg-amber-100 text-amber-900 border-amber-200",
+    label: "Uploading",
+    className: "bg-[var(--tertiary-background)] text-[var(--secondary-label)]",
   },
   queued: {
-    label: "V vrsti",
-    className: "bg-sky-100 text-sky-900 border-sky-200",
+    label: "Queued",
+    className: "bg-[var(--tertiary-background)] text-[var(--secondary-label)]",
   },
   transcribing: {
-    label: "Prepisovanje",
-    className: "bg-violet-100 text-violet-900 border-violet-200",
+    label: "Transcribing",
+    className: "bg-[var(--tertiary-background)] text-[var(--secondary-label)]",
   },
   generating_notes: {
-    label: "Ustvarjanje zapiskov",
-    className: "bg-indigo-100 text-indigo-900 border-indigo-200",
+    label: "Generating notes",
+    className: "bg-[var(--tertiary-background)] text-[var(--secondary-label)]",
   },
   ready: {
-    label: "Pripravljeno",
-    className: "bg-emerald-100 text-emerald-900 border-emerald-200",
+    label: "Ready",
+    className: "bg-[var(--green-soft)] text-[var(--green)]",
   },
   failed: {
-    label: "Napaka",
-    className: "bg-rose-100 text-rose-900 border-rose-200",
+    label: "Error",
+    className: "bg-[var(--red-soft)] text-[var(--red)]",
   },
 };
 
@@ -37,7 +37,7 @@ export function StatusBadge({ status }: { status: LectureStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold tracking-wide",
+        "ios-status px-2.5 py-1 uppercase tracking-[0.04em]",
         config.className,
       )}
     >

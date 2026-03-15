@@ -1,31 +1,66 @@
 import Link from "next/link";
 
+import { getPublicEnv } from "@/lib/public-env";
+
 export default async function AuthErrorPage({
   searchParams,
 }: {
   searchParams: Promise<{ message?: string }>;
 }) {
   const params = await searchParams;
+  const { siteUrl } = getPublicEnv();
+  const retryAction = new URL("/auth/google", siteUrl);
+  retryAction.searchParams.set("next", "/app");
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl items-center px-6 py-16">
-      <div className="w-full rounded-[32px] border border-stone-200 bg-white p-8 shadow-[0_24px_100px_rgba(28,25,23,0.08)]">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-700">
-          Prijava ni uspela
-        </p>
-        <h1 className="mt-4 text-3xl font-semibold text-stone-950">
-          Google prijave trenutno ni bilo mogoče zaključiti.
-        </h1>
-        <p className="mt-4 text-base leading-7 text-stone-600">
-          {params.message ?? "Poskusi ponovno ali preveri nastavitve Supabase OAuth."}
-        </p>
-        <Link
-          href="/"
-          className="mt-8 inline-flex rounded-full bg-blue-700 px-5 py-3 text-sm font-semibold !text-white no-underline shadow-[0_12px_30px_rgba(29,78,216,0.28)] transition hover:bg-blue-600"
-          style={{ color: "#ffffff" }}
-        >
-          Nazaj na začetek
-        </Link>
+    <main className="landing-shell">
+      <header className="ios-nav">
+        <div className="ios-nav-inner">
+          <div className="ios-nav-actions">
+            <Link href="/" className="ios-nav-button">
+              Back
+            </Link>
+          </div>
+          <div className="ios-nav-meta">
+            <div className="ios-nav-title">Sign in</div>
+            <div className="ios-nav-caption">Authentication error</div>
+          </div>
+          <div className="ios-nav-actions" />
+        </div>
+      </header>
+
+      <div className="ios-content flex items-center justify-center min-h-[70vh]">
+        <div className="space-y-6 max-w-lg mx-auto text-center">
+          <div className="ios-title-block">
+            <p className="ios-section-label tracking-wider uppercase text-[var(--red)] text-xs font-bold mb-2">Error</p>
+            <h1 className="text-[2rem] font-bold tracking-[-0.04em] leading-[1.1] mb-4">Google sign-in could not be completed.</h1>
+            <p className="ios-subtitle text-[1.1rem]">
+              {params.message ??
+                "Try again or verify that the OAuth settings are configured correctly."}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-4 sm:flex-row justify-center mt-6">
+            <form action={retryAction.toString()} method="post">
+              <button type="submit" className="primary-button sm:w-auto" style={{
+                backgroundColor: "var(--label)",
+                color: "var(--canvas)",
+                minHeight: "3rem",
+                fontSize: "1rem"
+              }}>
+                Try again
+              </button>
+            </form>
+            <Link href="/" className="primary-button sm:w-auto" style={{
+              backgroundColor: "var(--surface-muted)",
+              color: "var(--label)",
+              minHeight: "3rem",
+              fontSize: "1rem"
+            }}>
+              Back to home
+            </Link>
+          </div>
+        </div>
       </div>
     </main>
   );

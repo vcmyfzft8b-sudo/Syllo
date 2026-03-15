@@ -27,6 +27,13 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  if (lecture.source_type !== "audio") {
+    return NextResponse.json(
+      { error: "Retry is currently supported only for audio notes." },
+      { status: 400 },
+    );
+  }
+
   const { error } = await supabase
     .from("lectures")
     .update(

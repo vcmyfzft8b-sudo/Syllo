@@ -1,13 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-import { getPublicEnv } from "@/lib/public-env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
 
-  return NextResponse.redirect(new URL("/", getPublicEnv().siteUrl), {
+  const url = request.nextUrl.clone();
+  url.pathname = "/";
+  // Clear any existing search params
+  url.search = "";
+
+  return NextResponse.redirect(url, {
     status: 303,
   });
 }

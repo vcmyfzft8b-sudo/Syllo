@@ -1,22 +1,13 @@
 import type { Metadata } from "next";
-import { Fraunces, Manrope } from "next/font/google";
+
+import { BRAND_NAME } from "@/lib/brand";
 
 import "./globals.css";
 
-const sans = Manrope({
-  variable: "--font-sans",
-  subsets: ["latin"],
-});
-
-const serif = Fraunces({
-  variable: "--font-serif",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Skripta AI",
+  title: BRAND_NAME,
   description:
-    "Slovene-first AI zapiski za predavanja: snemanje, prepis, povzetek in klepet nad vsebino.",
+    "AI lecture notes with recording, transcription, summaries, and chat.",
 };
 
 export default function RootLayout({
@@ -25,10 +16,28 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="sl">
-      <body className={`${sans.variable} ${serif.variable}`}>
-        {children}
-      </body>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  var theme = localStorage.getItem("nota-theme");
+                  if (theme === "light" || theme === "dark") {
+                    document.documentElement.dataset.theme = theme;
+                    document.documentElement.style.colorScheme = theme;
+                  } else {
+                    document.documentElement.removeAttribute("data-theme");
+                    document.documentElement.style.colorScheme = "";
+                  }
+                } catch (error) {}
+              })();
+            `,
+          }}
+        />
+      </head>
+      <body>{children}</body>
     </html>
   );
 }
