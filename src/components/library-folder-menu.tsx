@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Folder } from "@/components/folder";
@@ -349,11 +349,11 @@ export function LibraryFolderMenu({
           >
             <button
               type="button"
-              className="library-folder-modal-close"
+              className="app-close-button library-folder-modal-close"
               onClick={() => setIsCreateModalOpen(false)}
               aria-label="Close new folder dialog"
             >
-              <ChevronDown className="h-5 w-5" />
+              <X className="h-5 w-5" />
             </button>
 
             <div className="library-folder-modal-header">
@@ -436,11 +436,11 @@ export function LibraryFolderMenu({
           >
             <button
               type="button"
-              className="library-folder-modal-close"
+              className="app-close-button library-folder-modal-close"
               onClick={handleCancelEdit}
               aria-label="Close edit folder dialog"
             >
-              <ChevronDown className="h-5 w-5" />
+              <X className="h-5 w-5" />
             </button>
 
             <div className="library-folder-modal-header">

@@ -37,7 +37,7 @@ export default async function LoginPage({
   return (
     <main className="landing-shell flex flex-col items-center justify-center min-h-screen bg-[var(--canvas)] p-4">
       <div className="absolute top-0 left-0 w-full p-4 flex items-center">
-        <Link href="/" className="ios-nav-button" style={{ marginLeft: "-0.5rem" }}>
+        <Link href="/" className="app-back-button">
           <ChevronLeft className="h-5 w-5" />
           Back
         </Link>

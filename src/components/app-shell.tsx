@@ -79,7 +79,7 @@ export function AppShell({
 
         <div className="desktop-brandline-actions">
           {chrome.backHref ? (
-            <Link href={chrome.backHref} className="ios-nav-button desktop-brandline-back">
+            <Link href={chrome.backHref} className="app-back-button desktop-brandline-back">
               <ChevronLeft className="h-5 w-5" />
               Back
             </Link>
@@ -136,7 +136,7 @@ export function AppShell({
 
             {chrome.backHref ? (
               <div className="ios-nav-actions">
-                <Link href={chrome.backHref} className="ios-nav-button" style={{ marginLeft: "-0.5rem" }}>
+                <Link href={chrome.backHref} className="app-back-button">
                   <ChevronLeft className="h-5 w-5" />
                   Back
                 </Link>

@@ -1,6 +1,5 @@
 "use client";
 
-import type { TDocumentDefinitions } from "pdfmake/interfaces";
 import {
   Download,
   FileAudio2,
@@ -10,14 +9,11 @@ import {
   RefreshCcw,
   ScrollText,
   Send,
-  Sparkles,
-  Waves,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { StatusBadge } from "@/components/status-badge";
-import { BRAND_NAME } from "@/lib/brand";
 import { POLL_INTERVAL_MS } from "@/lib/constants";
 import type { ChatMessageWithCitations, LectureDetail } from "@/lib/types";
 import {
@@ -50,16 +46,47 @@ function shouldPoll(status: LectureDetail["lecture"]["status"]) {
   return ["uploading", "queued", "transcribing", "generating_notes"].includes(status);
 }
 
-function stripMarkdown(markdown: string) {
-  return markdown
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/\*\*(.*?)\*\*/g, "$1")
-    .replace(/\*(.*?)\*/g, "$1")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/^\s*[-*+]\s+/gm, "• ")
-    .replace(/^\s*\d+\.\s+/gm, "")
-    .replace(/\n{3,}/g, "\n\n")
+function normalizeHeadingText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/["'“”‘’]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
+}
+
+function stripLeadingRedundantHeading(markdown: string, title?: string | null) {
+  const lines = markdown.split("\n");
+  const firstContentIndex = lines.findIndex((line) => line.trim().length > 0);
+
+  if (firstContentIndex === -1) {
+    return markdown;
+  }
+
+  const match = lines[firstContentIndex].match(/^#{1,6}\s+(.+)$/);
+  if (!match) {
+    return markdown;
+  }
+
+  const heading = normalizeHeadingText(match[1] ?? "");
+  const normalizedTitle = normalizeHeadingText(title ?? "");
+  const genericHeadings = new Set(["notes", "lecture notes", "structured notes"]);
+
+  if (!genericHeadings.has(heading) && heading !== normalizedTitle) {
+    return markdown;
+  }
+
+  const remainingLines = lines.slice(firstContentIndex + 1);
+
+  while (remainingLines[0]?.trim() === "") {
+    remainingLines.shift();
+  }
+
+  return remainingLines.join("\n").trim();
+}
+
+function sanitizeFileName(value?: string | null) {
+  return value?.replace(/[\\/:*?"<>|]+/g, "").trim() || "note";
 }
 
 function sourceLabel(sourceType: string) {
@@ -82,18 +109,15 @@ function ChatBubble({ message }: { message: ChatMessageWithCitations }) {
   const assistant = message.role === "assistant";
 
   return (
-    <div className={`chat-bubble ${assistant ? "assistant" : "user"}`}>
-      <div className="ios-message">
-        <p className="m-0 text-[0.74rem] font-semibold uppercase tracking-[0.08em] text-[var(--secondary-label)]">
-          {assistant ? `${BRAND_NAME} AI` : "You"}
-        </p>
-        <p className="mt-2 text-[0.96rem] leading-7 text-[var(--label)]">{message.content}</p>
+    <div className={`lecture-chat-message ${assistant ? "assistant" : "user"}`}>
+      <div className="lecture-chat-bubble">
+        <p className="lecture-chat-copy">{message.content}</p>
         {message.citations.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="lecture-chat-citations">
             {message.citations.map((citation) => (
               <span
                 key={`${message.id}-${citation.idx}-${citation.startMs}`}
-                className="ios-status bg-[var(--surface-muted)] text-[var(--secondary-label)]"
+                className="lecture-chat-citation"
               >
                 {formatTimestamp(citation.startMs)}
               </span>
@@ -117,6 +141,7 @@ export function LectureWorkspace({
   const [isSending, setIsSending] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setDetail(initialDetail);
@@ -146,30 +171,34 @@ export function LectureWorkspace({
     return () => window.clearInterval(interval);
   }, [detail.lecture.id, detail.lecture.status]);
 
-  const exportMarkdown = useMemo(() => {
-    const lines = [
-      `# ${detail.lecture.title ?? "Lecture"}`,
-      "",
-      `Status: ${detail.lecture.status}`,
-      `Date: ${formatRelativeDate(detail.lecture.created_at)}`,
-      "",
-      "## Summary",
-      "",
-      detail.artifact?.summary ?? "Summary is not available yet.",
-      "",
-      "## Key topics",
-      "",
-      ...(detail.artifact?.key_topics.map((topic) => `- ${topic}`) ?? [
-        "- Key topics are not ready yet.",
-      ]),
-      "",
-      "## Notes",
-      "",
-      detail.artifact?.structured_notes_md ?? "Notes are not ready yet.",
-    ];
+  useEffect(() => {
+    if (activeTab !== "chat") {
+      return;
+    }
 
-    return lines.join("\n");
-  }, [detail]);
+    const chatScroll = chatScrollRef.current;
+    if (!chatScroll) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      chatScroll.scrollTo({
+        top: chatScroll.scrollHeight,
+        behavior: "auto",
+      });
+    });
+  }, [activeTab, detail.chatMessages.length, isSending]);
+
+  const cleanedStructuredNotes = useMemo(() => {
+    if (!detail.artifact?.structured_notes_md) {
+      return null;
+    }
+
+    return stripLeadingRedundantHeading(
+      detail.artifact.structured_notes_md,
+      detail.lecture.title,
+    );
+  }, [detail.artifact?.structured_notes_md, detail.lecture.title]);
 
   async function handleRetry() {
     setIsRetrying(true);
@@ -188,9 +217,7 @@ export function LectureWorkspace({
     }
   }
 
-  async function handleChatSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
+  async function submitChatQuestion() {
     if (!question.trim()) {
       return;
     }
@@ -248,14 +275,23 @@ export function LectureWorkspace({
     }));
   }
 
-  function downloadMarkdown() {
-    const blob = new Blob([exportMarkdown], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${detail.lecture.title ?? "note"}.md`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+  async function handleChatSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitChatQuestion();
+  }
+
+  function handleChatKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (!question.trim() || detail.lecture.status !== "ready" || isSending) {
+      return;
+    }
+
+    void submitChatQuestion();
   }
 
   async function downloadPdf() {
@@ -265,88 +301,36 @@ export function LectureWorkspace({
 
     setIsExportingPdf(true);
 
-    try {
-      const [{ default: pdfMake }, { default: pdfFonts }] = await Promise.all([
-        import("pdfmake/build/pdfmake"),
-        import("pdfmake/build/vfs_fonts"),
-      ]);
-      pdfMake.vfs = pdfFonts?.pdfMake?.vfs ?? pdfFonts?.vfs ?? pdfMake.vfs;
+    const anchor = document.createElement("a");
+    anchor.href = `/api/lectures/${detail.lecture.id}/pdf`;
+    anchor.download = `${sanitizeFileName(detail.lecture.title)}.pdf`;
+    anchor.rel = "noopener";
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
 
-      const docDefinition: TDocumentDefinitions = {
-        info: {
-          title: detail.lecture.title ?? "Lecture",
-        },
-        content: [
-          {
-            text: detail.lecture.title ?? "Lecture",
-            style: "title",
-          },
-          {
-            text: `${formatRelativeDate(detail.lecture.created_at)}  •  ${formatLectureDuration(detail.lecture.duration_seconds)}`,
-            style: "meta",
-          },
-          {
-            text: "Summary",
-            style: "heading",
-          },
-          {
-            text: detail.artifact.summary,
-            style: "body",
-          },
-          {
-            text: "Key topics",
-            style: "heading",
-          },
-          {
-            ul: detail.artifact.key_topics,
-            style: "body",
-          },
-          {
-            text: "Notes",
-            style: "heading",
-          },
-          {
-            text: stripMarkdown(detail.artifact.structured_notes_md),
-            style: "body",
-          },
-        ],
-        styles: {
-          title: { fontSize: 22, bold: true, margin: [0, 0, 0, 8] },
-          meta: { fontSize: 10, color: "#6f7280", margin: [0, 0, 0, 18] },
-          heading: { fontSize: 13, bold: true, margin: [0, 12, 0, 6] },
-          body: { fontSize: 11, lineHeight: 1.45, color: "#111111" },
-        },
-        defaultStyle: {
-          fontSize: 11,
-        },
-        pageMargins: [40, 48, 40, 48],
-      };
-
-      pdfMake.createPdf(docDefinition).download(`${detail.lecture.title ?? "note"}.pdf`);
-    } finally {
+    window.setTimeout(() => {
       setIsExportingPdf(false);
-    }
+    }, 800);
   }
 
   function renderPanel() {
     if (activeTab === "notes") {
       return (
-        <div className="workspace-panel-stack">
-          <div className="ios-card">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-[var(--tint)]" />
-              <p className="ios-section-label">Summary</p>
+        <div className="workspace-panel-stack lecture-panel-stack">
+          <div className="ios-card lecture-summary-card">
+            <div className="lecture-card-heading">
+              <p className="lecture-card-label">Summary</p>
             </div>
-            <p className="mt-4 text-[1rem] leading-8 text-[var(--label)]">
+            <p className="lecture-summary-text">
               {detail.artifact?.summary ?? "The summary will appear once processing is complete."}
             </p>
           </div>
 
-          <div className="ios-card">
-            <p className="ios-section-label">Structured notes</p>
-            <div className="markdown mt-4">
-              {detail.artifact ? (
-                <MarkdownRenderer content={detail.artifact.structured_notes_md} />
+          <div className="ios-card lecture-notes-card">
+            <div className="markdown lecture-markdown">
+              {cleanedStructuredNotes ? (
+                <MarkdownRenderer content={cleanedStructuredNotes} />
               ) : (
                 <p className="ios-info">Notes are not ready yet.</p>
               )}
@@ -358,43 +342,64 @@ export function LectureWorkspace({
 
     if (activeTab === "chat") {
       return (
-        <div className="workspace-panel-stack">
-          <div className="ios-card">
-            <p className="ios-section-label">Chat with this note</p>
-            <div className="chat-thread mt-4">
+        <div className="ios-card lecture-chat-shell">
+          <div ref={chatScrollRef} className="lecture-chat-scroll">
+            <div className="chat-thread lecture-chat-thread">
               {detail.chatMessages.length > 0 ? (
-                detail.chatMessages.map((message) => (
-                  <ChatBubble key={message.id} message={message} />
-                ))
+                <>
+                  {detail.chatMessages.map((message) => (
+                    <ChatBubble key={message.id} message={message} />
+                  ))}
+                  {isSending ? (
+                    <div className="lecture-chat-message assistant">
+                      <div className="lecture-chat-bubble lecture-chat-bubble-loading">
+                        <span className="lecture-chat-dots" aria-hidden="true">
+                          <span />
+                          <span />
+                          <span />
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
+                </>
               ) : (
-                <div className="empty-state">
-                  <p className="ios-row-title">No questions yet.</p>
-                  <p className="ios-row-subtitle">
-                    Once the notes are ready, you can ask follow-up questions here.
+                <div className="lecture-chat-empty">
+                  <p className="lecture-chat-empty-title">Ask about this lecture.</p>
+                  <p className="lecture-chat-empty-copy">
+                    Use the notes and transcript as context.
                   </p>
                 </div>
               )}
             </div>
           </div>
 
-          <form onSubmit={handleChatSubmit} className="ios-card">
-            <p className="ios-section-label">New question</p>
+          <form onSubmit={handleChatSubmit} className="lecture-chat-composer">
             <textarea
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
+              onKeyDown={handleChatKeyDown}
               disabled={detail.lecture.status !== "ready" || isSending}
-              className="ios-textarea mt-4"
-              placeholder="Ask something about this note"
+              className="lecture-chat-input"
+              placeholder="Ask about this lecture"
+              rows={1}
             />
-            {chatError ? <p className="ios-info ios-danger mt-3">{chatError}</p> : null}
-            <button
-              type="submit"
-              disabled={detail.lecture.status !== "ready" || isSending}
-              className="ios-primary-button mt-4 sm:w-auto"
-            >
-              {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              Send
-            </button>
+            <div className="lecture-chat-composer-footer">
+              {chatError ? (
+                <p className="lecture-chat-status ios-danger">{chatError}</p>
+              ) : detail.lecture.status !== "ready" ? (
+                <p className="lecture-chat-status">Available when processing finishes.</p>
+              ) : (
+                <p className="lecture-chat-status">Answers stay grounded in this lecture.</p>
+              )}
+              <button
+                type="submit"
+                disabled={detail.lecture.status !== "ready" || isSending}
+                className="lecture-chat-send"
+                aria-label="Send message"
+              >
+                {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </button>
+            </div>
           </form>
         </div>
       );
@@ -402,7 +407,7 @@ export function LectureWorkspace({
 
     if (activeTab === "transcript") {
       return detail.transcript.length > 0 ? (
-        <div className="ios-group">
+        <div className="ios-card lecture-transcript-card">
           {detail.transcript.map((segment) => (
             <div key={segment.id} className="timeline-row">
               <p className="timeline-time">
@@ -416,22 +421,22 @@ export function LectureWorkspace({
           ))}
         </div>
       ) : (
-        <div className="empty-state">
+        <div className="ios-card empty-state lecture-empty-card">
           <p className="ios-row-title">The transcript is still being prepared.</p>
-          <p className="ios-row-subtitle">When processing is done, the transcript will appear here.</p>
+          <p className="ios-row-subtitle">It will appear here when ready.</p>
         </div>
       );
     }
 
     return (
       <div className="ios-card audio-panel">
-        <p className="ios-section-label">Source audio</p>
+        <p className="lecture-card-label">Audio</p>
         {detail.audioUrl ? (
-          <audio controls src={detail.audioUrl} className="w-full" />
+          <audio controls src={detail.audioUrl} className="mt-4 w-full" />
         ) : (
-          <div className="empty-state">
+          <div className="empty-state lecture-empty-card">
             <p className="ios-row-title">Audio is not available yet.</p>
-            <p className="ios-row-subtitle">It will appear after the upload finishes.</p>
+            <p className="ios-row-subtitle">It will appear after upload finishes.</p>
           </div>
         )}
       </div>
@@ -439,35 +444,30 @@ export function LectureWorkspace({
   }
 
   return (
-    <div className="workspace-grid">
-      <div className="workspace-panel-stack">
-        <div className="space-y-4 mb-4">
-          <div className="ios-title-block mb-2">
-            <p className="ios-section-label tracking-wider uppercase text-xs font-bold text-[var(--secondary-label)] mb-1">Workspace</p>
-            <h1 className="ios-large-title">
-              {detail.lecture.title ?? "Lecture in progress"}
-            </h1>
-            <p className="ios-subtitle mt-2">
-              {formatRelativeDate(detail.lecture.created_at)} &middot;{" "}
-              {formatLectureDuration(detail.lecture.duration_seconds)}
-            </p>
-          </div>
+    <div className="lecture-workspace lecture-workspace-full">
+      <div className="workspace-panel-stack lecture-main-column">
+        <div className="lecture-header">
+          <div className="lecture-header-row">
+            <div className="ios-title-block lecture-title-block">
+              <h1 className="ios-large-title">
+                {detail.lecture.title ?? "Lecture in progress"}
+              </h1>
+              <div className="lecture-meta-row">
+                <StatusBadge status={detail.lecture.status} />
+                <span className="lecture-meta-pill">{sourceLabel(detail.lecture.source_type)}</span>
+                <span className="lecture-meta-copy">{formatRelativeDate(detail.lecture.created_at)}</span>
+                <span className="lecture-meta-dot" aria-hidden="true">
+                  •
+                </span>
+                <span className="lecture-meta-copy">
+                  {formatLectureDuration(detail.lecture.duration_seconds)}
+                </span>
+              </div>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={detail.lecture.status} />
-            <span className="ios-status bg-[var(--surface-muted)] text-[var(--secondary-label)]">
-              {sourceLabel(detail.lecture.source_type)}
-            </span>
-          </div>
-
-          <div className="flex flex-wrap gap-3 mt-4">
-            {detail.artifact ? (
-              <>
-                <button type="button" onClick={downloadMarkdown} className="ios-text-button">
-                  <Download className="h-4 w-4" />
-                  Markdown
-                </button>
-                <button type="button" onClick={downloadPdf} className="ios-text-button">
+            <div className="lecture-actions">
+              {detail.artifact ? (
+                <button type="button" onClick={downloadPdf} className="lecture-action-button">
                   {isExportingPdf ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
@@ -475,31 +475,37 @@ export function LectureWorkspace({
                   )}
                   PDF
                 </button>
-              </>
-            ) : null}
+              ) : null}
 
-            {detail.lecture.status === "failed" && detail.lecture.source_type === "audio" ? (
-              <button type="button" onClick={handleRetry} className="ios-text-button text-[var(--red)]">
-                {isRetrying ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCcw className="h-4 w-4" />
-                )}
-                Retry
-              </button>
-            ) : null}
+              {detail.lecture.status === "failed" && detail.lecture.source_type === "audio" ? (
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  className="lecture-action-button lecture-action-button-danger"
+                >
+                  {isRetrying ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCcw className="h-4 w-4" />
+                  )}
+                  Retry
+                </button>
+              ) : null}
+            </div>
           </div>
 
           {detail.lecture.error_message ? (
-            <p className="danger-panel mt-2">{detail.lecture.error_message}</p>
+            <p className="danger-panel lecture-inline-note">{detail.lecture.error_message}</p>
           ) : null}
 
           {shouldPoll(detail.lecture.status) ? (
-            <p className="ios-info mt-2">Processing is still running. This view refreshes automatically.</p>
+            <p className="ios-info lecture-inline-note">
+              Processing is still running. This view refreshes automatically.
+            </p>
           ) : null}
         </div>
 
-        <div className="ios-segmented">
+        <div className="ios-segmented lecture-segmented">
           {getTabItems(Boolean(detail.audioUrl)).map((tab) => (
             <button
               key={tab.id}
@@ -517,70 +523,6 @@ export function LectureWorkspace({
 
         {renderPanel()}
       </div>
-
-      <aside className="workspace-side-column">
-        <div className="workspace-summary-grid">
-          <div className="metric-card">
-            <p className="ios-section-label">Topics</p>
-            <p className="app-stat-value !text-[2rem]">
-              {detail.artifact?.key_topics.length ?? 0}
-            </p>
-            <p className="app-stat-label">Key topics extracted</p>
-          </div>
-
-          <div className="metric-card">
-            <p className="ios-section-label">Transcript</p>
-            <p className="app-stat-value !text-[2rem]">{detail.transcript.length}</p>
-            <p className="app-stat-label">Timeline segments</p>
-          </div>
-        </div>
-
-        <div className="workspace-side-card">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-[var(--tint)]" />
-            <p className="ios-section-label">Key topics</p>
-          </div>
-
-          {detail.artifact?.key_topics.length ? (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {detail.artifact.key_topics.map((topic) => (
-                <span
-                  key={topic}
-                  className="ios-status bg-[var(--surface-muted)] text-[var(--secondary-label)]"
-                >
-                  {topic}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="ios-row-subtitle mt-3">Topics will appear after processing is complete.</p>
-          )}
-        </div>
-
-        <div className="workspace-side-card">
-          <div className="flex items-center gap-2">
-            <Waves className="h-4 w-4 text-[var(--tint)]" />
-            <p className="ios-section-label">Details</p>
-          </div>
-
-          <div className="mt-4 space-y-4">
-            <div>
-              <p className="ios-row-title">Source</p>
-              <p className="ios-row-subtitle">{sourceLabel(detail.lecture.source_type)}</p>
-            </div>
-            <div>
-              <p className="ios-row-title">Created</p>
-              <p className="ios-row-subtitle">{formatRelativeDate(detail.lecture.created_at)}</p>
-            </div>
-            <div>
-              <p className="ios-row-title">Duration</p>
-              <p className="ios-row-subtitle">
-                {formatLectureDuration(detail.lecture.duration_seconds)}
-              </p>
-            </div>
-          </div>
-        </div>
-      </aside>
     </div>
   );
 }

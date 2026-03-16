@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 
 import { getPublicEnv } from "@/lib/public-env";
 
@@ -17,7 +18,8 @@ export default async function AuthErrorPage({
       <header className="ios-nav">
         <div className="ios-nav-inner">
           <div className="ios-nav-actions">
-            <Link href="/" className="ios-nav-button">
+            <Link href="/" className="app-back-button">
+              <ChevronLeft className="h-5 w-5" />
               Back
             </Link>
           </div>
