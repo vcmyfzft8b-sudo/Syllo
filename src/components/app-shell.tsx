@@ -13,7 +13,7 @@ import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
 
 const TAB_ITEMS = [
-  { href: "/app", displayLabel: "Notes", icon: House },
+  { href: "/app", displayLabel: "Home", icon: House },
   { href: "/app/support", displayLabel: "Help", icon: CircleHelp },
   {
     href: "/app/settings",

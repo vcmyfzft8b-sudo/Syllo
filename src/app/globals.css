@@ -2255,8 +2255,7 @@ select:disabled {
   padding: 1.4rem;
   border-radius: 24px;
   background:
-    radial-gradient(circle at top left, color-mix(in srgb, var(--tint-soft) 78%, transparent), transparent 34%),
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-solid) 98%, transparent), color-mix(in srgb, var(--surface-muted) 70%, transparent));
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-solid) 98%, transparent), color-mix(in srgb, var(--surface-muted) 62%, transparent));
 }
 
 .lecture-summary-text {
