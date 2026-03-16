@@ -88,13 +88,11 @@ export default async function SettingsPage() {
             href="/app/support/redeem-code"
             icon={Ticket}
             title="Redeem code"
-            detail="Add a code"
           />
           <SettingsLinkCard
             href="/app/support/privacy-policy"
             icon={Lock}
             title="Privacy"
-            detail="How notes are handled"
           />
         </div>
       </section>
@@ -109,13 +107,11 @@ export default async function SettingsPage() {
             href={`mailto:?subject=${encodeURIComponent(`Try ${BRAND_NAME}`)}&body=${encodeURIComponent(`I am using ${BRAND_NAME} for lecture notes and thought it might be useful for you too.`)}`}
             icon={Send}
             title="Share"
-            detail="Send by email"
           />
           <SettingsLinkCard
             href="/app/support/feature-request"
             icon={Bell}
             title="Suggest a feature"
-            detail="Send an idea"
           />
         </div>
       </section>

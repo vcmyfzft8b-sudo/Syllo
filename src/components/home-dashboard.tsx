@@ -10,7 +10,9 @@ import {
   Loader2,
   Mic,
   MoreVertical,
+  Pencil,
   Search,
+  Trash2,
   Type,
 } from "lucide-react";
 import { startTransition, useDeferredValue, useEffect, useRef, useState } from "react";
@@ -20,7 +22,7 @@ import { NoteSourceModal, type NoteSourceMode } from "@/components/note-source-m
 import { StatusBadge } from "@/components/status-badge";
 import { LibraryFolderMenu } from "@/components/library-folder-menu";
 import type { AppLectureListItem } from "@/lib/types";
-import { formatRelativeDate } from "@/lib/utils";
+import { formatCalendarDate } from "@/lib/utils";
 
 const QUICK_ACTIONS = [
   {
@@ -256,9 +258,6 @@ export function HomeDashboard({
         <section className="dashboard-section mt-4">
           <div className="dashboard-section-heading mb-4">
             <h2 className="dashboard-section-title">My notes</h2>
-            <p className="dashboard-section-meta">
-              {filteredLectures.length} {filteredLectures.length === 1 ? "note" : "notes"}
-            </p>
           </div>
 
           <div className="dashboard-toolbar library-toolbar">
@@ -354,7 +353,7 @@ export function HomeDashboard({
                         {lecture.title ?? "Untitled note"}
                       </p>
                       <p className="ios-row-subtitle mt-1">
-                        {sourceLabel(lecture.source_type)} • {formatRelativeDate(lecture.created_at)}
+                        {sourceLabel(lecture.source_type)} • {formatCalendarDate(lecture.created_at)}
                       </p>
                     </div>
 
@@ -389,27 +388,23 @@ export function HomeDashboard({
                       <div className="dashboard-note-menu">
                         <button
                           type="button"
-                          onClick={() => {
-                            setOpenMenuLectureId(null);
-                            router.push(`/app/lectures/${lecture.id}`);
-                          }}
-                          className="dashboard-note-menu-item"
-                        >
-                          Open note
-                        </button>
-                        <button
-                          type="button"
                           onClick={() => void handleRenameLecture(lecture)}
                           className="dashboard-note-menu-item"
+                          aria-label="Rename note"
+                          title="Rename note"
                         >
-                          Rename
+                          <Pencil className="h-4 w-4" />
+                          <span>Rename</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => void handleDeleteLecture(lecture.id)}
                           className="dashboard-note-menu-item danger"
+                          aria-label="Delete note"
+                          title="Delete note"
                         >
-                          Delete
+                          <Trash2 className="h-4 w-4" />
+                          <span>Delete</span>
                         </button>
                       </div>
                     ) : null}

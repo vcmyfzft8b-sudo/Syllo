@@ -16,8 +16,8 @@ export function Folder({
   const folderStyle = {
     "--folder-color": color,
     "--folder-back-color": "#6B7DCA",
-    "--paper-1": "#DCE3FA",
-    "--paper-2": "#EEF2FF",
+    "--paper-1": "#FFFFFF",
+    "--paper-2": "#FFFFFF",
     "--paper-3": "#FFFFFF",
   } as CSSProperties;
 

@@ -4,8 +4,6 @@ import { ChevronRight } from "lucide-react";
 import { HELP_SECTIONS } from "@/lib/help-center";
 
 export default function SupportPage() {
-  const totalArticles = HELP_SECTIONS.reduce((count, section) => count + section.items.length, 0);
-
   return (
     <main className="home-dashboard pb-8">
       <section className="dashboard-section">
@@ -13,9 +11,6 @@ export default function SupportPage() {
           <div>
             <h1 className="dashboard-page-title">Help</h1>
           </div>
-          <p className="dashboard-section-meta">
-            {totalArticles} {totalArticles === 1 ? "guide" : "guides"}
-          </p>
         </div>
       </section>
 
@@ -23,9 +18,6 @@ export default function SupportPage() {
         <section key={section.title} className="dashboard-section">
           <div className="dashboard-section-heading">
             <h2 className="dashboard-section-title">{section.title}</h2>
-            <p className="dashboard-section-meta">
-              {section.items.length} {section.items.length === 1 ? "item" : "items"}
-            </p>
           </div>
 
           <div className="dashboard-note-list">

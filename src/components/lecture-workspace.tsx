@@ -2,6 +2,7 @@
 
 import {
   Brain,
+  Check,
   Download,
   FileAudio2,
   FileText,
@@ -10,6 +11,7 @@ import {
   RefreshCcw,
   ScrollText,
   Send,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -19,14 +21,19 @@ import type { FlashcardConfidenceBucket, StudyAssetStatus } from "@/lib/database
 import { POLL_INTERVAL_MS } from "@/lib/constants";
 import type { ChatMessageWithCitations, LectureDetail } from "@/lib/types";
 import {
-  formatLectureDuration,
-  formatRelativeDate,
+  formatCalendarDate,
   formatTimestamp,
 } from "@/lib/utils";
 
 type WorkspaceTab = "notes" | "study" | "chat" | "transcript" | "audio";
 
-function getTabItems(hasAudio: boolean) {
+function getTabItems({
+  hasAudio,
+  showsTranscript,
+}: {
+  hasAudio: boolean;
+  showsTranscript: boolean;
+}) {
   const items: Array<{
     id: WorkspaceTab;
     label: string;
@@ -35,8 +42,11 @@ function getTabItems(hasAudio: boolean) {
     { id: "notes", label: "Notes", icon: FileText },
     { id: "study", label: "Study", icon: Brain },
     { id: "chat", label: "Chat", icon: MessageSquareText },
-    { id: "transcript", label: "Transcript", icon: ScrollText },
   ];
+
+  if (showsTranscript) {
+    items.push({ id: "transcript", label: "Transcript", icon: ScrollText });
+  }
 
   if (hasAudio) {
     items.push({ id: "audio", label: "Audio", icon: FileAudio2 });
@@ -58,6 +68,10 @@ function confidenceLabel(value: FlashcardConfidenceBucket) {
     return "Didn't know";
   }
   return "Knew it";
+}
+
+function confidenceIcon(value: FlashcardConfidenceBucket) {
+  return value === "again" ? X : Check;
 }
 
 function normalizeHeadingText(value: string) {
@@ -168,10 +182,17 @@ export function LectureWorkspace({
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const flashcardDeckKey = detail.flashcards.map((flashcard) => flashcard.id).join("|");
   const currentReviewFlashcardId = reviewQueue[0] ?? null;
+  const showsTranscript = detail.lecture.source_type === "audio";
 
   useEffect(() => {
     setDetail(initialDetail);
   }, [initialDetail]);
+
+  useEffect(() => {
+    if (activeTab === "transcript" && !showsTranscript) {
+      setActiveTab("notes");
+    }
+  }, [activeTab, showsTranscript]);
 
   useEffect(() => {
     if (activeTab === "audio" && !detail.audioUrl) {
@@ -504,12 +525,6 @@ export function LectureWorkspace({
               </button>
             </div>
 
-            <div className="lecture-study-meta">
-              <span className={`lecture-study-status ${detail.studyAsset?.status ?? "ready"}`}>
-                {detail.studyAsset?.status ?? "ready"}
-              </span>
-            </div>
-
             {studyError ? <p className="danger-panel lecture-inline-note">{studyError}</p> : null}
             {detail.studyAsset?.error_message ? (
               <p className="danger-panel lecture-inline-note">{detail.studyAsset.error_message}</p>
@@ -569,20 +584,27 @@ export function LectureWorkspace({
                 <div className="lecture-flashcard-toolbar">
                   {isFlashcardFlipped ? (
                     <div className="lecture-flashcard-review">
-                      {(["again", "easy"] as const).map((bucket) => (
-                        <button
-                          key={bucket}
-                          type="button"
-                          onClick={() => void handleFlashcardProgress(bucket)}
-                          disabled={activeProgressFlashcardId === currentFlashcard.id}
-                          className={`lecture-flashcard-review-button ${bucket}`}
-                        >
-                          {activeProgressFlashcardId === currentFlashcard.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : null}
-                          {confidenceLabel(bucket)}
-                        </button>
-                      ))}
+                      {(["again", "easy"] as const).map((bucket) => {
+                        const Icon = confidenceIcon(bucket);
+
+                        return (
+                          <button
+                            key={bucket}
+                            type="button"
+                            onClick={() => void handleFlashcardProgress(bucket)}
+                            disabled={activeProgressFlashcardId === currentFlashcard.id}
+                            className={`lecture-flashcard-review-button ${bucket}`}
+                            aria-label={confidenceLabel(bucket)}
+                            title={confidenceLabel(bucket)}
+                          >
+                            {activeProgressFlashcardId === currentFlashcard.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Icon className="h-5 w-5" />
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   ) : null}
                 </div>
@@ -597,7 +619,10 @@ export function LectureWorkspace({
                   type="button"
                   onClick={restartFlashcardReview}
                   className="lecture-study-refresh lecture-study-restart"
+                  aria-label="Start over"
+                  title="Start over"
                 >
+                  <RefreshCcw className="h-4 w-4" />
                   Start over
                 </button>
               </div>
@@ -646,7 +671,9 @@ export function LectureWorkspace({
                 <div className="lecture-chat-empty">
                   <p className="lecture-chat-empty-title">Ask about this lecture.</p>
                   <p className="lecture-chat-empty-copy">
-                    Use the notes and transcript as context.
+                    {showsTranscript
+                      ? "Use the notes and transcript as context."
+                      : "Use the notes as context."}
                   </p>
                 </div>
               )}
@@ -735,25 +762,24 @@ export function LectureWorkspace({
               <div className="lecture-meta-row">
                 <StatusBadge status={detail.lecture.status} />
                 <span className="lecture-meta-pill">{sourceLabel(detail.lecture.source_type)}</span>
-                <span className="lecture-meta-copy">{formatRelativeDate(detail.lecture.created_at)}</span>
-                <span className="lecture-meta-dot" aria-hidden="true">
-                  •
-                </span>
-                <span className="lecture-meta-copy">
-                  {formatLectureDuration(detail.lecture.duration_seconds)}
-                </span>
+                <span className="lecture-meta-copy">{formatCalendarDate(detail.lecture.created_at)}</span>
               </div>
             </div>
 
             <div className="lecture-actions">
               {detail.artifact ? (
-                <button type="button" onClick={downloadPdf} className="lecture-action-button">
+                <button
+                  type="button"
+                  onClick={downloadPdf}
+                  className="lecture-action-button"
+                  aria-label="Download PDF"
+                  title="Download PDF"
+                >
                   {isExportingPdf ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Download className="h-4 w-4" />
                   )}
-                  PDF
                 </button>
               ) : null}
 
@@ -786,7 +812,10 @@ export function LectureWorkspace({
         </div>
 
         <div className="ios-segmented lecture-segmented">
-          {getTabItems(Boolean(detail.audioUrl)).map((tab) => (
+          {getTabItems({
+            hasAudio: Boolean(detail.audioUrl),
+            showsTranscript,
+          }).map((tab) => (
             <button
               key={tab.id}
               type="button"
