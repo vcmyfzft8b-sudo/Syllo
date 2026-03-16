@@ -14,6 +14,15 @@ export type LectureStatus =
   | "ready"
   | "failed";
 
+export type StudyAssetStatus =
+  | "queued"
+  | "generating"
+  | "ready"
+  | "failed";
+
+export type FlashcardDifficulty = "easy" | "medium" | "hard";
+export type FlashcardConfidenceBucket = "again" | "good" | "easy";
+
 export interface Citation {
   idx: number;
   startMs: number;
@@ -162,6 +171,84 @@ export type Database = {
           citations_json?: Json;
         };
       };
+      lecture_study_assets: {
+        Row: {
+          lecture_id: string;
+          status: StudyAssetStatus;
+          error_message: string | null;
+          model_metadata: Json;
+          generated_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          lecture_id: string;
+          status?: StudyAssetStatus;
+          error_message?: string | null;
+          model_metadata?: Json;
+          generated_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: StudyAssetStatus;
+          error_message?: string | null;
+          model_metadata?: Json;
+          generated_at?: string;
+          updated_at?: string;
+        };
+      };
+      flashcards: {
+        Row: {
+          id: string;
+          lecture_id: string;
+          idx: number;
+          front: string;
+          back: string;
+          hint: string | null;
+          citations_json: Json;
+          difficulty: FlashcardDifficulty;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          lecture_id: string;
+          idx: number;
+          front: string;
+          back: string;
+          hint?: string | null;
+          citations_json?: Json;
+          difficulty: FlashcardDifficulty;
+          created_at?: string;
+        };
+        Update: {
+          idx?: number;
+          front?: string;
+          back?: string;
+          hint?: string | null;
+          citations_json?: Json;
+          difficulty?: FlashcardDifficulty;
+        };
+      };
+      flashcard_progress: {
+        Row: {
+          user_id: string;
+          flashcard_id: string;
+          confidence_bucket: FlashcardConfidenceBucket;
+          review_count: number;
+          last_reviewed_at: string | null;
+        };
+        Insert: {
+          user_id: string;
+          flashcard_id: string;
+          confidence_bucket?: FlashcardConfidenceBucket;
+          review_count?: number;
+          last_reviewed_at?: string | null;
+        };
+        Update: {
+          confidence_bucket?: FlashcardConfidenceBucket;
+          review_count?: number;
+          last_reviewed_at?: string | null;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -195,3 +282,8 @@ export type TranscriptSegmentRow =
 export type LectureArtifactRow =
   Database["public"]["Tables"]["lecture_artifacts"]["Row"];
 export type ChatMessageRow = Database["public"]["Tables"]["chat_messages"]["Row"];
+export type LectureStudyAssetRow =
+  Database["public"]["Tables"]["lecture_study_assets"]["Row"];
+export type FlashcardRow = Database["public"]["Tables"]["flashcards"]["Row"];
+export type FlashcardProgressRow =
+  Database["public"]["Tables"]["flashcard_progress"]["Row"];

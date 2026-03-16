@@ -5,6 +5,7 @@ import { z } from "zod";
 import { chunkSummarySchema, noteArtifactSchema } from "@/lib/ai/schemas";
 import { generateStructuredObject } from "@/lib/ai/json";
 import { buildTranscriptWindows } from "@/lib/chunking";
+import { enqueueLectureStudyGeneration } from "@/lib/jobs";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import type { NoteGenerationResult, TranscriptSegmentInput } from "@/lib/types";
 import { getOpenAiClient } from "@/lib/ai/openai";
@@ -355,6 +356,8 @@ export async function createLectureFromTextSource(params: {
     if (updateError) {
       throw new Error(updateError.message);
     }
+
+    await enqueueLectureStudyGeneration(lectureId);
 
     return lectureId;
   } catch (error) {

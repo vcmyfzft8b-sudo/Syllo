@@ -5,11 +5,19 @@ import type { User } from "@supabase/supabase-js";
 import type {
   ChatMessageRow,
   Citation,
+  FlashcardRow,
+  FlashcardProgressRow,
   LectureArtifactRow,
   LectureRow,
+  LectureStudyAssetRow,
   TranscriptSegmentRow,
 } from "@/lib/database.types";
-import type { AppLectureListItem, ChatMessageWithCitations, LectureDetail } from "@/lib/types";
+import type {
+  AppLectureListItem,
+  ChatMessageWithCitations,
+  FlashcardWithCitations,
+  LectureDetail,
+} from "@/lib/types";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 
 function parseCitations(value: ChatMessageRow["citations_json"]): Citation[] {
@@ -20,6 +28,14 @@ function mapChatMessage(message: ChatMessageRow): ChatMessageWithCitations {
   return {
     ...message,
     citations: parseCitations(message.citations_json),
+  };
+}
+
+function mapFlashcard(flashcard: FlashcardRow): FlashcardWithCitations {
+  return {
+    ...flashcard,
+    citations: parseCitations(flashcard.citations_json),
+    progress: null,
   };
 }
 
@@ -62,13 +78,29 @@ export async function getLectureDetailForUser(params: {
 
   const lectureRow = lecture as LectureRow;
 
-  const [{ data: artifact, error: artifactError }, { data: transcript, error: transcriptError }, { data: chatMessages, error: chatError }] =
+  const [
+    { data: artifact, error: artifactError },
+    { data: studyAsset, error: studyAssetError },
+    { data: flashcards, error: flashcardsError },
+    { data: transcript, error: transcriptError },
+    { data: chatMessages, error: chatError },
+  ] =
     await Promise.all([
       supabase
         .from("lecture_artifacts")
         .select("*")
         .eq("lecture_id", lectureRow.id)
         .maybeSingle(),
+      supabase
+        .from("lecture_study_assets")
+        .select("*")
+        .eq("lecture_id", lectureRow.id)
+        .maybeSingle(),
+      supabase
+        .from("flashcards")
+        .select("*")
+        .eq("lecture_id", lectureRow.id)
+        .order("idx", { ascending: true }),
       supabase
         .from("transcript_segments")
         .select("*")
@@ -89,9 +121,39 @@ export async function getLectureDetailForUser(params: {
     throw transcriptError;
   }
 
+  if (studyAssetError) {
+    throw studyAssetError;
+  }
+
+  if (flashcardsError) {
+    throw flashcardsError;
+  }
+
   if (chatError) {
     throw chatError;
   }
+
+  const flashcardRows = (flashcards ?? []) as FlashcardRow[];
+  const flashcardIds = flashcardRows.map((flashcard) => flashcard.id);
+  const { data: flashcardProgress, error: flashcardProgressError } =
+    flashcardIds.length > 0
+      ? await supabase
+          .from("flashcard_progress")
+          .select("*")
+          .eq("user_id", params.userId)
+          .in("flashcard_id", flashcardIds)
+      : { data: [], error: null };
+
+  if (flashcardProgressError) {
+    throw flashcardProgressError;
+  }
+
+  const progressByFlashcardId = new Map(
+    ((flashcardProgress ?? []) as FlashcardProgressRow[]).map((progress) => [
+      progress.flashcard_id,
+      progress,
+    ]),
+  );
 
   let audioUrl: string | null = null;
 
@@ -106,6 +168,11 @@ export async function getLectureDetailForUser(params: {
   return {
     lecture: lectureRow,
     artifact: artifact as LectureArtifactRow | null,
+    studyAsset: studyAsset as LectureStudyAssetRow | null,
+    flashcards: flashcardRows.map((flashcard) => ({
+      ...mapFlashcard(flashcard),
+      progress: progressByFlashcardId.get(flashcard.id) ?? null,
+    })),
     transcript: (transcript ?? []) as TranscriptSegmentRow[],
     chatMessages: (chatMessages ?? []).map(mapChatMessage),
     audioUrl,

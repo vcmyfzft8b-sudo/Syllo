@@ -1,19 +1,25 @@
 "use client";
 
 import {
+  Brain,
+  ChevronLeft,
+  ChevronRight,
   Download,
   FileAudio2,
   FileText,
+  FlipHorizontal2,
   Loader2,
   MessageSquareText,
   RefreshCcw,
   ScrollText,
   Send,
+  Shuffle,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { StatusBadge } from "@/components/status-badge";
+import type { FlashcardConfidenceBucket, StudyAssetStatus } from "@/lib/database.types";
 import { POLL_INTERVAL_MS } from "@/lib/constants";
 import type { ChatMessageWithCitations, LectureDetail } from "@/lib/types";
 import {
@@ -22,7 +28,7 @@ import {
   formatTimestamp,
 } from "@/lib/utils";
 
-type WorkspaceTab = "notes" | "chat" | "transcript" | "audio";
+type WorkspaceTab = "notes" | "study" | "chat" | "transcript" | "audio";
 
 function getTabItems(hasAudio: boolean) {
   const items: Array<{
@@ -31,6 +37,7 @@ function getTabItems(hasAudio: boolean) {
     icon: React.ComponentType<{ className?: string }>;
   }> = [
     { id: "notes", label: "Notes", icon: FileText },
+    { id: "study", label: "Study", icon: Brain },
     { id: "chat", label: "Chat", icon: MessageSquareText },
     { id: "transcript", label: "Transcript", icon: ScrollText },
   ];
@@ -42,8 +49,40 @@ function getTabItems(hasAudio: boolean) {
   return items;
 }
 
-function shouldPoll(status: LectureDetail["lecture"]["status"]) {
+function shouldPollLecture(status: LectureDetail["lecture"]["status"]) {
   return ["uploading", "queued", "transcribing", "generating_notes"].includes(status);
+}
+
+function shouldPollStudy(status: StudyAssetStatus | null | undefined) {
+  return status === "queued" || status === "generating";
+}
+
+function studyStatusCopy(status: StudyAssetStatus | null | undefined) {
+  if (status === "generating") {
+    return "Flashcards are generating from the lecture context.";
+  }
+
+  if (status === "queued") {
+    return "Flashcards are queued and will appear soon.";
+  }
+
+  if (status === "failed") {
+    return "Flashcard generation failed. Regenerate to try again.";
+  }
+
+  return "Review the lecture with AI-generated flashcards grounded in the transcript.";
+}
+
+function confidenceLabel(value: FlashcardConfidenceBucket) {
+  if (value === "again") {
+    return "Again";
+  }
+
+  if (value === "good") {
+    return "Good";
+  }
+
+  return "Easy";
 }
 
 function normalizeHeadingText(value: string) {
@@ -141,6 +180,11 @@ export function LectureWorkspace({
   const [isSending, setIsSending] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isRegeneratingStudy, setIsRegeneratingStudy] = useState(false);
+  const [studyError, setStudyError] = useState<string | null>(null);
+  const [activeFlashcardIndex, setActiveFlashcardIndex] = useState(0);
+  const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false);
+  const [activeProgressFlashcardId, setActiveProgressFlashcardId] = useState<string | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -154,7 +198,16 @@ export function LectureWorkspace({
   }, [activeTab, detail.audioUrl]);
 
   useEffect(() => {
-    if (!shouldPoll(detail.lecture.status)) {
+    if (activeTab === "study" && detail.flashcards.length === 0 && detail.audioUrl && detail.lecture.status !== "ready") {
+      setActiveTab("notes");
+    }
+  }, [activeTab, detail.audioUrl, detail.flashcards.length, detail.lecture.status]);
+
+  useEffect(() => {
+    if (
+      !shouldPollLecture(detail.lecture.status) &&
+      !shouldPollStudy(detail.studyAsset?.status)
+    ) {
       return;
     }
 
@@ -169,7 +222,17 @@ export function LectureWorkspace({
     }, POLL_INTERVAL_MS);
 
     return () => window.clearInterval(interval);
-  }, [detail.lecture.id, detail.lecture.status]);
+  }, [detail.lecture.id, detail.lecture.status, detail.studyAsset?.status]);
+
+  useEffect(() => {
+    if (activeFlashcardIndex >= detail.flashcards.length) {
+      setActiveFlashcardIndex(0);
+    }
+  }, [activeFlashcardIndex, detail.flashcards.length]);
+
+  useEffect(() => {
+    setIsFlashcardFlipped(false);
+  }, [activeFlashcardIndex, activeTab]);
 
   useEffect(() => {
     if (activeTab !== "chat") {
@@ -215,6 +278,91 @@ export function LectureWorkspace({
     if (refresh.ok) {
       setDetail((await refresh.json()) as LectureDetail);
     }
+  }
+
+  async function handleStudyRegenerate() {
+    setStudyError(null);
+    setIsRegeneratingStudy(true);
+    const response = await fetch(`/api/lectures/${detail.lecture.id}/study/regenerate`, {
+      method: "POST",
+    });
+    const payload = await response.json().catch(() => null);
+    setIsRegeneratingStudy(false);
+
+    if (!response.ok) {
+      setStudyError(payload?.error ?? "Study tools could not be regenerated.");
+      return;
+    }
+
+    const refresh = await fetch(`/api/lectures/${detail.lecture.id}`);
+    if (refresh.ok) {
+      setDetail((await refresh.json()) as LectureDetail);
+    }
+  }
+
+  async function handleFlashcardProgress(confidenceBucket: FlashcardConfidenceBucket) {
+    const flashcard = detail.flashcards[activeFlashcardIndex];
+    if (!flashcard) {
+      return;
+    }
+
+    setStudyError(null);
+    setActiveProgressFlashcardId(flashcard.id);
+    const response = await fetch(`/api/flashcards/${flashcard.id}/progress`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ confidenceBucket }),
+    });
+
+    const payload = await response.json().catch(() => null);
+    setActiveProgressFlashcardId(null);
+
+    if (!response.ok) {
+      setStudyError(payload?.error ?? "Flashcard progress could not be saved.");
+      return;
+    }
+
+    setDetail((current) => ({
+      ...current,
+      flashcards: current.flashcards.map((currentFlashcard) =>
+        currentFlashcard.id === flashcard.id
+          ? {
+              ...currentFlashcard,
+              progress: payload.progress,
+            }
+          : currentFlashcard,
+      ),
+    }));
+  }
+
+  function showNextFlashcard() {
+    setActiveFlashcardIndex((current) =>
+      detail.flashcards.length === 0 ? 0 : (current + 1) % detail.flashcards.length,
+    );
+  }
+
+  function showPreviousFlashcard() {
+    setActiveFlashcardIndex((current) =>
+      detail.flashcards.length === 0
+        ? 0
+        : (current - 1 + detail.flashcards.length) % detail.flashcards.length,
+    );
+  }
+
+  function shuffleFlashcards() {
+    if (detail.flashcards.length <= 1) {
+      return;
+    }
+
+    let nextIndex = activeFlashcardIndex;
+
+    while (nextIndex === activeFlashcardIndex) {
+      nextIndex = Math.floor(Math.random() * detail.flashcards.length);
+    }
+
+    setActiveFlashcardIndex(nextIndex);
   }
 
   async function submitChatQuestion() {
@@ -335,6 +483,173 @@ export function LectureWorkspace({
                 <p className="ios-info">Notes are not ready yet.</p>
               )}
             </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (activeTab === "study") {
+      const currentFlashcard = detail.flashcards[activeFlashcardIndex] ?? null;
+
+      return (
+        <div className="workspace-panel-stack lecture-panel-stack">
+          <div className="ios-card lecture-study-shell">
+            <div className="lecture-study-header">
+              <div>
+                <p className="lecture-card-label">Study</p>
+                <p className="lecture-study-copy">{studyStatusCopy(detail.studyAsset?.status)}</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleStudyRegenerate}
+                disabled={detail.lecture.status !== "ready" || isRegeneratingStudy}
+                className="lecture-study-refresh"
+              >
+                {isRegeneratingStudy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCcw className="h-4 w-4" />
+                )}
+                Regenerate
+              </button>
+            </div>
+
+            <div className="lecture-study-meta">
+              <span className={`lecture-study-status ${detail.studyAsset?.status ?? "ready"}`}>
+                {detail.studyAsset?.status ?? "ready"}
+              </span>
+              <span className="lecture-study-meta-copy">
+                {detail.flashcards.length} {detail.flashcards.length === 1 ? "flashcard" : "flashcards"}
+              </span>
+            </div>
+
+            {studyError ? <p className="danger-panel lecture-inline-note">{studyError}</p> : null}
+            {detail.studyAsset?.error_message ? (
+              <p className="danger-panel lecture-inline-note">{detail.studyAsset.error_message}</p>
+            ) : null}
+
+            {detail.flashcards.length > 0 && currentFlashcard ? (
+              <>
+                <div
+                  className={`lecture-flashcard ${isFlashcardFlipped ? "flipped" : ""}`}
+                  onClick={() => setIsFlashcardFlipped((current) => !current)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setIsFlashcardFlipped((current) => !current);
+                    }
+                  }}
+                >
+                  <div className="lecture-flashcard-face lecture-flashcard-face-front">
+                    <div className="lecture-flashcard-face-meta">
+                      <span>
+                        Card {activeFlashcardIndex + 1} / {detail.flashcards.length}
+                      </span>
+                      <span className={`lecture-flashcard-difficulty ${currentFlashcard.difficulty}`}>
+                        {currentFlashcard.difficulty}
+                      </span>
+                    </div>
+                    <p className="lecture-flashcard-title">Prompt</p>
+                    <p className="lecture-flashcard-content">{currentFlashcard.front}</p>
+                    <p className="lecture-flashcard-hintline">
+                      {currentFlashcard.hint ?? "Tap to reveal the answer."}
+                    </p>
+                  </div>
+
+                  <div className="lecture-flashcard-face lecture-flashcard-face-back">
+                    <div className="lecture-flashcard-face-meta">
+                      <span>Answer</span>
+                      {currentFlashcard.progress ? (
+                        <span className="lecture-flashcard-progress-pill">
+                          {confidenceLabel(currentFlashcard.progress.confidence_bucket)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="lecture-flashcard-content">{currentFlashcard.back}</p>
+                    <div className="lecture-flashcard-citations">
+                      {currentFlashcard.citations.map((citation) => (
+                        <span
+                          key={`${currentFlashcard.id}-${citation.idx}-${citation.startMs}`}
+                          className="lecture-flashcard-citation"
+                        >
+                          {formatTimestamp(citation.startMs)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lecture-flashcard-toolbar">
+                  <div className="lecture-flashcard-nav">
+                    <button
+                      type="button"
+                      onClick={showPreviousFlashcard}
+                      className="lecture-study-action"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsFlashcardFlipped((current) => !current)}
+                      className="lecture-study-action"
+                    >
+                      <FlipHorizontal2 className="h-4 w-4" />
+                      Flip
+                    </button>
+                    <button
+                      type="button"
+                      onClick={shuffleFlashcards}
+                      className="lecture-study-action"
+                    >
+                      <Shuffle className="h-4 w-4" />
+                      Shuffle
+                    </button>
+                    <button
+                      type="button"
+                      onClick={showNextFlashcard}
+                      className="lecture-study-action"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="lecture-flashcard-review">
+                    {(["again", "good", "easy"] as const).map((bucket) => (
+                      <button
+                        key={bucket}
+                        type="button"
+                        onClick={() => void handleFlashcardProgress(bucket)}
+                        disabled={activeProgressFlashcardId === currentFlashcard.id}
+                        className={`lecture-flashcard-review-button ${bucket}`}
+                      >
+                        {activeProgressFlashcardId === currentFlashcard.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : null}
+                        {confidenceLabel(bucket)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="empty-state lecture-empty-card lecture-study-empty">
+                <p className="ios-row-title">
+                  {detail.lecture.status === "ready"
+                    ? "Flashcards are not ready yet."
+                    : "Study tools unlock after processing finishes."}
+                </p>
+                <p className="ios-row-subtitle">
+                  {detail.lecture.status === "ready"
+                    ? "Regenerate flashcards to create a fresh deck from this lecture."
+                    : "Once the lecture is ready, the study tab will fill with flashcards automatically."}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       );
@@ -498,7 +813,7 @@ export function LectureWorkspace({
             <p className="danger-panel lecture-inline-note">{detail.lecture.error_message}</p>
           ) : null}
 
-          {shouldPoll(detail.lecture.status) ? (
+          {shouldPollLecture(detail.lecture.status) || shouldPollStudy(detail.studyAsset?.status) ? (
             <p className="ios-info lecture-inline-note">
               Processing is still running. This view refreshes automatically.
             </p>
