@@ -9,8 +9,8 @@
     "SF Pro Display",
     "Segoe UI",
     sans-serif;
-  --canvas: #f5f5f7; /* Apple core light background */
-  --canvas-rgb: 245 245 247;
+  --canvas: #e9e9ed;
+  --canvas-rgb: 233 233 237;
   --surface: rgba(255, 255, 255, 0.72);
   --surface-strong: rgba(255, 255, 255, 1);
   --surface-solid: #ffffff;
