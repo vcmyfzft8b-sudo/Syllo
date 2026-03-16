@@ -99,7 +99,7 @@ function validateAudio(file: File, durationSeconds: number) {
 
 function sheetTitle(mode: NoteSourceMode) {
   if (mode === "record") {
-    return "Record a lecture";
+    return "Record lecture";
   }
 
   if (mode === "upload") {
@@ -107,26 +107,26 @@ function sheetTitle(mode: NoteSourceMode) {
   }
 
   if (mode === "link") {
-    return "Create a note from a link";
+    return "Add link";
   }
 
-  return "Create a note from text";
+  return "Paste text or PDF";
 }
 
 function sheetDescription(mode: NoteSourceMode) {
   if (mode === "record") {
-    return `Record live and let ${BRAND_NAME} create a transcript, summary, and clean notes.`;
+    return `Capture audio and let ${BRAND_NAME} turn it into a transcript, summary, and notes.`;
   }
 
   if (mode === "upload") {
-    return "Upload an existing recording and turn it into clear study material.";
+    return "Turn an existing recording into organized notes.";
   }
 
   if (mode === "link") {
-    return "Create a note from a web page without copying the content manually.";
+    return "Create notes from a web article or source.";
   }
 
-  return `Paste text or choose a PDF and let ${BRAND_NAME} prepare a structured summary.`;
+  return `Paste source material or use a PDF and let ${BRAND_NAME} structure it for you.`;
 }
 
 export function NoteSourceModal({
@@ -582,8 +582,8 @@ export function NoteSourceModal({
       <div className="ios-sheet-backdrop" onClick={requestClose} aria-hidden="true" />
       <div className="ios-sheet-wrap" role="dialog" aria-modal="true" aria-label="New note">
         <div className="ios-sheet-stack">
-          <section className="ios-sheet">
-            <div className="ios-sheet-header border-b border-[var(--separator)] pb-4">
+          <section className="ios-sheet note-source-sheet">
+            <div className="ios-sheet-header note-source-header">
               <h2 className="ios-sheet-title">
                 {sheetTitle(selectedMode)}
               </h2>
@@ -598,7 +598,7 @@ export function NoteSourceModal({
               </button>
             </div>
 
-            <p className="ios-subtitle mt-4 text-center">{sheetDescription(selectedMode)}</p>
+            <p className="note-source-description">{sheetDescription(selectedMode)}</p>
 
             <div className="mt-6 ios-segmented">
               {MODES.map((item) => (
@@ -613,247 +613,215 @@ export function NoteSourceModal({
               ))}
             </div>
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(16rem,0.8fr)]">
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-[var(--secondary-label)]">
-                    Language
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={languageHint}
-                      onChange={(event) => setLanguageHint(event.target.value)}
-                      className="ios-select appearance-none pr-10"
-                    >
-                      {LANGUAGE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--secondary-label)]" />
-                  </div>
+            <div className="mt-6 space-y-4">
+              <div>
+                <label className="note-source-field-label">
+                  Language
+                </label>
+                <div className="relative">
+                  <select
+                    value={languageHint}
+                    onChange={(event) => setLanguageHint(event.target.value)}
+                    className="ios-select appearance-none pr-10"
+                  >
+                    {LANGUAGE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--secondary-label)]" />
                 </div>
-
-                {selectedMode === "record" ? (
-                  <>
-                    {audioSource ? (
-                      <div className="ios-card">
-                        <p className="ios-section-label">Prepared recording</p>
-                        <p className="ios-row-title mt-3">{audioSource.file.name}</p>
-                        <p className="ios-row-subtitle">
-                          {formatTimestamp(audioSource.durationSeconds * 1000)}
-                        </p>
-                      </div>
-                    ) : null}
-
-                    {isRecording ? (
-                      <div className="ios-card">
-                        <p className="ios-section-label">Recording</p>
-                        <p className="ios-row-title mt-3">Recording in progress</p>
-                        <p className="ios-row-subtitle">
-                          {formatTimestamp(elapsedSeconds * 1000)}
-                        </p>
-                      </div>
-                    ) : null}
-
-                    <button
-                      type="button"
-                      disabled={Boolean(busyLabel)}
-                      className="ios-primary-button"
-                      onClick={() => {
-                        if (busyLabel) {
-                          return;
-                        }
-
-                        if (isRecording) {
-                          stopRecording();
-                          return;
-                        }
-
-                        if (audioSource) {
-                          void createAudioLecture();
-                          return;
-                        }
-
-                        void startRecording();
-                      }}
-                    >
-                      {busyLabel ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Mic className="h-4 w-4" />
-                      )}
-                      {busyLabel ??
-                        (isRecording
-                          ? "Stop recording"
-                          : audioSource
-                            ? "Create notes"
-                            : "Start recording")}
-                    </button>
-                  </>
-                ) : null}
-
-                {selectedMode === "upload" ? (
-                  <>
-                    {audioSource ? (
-                      <div className="ios-card">
-                        <p className="ios-section-label">Selected file</p>
-                        <p className="ios-row-title mt-3">{audioSource.file.name}</p>
-                        <p className="ios-row-subtitle">
-                          {formatTimestamp(audioSource.durationSeconds * 1000)}
-                        </p>
-                      </div>
-                    ) : null}
-
-                    <input
-                      ref={uploadInputRef}
-                      type="file"
-                      accept="audio/*"
-                      onChange={handleUploadFileChange}
-                      className="hidden"
-                    />
-
-                    <button
-                      type="button"
-                      disabled={Boolean(busyLabel)}
-                      className="ios-primary-button"
-                      onClick={() => {
-                        if (busyLabel) {
-                          return;
-                        }
-
-                        if (audioSource) {
-                          void createAudioLecture();
-                          return;
-                        }
-
-                        uploadInputRef.current?.click();
-                      }}
-                    >
-                      {busyLabel ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <UploadCloud className="h-4 w-4" />
-                      )}
-                      {busyLabel ?? (audioSource ? "Create notes" : "Choose file")}
-                    </button>
-                  </>
-                ) : null}
-
-                {selectedMode === "link" ? (
-                  <>
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-[var(--secondary-label)]">
-                        Link
-                      </label>
-                      <div className="ios-search">
-                        <Search className="h-4 w-4 text-[var(--secondary-label)]" />
-                        <input
-                          value={linkValue}
-                          onChange={(event) => setLinkValue(event.target.value)}
-                          placeholder="https://example.com"
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="ios-primary-button"
-                      disabled={Boolean(busyLabel)}
-                      onClick={() => void createLinkLecture()}
-                    >
-                      {busyLabel ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Link2 className="h-4 w-4" />
-                      )}
-                      {busyLabel ?? "Create notes"}
-                    </button>
-                  </>
-                ) : null}
-
-                {selectedMode === "text" ? (
-                  <>
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-[var(--secondary-label)]">
-                        Text
-                      </label>
-                      <textarea
-                        value={textValue}
-                        onChange={(event) => setTextValue(event.target.value)}
-                        className="ios-textarea"
-                        placeholder="Paste lecture or article content..."
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      className="ios-primary-button"
-                      disabled={Boolean(busyLabel)}
-                      onClick={() => void createTextLecture()}
-                    >
-                      {busyLabel ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <FileUp className="h-4 w-4" />
-                      )}
-                      {busyLabel ?? "Create notes"}
-                    </button>
-
-                    <input
-                      ref={pdfInputRef}
-                      type="file"
-                      accept="application/pdf"
-                      onChange={handlePdfPick}
-                      className="hidden"
-                    />
-
-                    <button
-                      type="button"
-                      className="ios-secondary-button"
-                      disabled={Boolean(busyLabel)}
-                      onClick={() => pdfInputRef.current?.click()}
-                    >
-                      Use PDF instead of text
-                    </button>
-                  </>
-                ) : null}
-
-                {error ? <p className="ios-info ios-danger">{error}</p> : null}
               </div>
 
-              <aside className="ios-card h-fit">
-                <p className="ios-section-label">What you get</p>
-                <div className="mt-4 space-y-4">
+              {selectedMode === "record" ? (
+                <>
+                  {audioSource ? (
+                    <div className="ios-card">
+                      <p className="note-source-card-label">Prepared recording</p>
+                      <p className="ios-row-title mt-3">{audioSource.file.name}</p>
+                      <p className="ios-row-subtitle">
+                        {formatTimestamp(audioSource.durationSeconds * 1000)}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {isRecording ? (
+                    <div className="ios-card">
+                      <p className="note-source-card-label">Recording</p>
+                      <p className="ios-row-title mt-3">Recording in progress</p>
+                      <p className="ios-row-subtitle">
+                        {formatTimestamp(elapsedSeconds * 1000)}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    disabled={Boolean(busyLabel)}
+                    className="ios-primary-button"
+                    onClick={() => {
+                      if (busyLabel) {
+                        return;
+                      }
+
+                      if (isRecording) {
+                        stopRecording();
+                        return;
+                      }
+
+                      if (audioSource) {
+                        void createAudioLecture();
+                        return;
+                      }
+
+                      void startRecording();
+                    }}
+                  >
+                    {busyLabel ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Mic className="h-4 w-4" />
+                    )}
+                    {busyLabel ??
+                      (isRecording
+                        ? "Stop recording"
+                        : audioSource
+                          ? "Create notes"
+                          : "Start recording")}
+                  </button>
+                </>
+              ) : null}
+
+              {selectedMode === "upload" ? (
+                <>
+                  {audioSource ? (
+                    <div className="ios-card">
+                      <p className="note-source-card-label">Selected file</p>
+                      <p className="ios-row-title mt-3">{audioSource.file.name}</p>
+                      <p className="ios-row-subtitle">
+                        {formatTimestamp(audioSource.durationSeconds * 1000)}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept="audio/*"
+                    onChange={handleUploadFileChange}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    disabled={Boolean(busyLabel)}
+                    className="ios-primary-button"
+                    onClick={() => {
+                      if (busyLabel) {
+                        return;
+                      }
+
+                      if (audioSource) {
+                        void createAudioLecture();
+                        return;
+                      }
+
+                      uploadInputRef.current?.click();
+                    }}
+                  >
+                    {busyLabel ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <UploadCloud className="h-4 w-4" />
+                    )}
+                    {busyLabel ?? (audioSource ? "Create notes" : "Choose file")}
+                  </button>
+                </>
+              ) : null}
+
+              {selectedMode === "link" ? (
+                <>
                   <div>
-                    <p className="ios-row-title">Automatic transcript</p>
-                    <p className="ios-row-subtitle">
-                      A time-based transcript for quick review.
-                    </p>
+                    <label className="note-source-field-label">
+                      Link
+                    </label>
+                    <div className="ios-search">
+                      <Search className="h-4 w-4 text-[var(--secondary-label)]" />
+                      <input
+                        value={linkValue}
+                        onChange={(event) => setLinkValue(event.target.value)}
+                        placeholder="https://example.com"
+                      />
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    className="ios-primary-button"
+                    disabled={Boolean(busyLabel)}
+                    onClick={() => void createLinkLecture()}
+                  >
+                    {busyLabel ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Link2 className="h-4 w-4" />
+                    )}
+                    {busyLabel ?? "Create notes"}
+                  </button>
+                </>
+              ) : null}
+
+              {selectedMode === "text" ? (
+                <>
                   <div>
-                    <p className="ios-row-title">Clear summary</p>
-                    <p className="ios-row-subtitle">
-                      The main ideas and themes without extra cleanup.
-                    </p>
+                    <label className="note-source-field-label">
+                      Text
+                    </label>
+                    <textarea
+                      value={textValue}
+                      onChange={(event) => setTextValue(event.target.value)}
+                      className="ios-textarea"
+                      placeholder="Paste lecture or article content..."
+                    />
                   </div>
-                  <div>
-                    <p className="ios-row-title">Chat with the note</p>
-                    <p className="ios-row-subtitle">
-                      Follow-up questions stay tied to the same source.
-                    </p>
-                  </div>
-                </div>
-              </aside>
+
+                  <button
+                    type="button"
+                    className="ios-primary-button"
+                    disabled={Boolean(busyLabel)}
+                    onClick={() => void createTextLecture()}
+                  >
+                    {busyLabel ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileUp className="h-4 w-4" />
+                    )}
+                    {busyLabel ?? "Create notes"}
+                  </button>
+
+                  <input
+                    ref={pdfInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handlePdfPick}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    className="ios-secondary-button"
+                    disabled={Boolean(busyLabel)}
+                    onClick={() => pdfInputRef.current?.click()}
+                  >
+                    Use PDF instead of text
+                  </button>
+                </>
+              ) : null}
+
+              {error ? <p className="ios-info ios-danger">{error}</p> : null}
             </div>
           </section>
-
-          <div className="ios-sheet-cancel">
-            <button type="button" className="ios-secondary-button" onClick={requestClose}>
-              Cancel
-            </button>
-          </div>
         </div>
       </div>
     </>
