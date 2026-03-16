@@ -34,6 +34,10 @@ export function formatRelativeDate(isoString: string) {
   return format(new Date(isoString), "d. M. yyyy 'ob' HH:mm");
 }
 
+export function formatCalendarDate(isoString: string) {
+  return format(new Date(isoString), "d. M. yyyy");
+}
+
 export function stripCodeFences(value: string) {
   return value.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
 }

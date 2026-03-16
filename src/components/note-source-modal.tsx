@@ -605,7 +605,7 @@ export function NoteSourceModal({
 
             <p className="note-source-description">{sheetDescription(selectedMode)}</p>
 
-            <div className="mt-6 ios-segmented">
+            <div className="mt-6 ios-segmented note-source-segmented">
               {MODES.map((item) => (
                 <button
                   key={item.id}
@@ -623,7 +623,7 @@ export function NoteSourceModal({
                 <label className="note-source-field-label">
                   Language
                 </label>
-                <div className="relative">
+                <div className="relative note-source-select-wrap">
                   <select
                     value={languageHint}
                     onChange={(event) => setLanguageHint(event.target.value)}
