@@ -1,6 +1,6 @@
 import "server-only";
 
-import { flashcardDeckSchema } from "@/lib/ai/schemas";
+import { createFlashcardDeckSchema } from "@/lib/ai/schemas";
 import { generateStructuredObject } from "@/lib/ai/json";
 import type {
   Citation,
@@ -11,13 +11,8 @@ import type {
   TranscriptSegmentRow,
 } from "@/lib/database.types";
 import { buildTranscriptWindows } from "@/lib/chunking";
+import { countWords } from "@/lib/note-generation";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
-
-const FLASHCARD_COUNT = 12;
-
-function countWords(value: string) {
-  return value.trim().split(/\s+/).filter(Boolean).length;
-}
 
 function toErrorMessage(error: unknown) {
   if (error instanceof Error) {
@@ -70,6 +65,7 @@ function buildFlashcardPromptContext(params: {
       speakerLabel: segment.speaker_label,
       text: segment.text,
     })),
+    3200,
   ).map((window, index) => ({
     idx: index,
     startMs: window.startMs,
@@ -85,6 +81,51 @@ function buildFlashcardPromptContext(params: {
     transcriptWindows: windows,
     sourceWordCount: params.transcript.reduce((total, segment) => total + countWords(segment.text), 0),
   };
+}
+
+function calculateWindowFlashcardCount(windowText: string) {
+  return Math.max(2, Math.ceil(countWords(windowText) / 80));
+}
+
+async function generateFlashcardsForWindow(params: {
+  title: string | null;
+  summary: string;
+  keyTopics: string[];
+  window: {
+    idx: number;
+    startMs: number;
+    endMs: number;
+    text: string;
+  };
+  contextWindows: Array<{
+    idx: number;
+    startMs: number;
+    endMs: number;
+    text: string;
+  }>;
+}) {
+  const targetCount = calculateWindowFlashcardCount(params.window.text);
+
+  const batch = await generateStructuredObject({
+    schema: createFlashcardDeckSchema(targetCount),
+    schemaName: `flashcard_batch_${params.window.idx}`,
+    maxOutputTokens: Math.max(1800, targetCount * 420),
+    instructions:
+      `Create exactly ${targetCount} high-quality study flashcards for the primary transcript window. Cover all important material in that window, not just the headline topic, so the full lecture is covered batch by batch. Use neighboring windows only as supporting context when needed, but keep the main focus on the primary window. Optimize for college exam preparation with definitions, mechanisms, comparisons, processes, cause-effect relationships, examples from the source, and precise recall. Avoid duplicates, filler, and trivia. Keep the front short, ideally under 12 words. Keep the back short and direct: one sentence or two short sentences, not an essay. Every flashcard must cite 1 or 2 transcript windows from the provided context. The hint field is required: return a short hint string when useful, otherwise return null.`,
+    input: JSON.stringify(
+      {
+        title: params.title,
+        summary: params.summary,
+        keyTopics: params.keyTopics,
+        primaryWindow: params.window,
+        contextWindows: params.contextWindows,
+      },
+      null,
+      2,
+    ),
+  });
+
+  return batch.flashcards;
 }
 
 export async function generateLectureFlashcards(params: { lectureId: string }) {
@@ -145,16 +186,24 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
       artifact: artifactRow,
       transcript: transcriptRows,
     });
+    const generatedFlashcards = (
+      await Promise.all(
+        promptContext.transcriptWindows.map((window, index) =>
+          generateFlashcardsForWindow({
+            title: lectureRow.title,
+            summary: artifactRow.summary,
+            keyTopics: artifactRow.key_topics,
+            window,
+            contextWindows: promptContext.transcriptWindows.slice(
+              Math.max(0, index - 1),
+              Math.min(promptContext.transcriptWindows.length, index + 2),
+            ),
+          }),
+        ),
+      )
+    ).flat();
 
-    const generatedDeck = await generateStructuredObject({
-      schema: flashcardDeckSchema,
-      schemaName: "flashcard_deck",
-      instructions:
-        "Create exactly 12 high-quality study flashcards from the supplied lecture content. Optimize for college exam preparation, not for vague memorization. Cover different concept types across the lecture, including definitions, mechanisms, comparisons, processes, and cause-effect relationships when the source supports them. Avoid duplicate cards, filler phrasing, and trivia. Keep the front concise and the back direct but information-rich. Use only the supplied context. Every flashcard must cite 1 or 2 relevant transcript windows from the provided context. The hint field is required: return a short hint string when useful, otherwise return null.",
-      input: JSON.stringify(promptContext, null, 2),
-    });
-
-    const difficultyCounts = generatedDeck.flashcards.reduce<Record<FlashcardDifficulty, number>>(
+    const difficultyCounts = generatedFlashcards.reduce<Record<FlashcardDifficulty, number>>(
       (counts, flashcard) => {
         counts[flashcard.difficulty] += 1;
         return counts;
@@ -166,7 +215,7 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
       },
     );
 
-    const flashcardsToInsert = generatedDeck.flashcards.map((flashcard, index) => ({
+    const flashcardsToInsert = generatedFlashcards.map((flashcard, index) => ({
       lecture_id: params.lectureId,
       idx: index,
       front: flashcard.front,
@@ -200,13 +249,18 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
       lectureId: params.lectureId,
       status: "ready",
       modelMetadata: {
-        cardCount: FLASHCARD_COUNT,
+        cardCount: generatedFlashcards.length,
+        transcriptWindowCount: promptContext.transcriptWindows.length,
+        perWindowTargets: promptContext.transcriptWindows.map((window) => ({
+          idx: window.idx,
+          cardCount: calculateWindowFlashcardCount(window.text),
+        })),
         sourceWordCount,
         noteWordCount,
         coverageRatio:
           sourceWordCount > 0 ? Number((noteWordCount / sourceWordCount).toFixed(3)) : null,
         difficultyCounts,
-        pipeline: "flashcards-v1",
+        pipeline: "flashcards-v2",
       },
     });
   } catch (error) {
@@ -215,7 +269,7 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
       status: "failed",
       errorMessage: toErrorMessage(error),
       modelMetadata: {
-        pipeline: "flashcards-v1",
+        pipeline: "flashcards-v2",
       },
     });
 

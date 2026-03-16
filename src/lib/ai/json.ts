@@ -12,6 +12,7 @@ export async function generateStructuredObject<TSchema extends z.ZodTypeAny>(par
   schemaName?: string;
   instructions: string;
   input: string | ResponseInput;
+  maxOutputTokens?: number;
 }) {
   const env = getServerEnv();
   const openai = getOpenAiClient();
@@ -20,6 +21,7 @@ export async function generateStructuredObject<TSchema extends z.ZodTypeAny>(par
     model: env.OPENAI_TEXT_MODEL,
     instructions: params.instructions,
     input: params.input,
+    max_output_tokens: params.maxOutputTokens,
     text: {
       format: zodTextFormat(
         params.schema,

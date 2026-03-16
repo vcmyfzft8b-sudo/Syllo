@@ -9,10 +9,11 @@ import {
   Link2,
   Loader2,
   Mic,
+  MoreVertical,
   Search,
   Type,
 } from "lucide-react";
-import { startTransition, useDeferredValue, useState } from "react";
+import { startTransition, useDeferredValue, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { NoteSourceModal, type NoteSourceMode } from "@/components/note-source-modal";
@@ -87,11 +88,14 @@ export function HomeDashboard({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const [manualModal, setManualModal] = useState<NoteSourceMode | null>(null);
+  const [libraryLectures, setLibraryLectures] = useState(lectures);
   const [busyLectureId, setBusyLectureId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [selectedFolderLectureIds, setSelectedFolderLectureIds] = useState<string[] | null>(null);
+  const [openMenuLectureId, setOpenMenuLectureId] = useState<string | null>(null);
   const deferredQuery = useDeferredValue(query);
 
   const searchModal = (() => {
@@ -103,6 +107,25 @@ export function HomeDashboard({
 
   const activeModal = manualModal ?? searchModal;
 
+  useEffect(() => {
+    setLibraryLectures(lectures);
+  }, [lectures]);
+
+  useEffect(() => {
+    if (!openMenuLectureId) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setOpenMenuLectureId(null);
+      }
+    }
+
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => window.removeEventListener("mousedown", handlePointerDown);
+  }, [openMenuLectureId]);
+
   function closeModal() {
     setManualModal(null);
     if (searchModal) {
@@ -111,6 +134,11 @@ export function HomeDashboard({
   }
 
   async function handleDeleteLecture(id: string) {
+    if (!window.confirm("Delete this note? This cannot be undone.")) {
+      return;
+    }
+
+    setOpenMenuLectureId(null);
     setBusyLectureId(id);
     const response = await fetch(`/api/lectures/${id}`, { method: "DELETE" });
     setBusyLectureId(null);
@@ -119,6 +147,7 @@ export function HomeDashboard({
       return;
     }
 
+    setLibraryLectures((current) => current.filter((lecture) => lecture.id !== id));
     startTransition(() => router.refresh());
   }
 
@@ -134,9 +163,45 @@ export function HomeDashboard({
     startTransition(() => router.refresh());
   }
 
+  async function handleRenameLecture(lecture: AppLectureListItem) {
+    const currentTitle = lecture.title?.trim() || "Untitled note";
+    const nextTitle = window.prompt("Rename note", currentTitle)?.trim();
+
+    if (!nextTitle || nextTitle === currentTitle) {
+      return;
+    }
+
+    setOpenMenuLectureId(null);
+    setBusyLectureId(lecture.id);
+    const response = await fetch(`/api/lectures/${lecture.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ title: nextTitle }),
+    });
+    setBusyLectureId(null);
+
+    if (!response.ok) {
+      return;
+    }
+
+    setLibraryLectures((current) =>
+      current.map((item) =>
+        item.id === lecture.id
+          ? {
+              ...item,
+              title: nextTitle,
+            }
+          : item,
+      ),
+    );
+    startTransition(() => router.refresh());
+  }
+
   const visibleLectures = selectedFolderLectureIds
-    ? lectures.filter((lecture) => selectedFolderLectureIds.includes(lecture.id))
-    : lectures;
+    ? libraryLectures.filter((lecture) => selectedFolderLectureIds.includes(lecture.id))
+    : libraryLectures;
   const search = deferredQuery.trim().toLowerCase();
   const filteredLectures = visibleLectures.filter((lecture) => {
     if (!search) {
@@ -198,7 +263,7 @@ export function HomeDashboard({
 
           <div className="dashboard-toolbar library-toolbar">
             <LibraryFolderMenu
-              lectures={lectures}
+              lectures={libraryLectures}
               selectedFolderId={selectedFolderId}
               onSelectFolder={(folderId, lectureIds) => {
                 setSelectedFolderId(folderId);
@@ -272,30 +337,84 @@ export function HomeDashboard({
           {regularLectures.length > 0 ? (
             <div className="dashboard-note-list">
               {regularLectures.map((lecture) => (
-                <Link
+                <div
                   key={lecture.id}
-                  href={`/app/lectures/${lecture.id}`}
-                  className="ios-row-note-card"
+                  className={`ios-row-note-card ${openMenuLectureId === lecture.id ? "menu-open" : ""}`}
                 >
-                  <div className="ios-row-icon" style={{ backgroundColor: "var(--surface-muted)" }}>
-                    <SourceIcon sourceType={lecture.source_type} />
-                  </div>
+                  <Link
+                    href={`/app/lectures/${lecture.id}`}
+                    className="ios-row-note-card-link"
+                  >
+                    <div className="ios-row-icon" style={{ backgroundColor: "var(--surface-muted)" }}>
+                      <SourceIcon sourceType={lecture.source_type} />
+                    </div>
 
-                  <div className="min-w-0 flex-1">
-                    <p className="ios-row-title truncate font-medium">
-                      {lecture.title ?? "Untitled note"}
-                    </p>
-                    <p className="ios-row-subtitle mt-1">
-                      {sourceLabel(lecture.source_type)} • {formatRelativeDate(lecture.created_at)}
-                    </p>
-                  </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="ios-row-title truncate font-medium">
+                        {lecture.title ?? "Untitled note"}
+                      </p>
+                      <p className="ios-row-subtitle mt-1">
+                        {sourceLabel(lecture.source_type)} • {formatRelativeDate(lecture.created_at)}
+                      </p>
+                    </div>
 
-                  <div className="flex items-center gap-3">
-                    {/* Only show badge if not completely ready to keep it clean */}
-                    {lecture.status !== "ready" && <StatusBadge status={lecture.status} />}
-                    <ChevronRight className="ios-chevron h-4 w-4" />
+                    <div className="flex items-center gap-3">
+                      {lecture.status !== "ready" && <StatusBadge status={lecture.status} />}
+                    </div>
+                  </Link>
+
+                  <div
+                    ref={openMenuLectureId === lecture.id ? menuRef : null}
+                    className="dashboard-note-actions"
+                  >
+                    <button
+                      type="button"
+                      aria-label={`Open actions for ${lecture.title ?? "note"}`}
+                      disabled={busyLectureId === lecture.id}
+                      onClick={() =>
+                        setOpenMenuLectureId((current) =>
+                          current === lecture.id ? null : lecture.id,
+                        )
+                      }
+                      className="dashboard-note-menu-button"
+                    >
+                      {busyLectureId === lecture.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <MoreVertical className="h-4 w-4" />
+                      )}
+                    </button>
+
+                    {openMenuLectureId === lecture.id ? (
+                      <div className="dashboard-note-menu">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenMenuLectureId(null);
+                            router.push(`/app/lectures/${lecture.id}`);
+                          }}
+                          className="dashboard-note-menu-item"
+                        >
+                          Open note
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleRenameLecture(lecture)}
+                          className="dashboard-note-menu-item"
+                        >
+                          Rename
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteLecture(lecture.id)}
+                          className="dashboard-note-menu-item danger"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           ) : (

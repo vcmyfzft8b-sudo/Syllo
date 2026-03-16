@@ -2,18 +2,14 @@
 
 import {
   Brain,
-  ChevronLeft,
-  ChevronRight,
   Download,
   FileAudio2,
   FileText,
-  FlipHorizontal2,
   Loader2,
   MessageSquareText,
   RefreshCcw,
   ScrollText,
   Send,
-  Shuffle,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -57,32 +53,11 @@ function shouldPollStudy(status: StudyAssetStatus | null | undefined) {
   return status === "queued" || status === "generating";
 }
 
-function studyStatusCopy(status: StudyAssetStatus | null | undefined) {
-  if (status === "generating") {
-    return "Flashcards are generating from the lecture context.";
-  }
-
-  if (status === "queued") {
-    return "Flashcards are queued and will appear soon.";
-  }
-
-  if (status === "failed") {
-    return "Flashcard generation failed. Regenerate to try again.";
-  }
-
-  return "Review the lecture with AI-generated flashcards grounded in the transcript.";
-}
-
 function confidenceLabel(value: FlashcardConfidenceBucket) {
   if (value === "again") {
-    return "Again";
+    return "Didn't know";
   }
-
-  if (value === "good") {
-    return "Good";
-  }
-
-  return "Easy";
+  return "Knew it";
 }
 
 function normalizeHeadingText(value: string) {
@@ -182,10 +157,17 @@ export function LectureWorkspace({
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isRegeneratingStudy, setIsRegeneratingStudy] = useState(false);
   const [studyError, setStudyError] = useState<string | null>(null);
-  const [activeFlashcardIndex, setActiveFlashcardIndex] = useState(0);
   const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false);
+  const [reviewQueue, setReviewQueue] = useState<string[]>(() =>
+    initialDetail.flashcards.map((flashcard) => flashcard.id),
+  );
+  const [repeatQueue, setRepeatQueue] = useState<string[]>([]);
+  const [reviewCycle, setReviewCycle] = useState(1);
+  const [cycleCardCount, setCycleCardCount] = useState(initialDetail.flashcards.length);
   const [activeProgressFlashcardId, setActiveProgressFlashcardId] = useState<string | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const flashcardDeckKey = detail.flashcards.map((flashcard) => flashcard.id).join("|");
+  const currentReviewFlashcardId = reviewQueue[0] ?? null;
 
   useEffect(() => {
     setDetail(initialDetail);
@@ -225,14 +207,28 @@ export function LectureWorkspace({
   }, [detail.lecture.id, detail.lecture.status, detail.studyAsset?.status]);
 
   useEffect(() => {
-    if (activeFlashcardIndex >= detail.flashcards.length) {
-      setActiveFlashcardIndex(0);
-    }
-  }, [activeFlashcardIndex, detail.flashcards.length]);
+    setIsFlashcardFlipped(false);
+  }, [activeTab, currentReviewFlashcardId]);
 
   useEffect(() => {
-    setIsFlashcardFlipped(false);
-  }, [activeFlashcardIndex, activeTab]);
+    const initialQueue = flashcardDeckKey ? flashcardDeckKey.split("|") : [];
+    setReviewQueue(initialQueue);
+    setRepeatQueue([]);
+    setReviewCycle(1);
+    setCycleCardCount(initialQueue.length);
+    setStudyError(null);
+  }, [flashcardDeckKey]);
+
+  useEffect(() => {
+    if (reviewQueue.length > 0 || repeatQueue.length === 0) {
+      return;
+    }
+
+    setCycleCardCount(repeatQueue.length);
+    setReviewQueue(repeatQueue);
+    setRepeatQueue([]);
+    setReviewCycle((current) => current + 1);
+  }, [repeatQueue, reviewQueue]);
 
   useEffect(() => {
     if (activeTab !== "chat") {
@@ -301,7 +297,8 @@ export function LectureWorkspace({
   }
 
   async function handleFlashcardProgress(confidenceBucket: FlashcardConfidenceBucket) {
-    const flashcard = detail.flashcards[activeFlashcardIndex];
+    const currentFlashcardId = reviewQueue[0];
+    const flashcard = detail.flashcards.find((item) => item.id === currentFlashcardId);
     if (!flashcard) {
       return;
     }
@@ -335,34 +332,25 @@ export function LectureWorkspace({
           : currentFlashcard,
       ),
     }));
-  }
 
-  function showNextFlashcard() {
-    setActiveFlashcardIndex((current) =>
-      detail.flashcards.length === 0 ? 0 : (current + 1) % detail.flashcards.length,
-    );
-  }
+    setReviewQueue((current) => {
+      const [activeId, ...remaining] = current;
+      return activeId === flashcard.id ? remaining : current;
+    });
 
-  function showPreviousFlashcard() {
-    setActiveFlashcardIndex((current) =>
-      detail.flashcards.length === 0
-        ? 0
-        : (current - 1 + detail.flashcards.length) % detail.flashcards.length,
-    );
-  }
-
-  function shuffleFlashcards() {
-    if (detail.flashcards.length <= 1) {
-      return;
+    if (confidenceBucket === "again") {
+      setRepeatQueue((current) => [...current, flashcard.id]);
     }
+  }
 
-    let nextIndex = activeFlashcardIndex;
-
-    while (nextIndex === activeFlashcardIndex) {
-      nextIndex = Math.floor(Math.random() * detail.flashcards.length);
-    }
-
-    setActiveFlashcardIndex(nextIndex);
+  function restartFlashcardReview() {
+    const initialQueue = detail.flashcards.map((flashcard) => flashcard.id);
+    setReviewQueue(initialQueue);
+    setRepeatQueue([]);
+    setReviewCycle(1);
+    setCycleCardCount(initialQueue.length);
+    setIsFlashcardFlipped(false);
+    setStudyError(null);
   }
 
   async function submitChatQuestion() {
@@ -489,16 +477,17 @@ export function LectureWorkspace({
     }
 
     if (activeTab === "study") {
-      const currentFlashcard = detail.flashcards[activeFlashcardIndex] ?? null;
+      const currentFlashcard =
+        detail.flashcards.find((flashcard) => flashcard.id === currentReviewFlashcardId) ?? null;
+      const masteredCount = detail.flashcards.length - reviewQueue.length - repeatQueue.length;
+      const completedCount = Math.max(masteredCount, 0);
+      const currentCyclePosition = cycleCardCount > 0 ? cycleCardCount - reviewQueue.length + 1 : 0;
 
       return (
         <div className="workspace-panel-stack lecture-panel-stack">
           <div className="ios-card lecture-study-shell">
             <div className="lecture-study-header">
-              <div>
-                <p className="lecture-card-label">Study</p>
-                <p className="lecture-study-copy">{studyStatusCopy(detail.studyAsset?.status)}</p>
-              </div>
+              <p className="lecture-card-label">Study</p>
 
               <button
                 type="button"
@@ -519,9 +508,6 @@ export function LectureWorkspace({
               <span className={`lecture-study-status ${detail.studyAsset?.status ?? "ready"}`}>
                 {detail.studyAsset?.status ?? "ready"}
               </span>
-              <span className="lecture-study-meta-copy">
-                {detail.flashcards.length} {detail.flashcards.length === 1 ? "flashcard" : "flashcards"}
-              </span>
             </div>
 
             {studyError ? <p className="danger-panel lecture-inline-note">{studyError}</p> : null}
@@ -531,111 +517,90 @@ export function LectureWorkspace({
 
             {detail.flashcards.length > 0 && currentFlashcard ? (
               <>
-                <div
-                  className={`lecture-flashcard ${isFlashcardFlipped ? "flipped" : ""}`}
-                  onClick={() => setIsFlashcardFlipped((current) => !current)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setIsFlashcardFlipped((current) => !current);
-                    }
-                  }}
-                >
-                  <div className="lecture-flashcard-face lecture-flashcard-face-front">
-                    <div className="lecture-flashcard-face-meta">
-                      <span>
-                        Card {activeFlashcardIndex + 1} / {detail.flashcards.length}
-                      </span>
-                      <span className={`lecture-flashcard-difficulty ${currentFlashcard.difficulty}`}>
-                        {currentFlashcard.difficulty}
-                      </span>
-                    </div>
-                    <p className="lecture-flashcard-title">Prompt</p>
-                    <p className="lecture-flashcard-content">{currentFlashcard.front}</p>
-                    <p className="lecture-flashcard-hintline">
-                      {currentFlashcard.hint ?? "Tap to reveal the answer."}
-                    </p>
+                <div className="lecture-flashcard-stage">
+                  <div className="lecture-flashcard-stage-meta">
+                    <span>Cycle {reviewCycle}</span>
+                    <span>
+                      Card {currentCyclePosition} / {cycleCardCount}
+                    </span>
                   </div>
 
-                  <div className="lecture-flashcard-face lecture-flashcard-face-back">
-                    <div className="lecture-flashcard-face-meta">
-                      <span>Answer</span>
-                      {currentFlashcard.progress ? (
-                        <span className="lecture-flashcard-progress-pill">
-                          {confidenceLabel(currentFlashcard.progress.confidence_bucket)}
-                        </span>
-                      ) : null}
+                  <button
+                    type="button"
+                    className={`lecture-flashcard ${isFlashcardFlipped ? "flipped" : ""}`}
+                    onClick={() => setIsFlashcardFlipped((current) => !current)}
+                  >
+                    <div className="lecture-flashcard-rotator">
+                      <div className="lecture-flashcard-face lecture-flashcard-face-front">
+                        <div className="lecture-flashcard-face-meta">
+                          <span>Question</span>
+                          <span className={`lecture-flashcard-difficulty ${currentFlashcard.difficulty}`}>
+                            {currentFlashcard.difficulty}
+                          </span>
+                        </div>
+                        <p className="lecture-flashcard-content">{currentFlashcard.front}</p>
+                        <p className="lecture-flashcard-hintline">
+                          Click anywhere on the card to reveal the answer.
+                        </p>
+                      </div>
+                      <div className="lecture-flashcard-face lecture-flashcard-face-answer">
+                        <div className="lecture-flashcard-face-meta">
+                          <span>Answer</span>
+                        </div>
+                        <p className="lecture-flashcard-content">{currentFlashcard.back}</p>
+                        <div className="lecture-flashcard-citations">
+                          {currentFlashcard.citations.map((citation) => (
+                            <span
+                              key={`${currentFlashcard.id}-${citation.idx}-${citation.startMs}`}
+                              className="lecture-flashcard-citation"
+                            >
+                              {formatTimestamp(citation.startMs)}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="lecture-flashcard-hintline">
+                          {currentFlashcard.hint ?? "Choose whether you knew it before moving on."}
+                        </p>
+                      </div>
                     </div>
-                    <p className="lecture-flashcard-content">{currentFlashcard.back}</p>
-                    <div className="lecture-flashcard-citations">
-                      {currentFlashcard.citations.map((citation) => (
-                        <span
-                          key={`${currentFlashcard.id}-${citation.idx}-${citation.startMs}`}
-                          className="lecture-flashcard-citation"
-                        >
-                          {formatTimestamp(citation.startMs)}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                  </button>
                 </div>
 
                 <div className="lecture-flashcard-toolbar">
-                  <div className="lecture-flashcard-nav">
-                    <button
-                      type="button"
-                      onClick={showPreviousFlashcard}
-                      className="lecture-study-action"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      Previous
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsFlashcardFlipped((current) => !current)}
-                      className="lecture-study-action"
-                    >
-                      <FlipHorizontal2 className="h-4 w-4" />
-                      Flip
-                    </button>
-                    <button
-                      type="button"
-                      onClick={shuffleFlashcards}
-                      className="lecture-study-action"
-                    >
-                      <Shuffle className="h-4 w-4" />
-                      Shuffle
-                    </button>
-                    <button
-                      type="button"
-                      onClick={showNextFlashcard}
-                      className="lecture-study-action"
-                    >
-                      Next
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  <div className="lecture-flashcard-review">
-                    {(["again", "good", "easy"] as const).map((bucket) => (
-                      <button
-                        key={bucket}
-                        type="button"
-                        onClick={() => void handleFlashcardProgress(bucket)}
-                        disabled={activeProgressFlashcardId === currentFlashcard.id}
-                        className={`lecture-flashcard-review-button ${bucket}`}
-                      >
-                        {activeProgressFlashcardId === currentFlashcard.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : null}
-                        {confidenceLabel(bucket)}
-                      </button>
-                    ))}
-                  </div>
+                  {isFlashcardFlipped ? (
+                    <div className="lecture-flashcard-review">
+                      {(["again", "easy"] as const).map((bucket) => (
+                        <button
+                          key={bucket}
+                          type="button"
+                          onClick={() => void handleFlashcardProgress(bucket)}
+                          disabled={activeProgressFlashcardId === currentFlashcard.id}
+                          className={`lecture-flashcard-review-button ${bucket}`}
+                        >
+                          {activeProgressFlashcardId === currentFlashcard.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : null}
+                          {confidenceLabel(bucket)}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </>
+            ) : detail.flashcards.length > 0 ? (
+              <div className="empty-state lecture-empty-card lecture-study-empty">
+                <p className="ios-row-title">Flashcard set complete.</p>
+                <p className="ios-row-subtitle">
+                  You completed this flashcard set and marked {completedCount} cards as known.
+                </p>
+                <button
+                  type="button"
+                  onClick={restartFlashcardReview}
+                  className="lecture-study-refresh lecture-study-restart"
+                >
+                  Start over
+                </button>
+              </div>
             ) : (
               <div className="empty-state lecture-empty-card lecture-study-empty">
                 <p className="ios-row-title">

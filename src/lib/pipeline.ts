@@ -2,15 +2,11 @@ import "server-only";
 
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { chunkSummarySchema, chatAnswerSchema, noteArtifactSchema } from "@/lib/ai/schemas";
+import { chatAnswerSchema } from "@/lib/ai/schemas";
 import { generateStructuredObject } from "@/lib/ai/json";
 import { CHAT_MATCH_COUNT } from "@/lib/constants";
-import type {
-  ChatMessageWithCitations,
-  NoteGenerationResult,
-  TranscriptSegmentInput,
-} from "@/lib/types";
-import { buildTranscriptWindows } from "@/lib/chunking";
+import type { ChatMessageWithCitations } from "@/lib/types";
+import { generateNotesFromTranscript } from "@/lib/note-generation";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { normalizeMimeType } from "@/lib/storage";
 import { serializeVector } from "@/lib/utils";
@@ -45,43 +41,6 @@ async function createEmbeddings(texts: string[]) {
   });
 
   return response.data.map((item) => item.embedding);
-}
-
-async function generateNotesFromTranscript(
-  segments: TranscriptSegmentInput[],
-): Promise<NoteGenerationResult> {
-  const windows = buildTranscriptWindows(segments);
-  const chunkOutputs = await Promise.all(
-    windows.map((window, index) =>
-      generateStructuredObject({
-        schema: chunkSummarySchema,
-        schemaName: "chunk_summary",
-        instructions:
-          "You create accurate English study notes from lecture transcripts. Preserve technical terms from the source when they matter. Never invent missing facts.",
-        input: `Lecture chunk ${index + 1}.\nTime range: ${window.startMs}-${window.endMs} ms.\nTranscript:\n${window.text}`,
-      }),
-    ),
-  );
-
-  return generateStructuredObject({
-    schema: noteArtifactSchema,
-    schemaName: "note_artifact",
-    instructions:
-      "You are preparing final lecture notes in English. Preserve technical terms from the lecture when they are part of the source, and ground every point in the supplied chunk summaries only. The markdown notes should use headings, bullet points, and concise explanations.",
-    input: JSON.stringify(
-      {
-        chunkSummaries: chunkOutputs,
-      },
-      null,
-      2,
-    ),
-  }).then((result) => ({
-    ...result,
-    modelMetadata: {
-      chunkCount: chunkOutputs.length,
-      pipeline: "map-reduce-notes-v1",
-    },
-  }));
 }
 
 export async function runLecturePipeline(params: { lectureId: string }) {
@@ -177,7 +136,10 @@ export async function runLecturePipeline(params: { lectureId: string }) {
       )
       .eq("id", lectureRow.id);
 
-    const notes = await generateNotesFromTranscript(transcript.segments);
+    const notes = await generateNotesFromTranscript(transcript.segments, {
+      sourceLabel: "lecture transcripts",
+      pipelineName: "map-reduce-notes-v2",
+    });
 
     const { error: artifactError } = await supabase
       .from("lecture_artifacts")

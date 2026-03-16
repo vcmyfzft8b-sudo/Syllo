@@ -2,12 +2,11 @@ import "server-only";
 
 import { z } from "zod";
 
-import { chunkSummarySchema, noteArtifactSchema } from "@/lib/ai/schemas";
 import { generateStructuredObject } from "@/lib/ai/json";
-import { buildTranscriptWindows } from "@/lib/chunking";
 import { enqueueLectureStudyGeneration } from "@/lib/jobs";
+import { generateNotesFromTranscript } from "@/lib/note-generation";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
-import type { NoteGenerationResult, TranscriptSegmentInput } from "@/lib/types";
+import type { TranscriptSegmentInput } from "@/lib/types";
 import { getOpenAiClient } from "@/lib/ai/openai";
 import { getServerEnv } from "@/lib/server-env";
 import { serializeVector } from "@/lib/utils";
@@ -16,6 +15,39 @@ const pdfExtractionSchema = z.object({
   title: z.string().min(1),
   text: z.string().min(120),
 });
+
+let pdfJsPromise: Promise<typeof import("pdfjs-dist/legacy/build/pdf.mjs")> | null =
+  null;
+
+async function getPdfJs() {
+  if (!pdfJsPromise) {
+    pdfJsPromise = Promise.all([
+      import("pdfjs-dist/legacy/build/pdf.mjs"),
+      import("pdfjs-dist/legacy/build/pdf.worker.mjs"),
+    ]).then(([pdfjs, pdfWorker]) => {
+      (
+        globalThis as typeof globalThis & {
+          pdfjsWorker?: typeof pdfWorker;
+        }
+      ).pdfjsWorker = pdfWorker;
+
+      pdfjs.GlobalWorkerOptions.workerSrc = "pdf.worker.mjs";
+
+      return pdfjs;
+    });
+  }
+
+  return pdfJsPromise;
+}
+
+function isPdfTextItem(
+  item: unknown,
+): item is {
+  str: string;
+  hasEOL?: boolean;
+} {
+  return typeof item === "object" && item !== null && "str" in item;
+}
 
 function normalizeWhitespace(value: string) {
   return value
@@ -32,25 +64,84 @@ function estimateDurationSeconds(text: string) {
   return Math.max(Math.round(wordCount / 2.6), 1);
 }
 
+function splitLongBlock(paragraph: string, maxChars = 850) {
+  const normalized = paragraph.trim();
+
+  if (!normalized) {
+    return [];
+  }
+
+  if (normalized.length <= maxChars) {
+    return [normalized];
+  }
+
+  const sentenceParts = normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (sentenceParts.length <= 1) {
+    const words = normalized.split(/\s+/).filter(Boolean);
+    const chunks: string[] = [];
+    let activeWords: string[] = [];
+
+    for (const word of words) {
+      const next = [...activeWords, word].join(" ");
+      if (next.length > maxChars && activeWords.length > 0) {
+        chunks.push(activeWords.join(" "));
+        activeWords = [word];
+        continue;
+      }
+
+      activeWords.push(word);
+    }
+
+    if (activeWords.length > 0) {
+      chunks.push(activeWords.join(" "));
+    }
+
+    return chunks;
+  }
+
+  const chunks: string[] = [];
+  let activeChunk = "";
+
+  for (const sentence of sentenceParts) {
+    const next = activeChunk ? `${activeChunk} ${sentence}` : sentence;
+
+    if (next.length > maxChars && activeChunk) {
+      chunks.push(activeChunk);
+      activeChunk = sentence;
+      continue;
+    }
+
+    activeChunk = next;
+  }
+
+  if (activeChunk) {
+    chunks.push(activeChunk);
+  }
+
+  return chunks;
+}
+
 function buildSyntheticTranscript(text: string): TranscriptSegmentInput[] {
   const cleanedText = normalizeWhitespace(text);
   const paragraphs = cleanedText
-    .split(/\n{2,}/)
+    .split(/\n{2,}|\f+/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean);
 
+  const blocks =
+    paragraphs.length > 0
+      ? paragraphs.flatMap((paragraph) => splitLongBlock(paragraph))
+      : splitLongBlock(cleanedText);
+
   const segments: TranscriptSegmentInput[] = [];
-  let activeText = "";
   let startMs = 0;
   let elapsedMs = 0;
 
-  const flushSegment = () => {
-    const textValue = activeText.trim();
-
-    if (!textValue) {
-      return;
-    }
-
+  for (const textValue of blocks) {
     const durationMs = Math.max(
       Math.round(textValue.split(/\s+/).filter(Boolean).length * 420),
       6000,
@@ -66,22 +157,7 @@ function buildSyntheticTranscript(text: string): TranscriptSegmentInput[] {
 
     elapsedMs += durationMs;
     startMs = elapsedMs;
-    activeText = "";
-  };
-
-  for (const paragraph of paragraphs) {
-    const nextValue = activeText ? `${activeText}\n\n${paragraph}` : paragraph;
-
-    if (nextValue.length > 900 && activeText) {
-      flushSegment();
-      activeText = paragraph;
-      continue;
-    }
-
-    activeText = nextValue;
   }
-
-  flushSegment();
 
   if (segments.length > 0) {
     return segments;
@@ -120,43 +196,6 @@ async function createEmbeddings(texts: string[]) {
   });
 
   return response.data.map((item) => item.embedding);
-}
-
-async function generateNotesFromTranscript(
-  segments: TranscriptSegmentInput[],
-): Promise<NoteGenerationResult> {
-  const windows = buildTranscriptWindows(segments);
-  const chunkOutputs = await Promise.all(
-    windows.map((window, index) =>
-      generateStructuredObject({
-        schema: chunkSummarySchema,
-        schemaName: "chunk_summary",
-        instructions:
-          "You create accurate English study notes from lecture-style source material. Preserve technical terms from the source when they matter. Never invent missing facts.",
-        input: `Source chunk ${index + 1}.\nTime range: ${window.startMs}-${window.endMs} ms.\nText:\n${window.text}`,
-      }),
-    ),
-  );
-
-  return generateStructuredObject({
-    schema: noteArtifactSchema,
-    schemaName: "note_artifact",
-    instructions:
-      "You are preparing final study notes in English. Preserve technical terms from the source when they are part of the material, and ground every point in the supplied chunk summaries only. The markdown notes should use headings, bullet points, and concise explanations.",
-    input: JSON.stringify(
-      {
-        chunkSummaries: chunkOutputs,
-      },
-      null,
-      2,
-    ),
-  }).then((result) => ({
-    ...result,
-    modelMetadata: {
-      chunkCount: chunkOutputs.length,
-      pipeline: "document-to-notes-v1",
-    },
-  }));
 }
 
 function extractTitle(html: string) {
@@ -228,20 +267,89 @@ export async function fetchReadableWebpage(params: { url: string }) {
 }
 
 export async function extractTextFromPdf(file: File) {
-  const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
+  const pdfjs = await getPdfJs();
+  const fileBytes = new Uint8Array(await file.arrayBuffer());
+  const buffer = Buffer.from(fileBytes);
+  const loadingTask = pdfjs.getDocument({
+    data: fileBytes,
+    useWorkerFetch: false,
+    isEvalSupported: false,
+  });
 
-  return generateStructuredObject({
+  try {
+    const document = await loadingTask.promise;
+
+    try {
+      const [metadata, pageTexts] = await Promise.all([
+        document.getMetadata().catch(() => null),
+        Promise.all(
+          Array.from({ length: document.numPages }, async (_, pageIndex) => {
+            const page = await document.getPage(pageIndex + 1);
+
+            try {
+              const textContent = await page.getTextContent();
+              const pageText = textContent.items.reduce<string[]>((accumulator, item) => {
+                if (!isPdfTextItem(item)) {
+                  return accumulator;
+                }
+
+                const value = item.str.trim();
+
+                if (!value) {
+                  return accumulator;
+                }
+
+                accumulator.push(item.hasEOL ? `${value}\n` : value);
+
+                return accumulator;
+              }, []);
+
+              return normalizeWhitespace(pageText.join(" "));
+            } finally {
+              page.cleanup();
+            }
+          }),
+        ),
+      ]);
+
+      const parsedText = normalizeWhitespace(pageTexts.filter(Boolean).join("\n\n"));
+      const metadataTitle =
+        (typeof metadata?.info === "object" &&
+        metadata.info !== null &&
+        "Title" in metadata.info &&
+        typeof metadata.info.Title === "string"
+          ? metadata.info.Title.replace(/\s+/g, " ").trim()
+          : "") ||
+        file.name.replace(/\.pdf$/i, "");
+
+      if (parsedText.split(/\s+/).filter(Boolean).length >= 250) {
+        return {
+          title: metadataTitle || "PDF document",
+          text: parsedText,
+        };
+      }
+    } finally {
+      await document.cleanup();
+      await document.destroy();
+    }
+  } finally {
+    await loadingTask.destroy();
+  }
+
+  const base64 = buffer.toString("base64");
+  const fallback = await generateStructuredObject({
     schema: pdfExtractionSchema,
     schemaName: "pdf_extraction",
+    maxOutputTokens: 7000,
     instructions:
-      "Extract the readable contents of this PDF into plain text. Ignore repeated headers, footers, and page numbers when possible. Preserve the source language and return a concise title plus the main text only.",
+      "Extract as much readable text from this PDF as possible into plain text. Do not summarize. Preserve the source language, preserve examples and important details, and ignore repeated headers, footers, and page numbers when possible. Return a concise title plus the document text.",
     input: [
       {
         role: "user",
         content: [
           {
             type: "input_text",
-            text: "Extract the document text so it can be turned into study notes.",
+            text: "Extract the document text as faithfully and completely as possible so it can be turned into detailed study notes and flashcards.",
           },
           {
             type: "input_file",
@@ -252,6 +360,11 @@ export async function extractTextFromPdf(file: File) {
       },
     ],
   });
+
+  return {
+    title: fallback.title,
+    text: normalizeWhitespace(fallback.text),
+  };
 }
 
 export async function createLectureFromTextSource(params: {
@@ -318,7 +431,10 @@ export async function createLectureFromTextSource(params: {
       throw new Error(transcriptError.message);
     }
 
-    const notes = await generateNotesFromTranscript(transcript);
+    const notes = await generateNotesFromTranscript(transcript, {
+      sourceLabel: "uploaded documents and text sources",
+      pipelineName: "document-to-notes-v2",
+    });
     const { error: artifactError } = await supabase
       .from("lecture_artifacts")
       .upsert(

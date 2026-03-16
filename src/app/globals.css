@@ -1235,6 +1235,12 @@ select:disabled {
   gap: 1rem;
 }
 
+.dashboard-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .dashboard-section-title {
   margin: 0;
   font-size: 1.2rem;
@@ -2081,10 +2087,34 @@ select:disabled {
   box-shadow: var(--shadow-soft);
 }
 
+.ios-row-note-card {
+  position: relative;
+  justify-content: space-between;
+  isolation: isolate;
+}
+
+.ios-row-note-card.menu-open {
+  z-index: 30;
+}
+
 .ios-row-note-card:hover {
   background-color: color-mix(in srgb, var(--surface-solid) 96%, var(--pressed));
   transform: translateY(-1px);
   box-shadow: var(--shadow-raised);
+}
+
+.ios-row-note-card-link {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.dashboard-note-actions {
+  position: relative;
+  flex-shrink: 0;
+  z-index: 2;
 }
 
 .ios-row-note-card .ios-row-icon {
@@ -2102,6 +2132,68 @@ select:disabled {
 .dashboard-note-list {
   display: grid;
   gap: 0.7rem;
+}
+
+.dashboard-note-menu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--separator) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-muted) 88%, transparent);
+  color: var(--secondary-label);
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.dashboard-note-menu-button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+.dashboard-note-menu-button:disabled {
+  opacity: 0.5;
+}
+
+.dashboard-note-menu-button {
+  width: 2.7rem;
+  height: 2.7rem;
+}
+
+.dashboard-note-menu {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  min-width: 10.75rem;
+  padding: 0.4rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--separator) 72%, transparent);
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-raised);
+}
+
+.dashboard-note-menu-item {
+  display: flex;
+  align-items: center;
+  min-height: 2.45rem;
+  padding: 0 0.75rem;
+  border-radius: 12px;
+  color: var(--label);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: left;
+}
+
+.dashboard-note-menu-item:hover {
+  background: color-mix(in srgb, var(--surface-muted) 88%, transparent);
+}
+
+.dashboard-note-menu-item.danger {
+  color: var(--red);
 }
 
 /* Utility to completely clear original dashboard layout pieces no longer needed */
@@ -2274,25 +2366,19 @@ select:disabled {
 
 .lecture-study-shell {
   display: grid;
+  align-content: start;
   gap: 1rem;
   padding: 1.4rem;
   border-radius: 24px;
+  height: min(66.6vh, 52.2rem);
 }
 
 .lecture-study-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.85rem;
-}
-
-.lecture-study-copy {
-  margin: 0.55rem 0 0;
-  max-width: 42rem;
-  color: var(--secondary-label);
-  font-size: 0.95rem;
-  line-height: 1.6;
 }
 
 .lecture-study-refresh,
@@ -2362,34 +2448,88 @@ select:disabled {
   font-size: 0.88rem;
 }
 
+.lecture-flashcard-stage {
+  display: grid;
+  gap: 0.9rem;
+  width: 100%;
+  max-width: 38rem;
+  margin: auto;
+}
+
+.lecture-flashcard-stage-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  color: var(--secondary-label);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.lecture-flashcard-stage-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-muted) 84%, transparent);
+}
+
 .lecture-flashcard {
   position: relative;
-  display: grid;
+  display: block;
+  width: 100%;
   min-height: 22rem;
-  border-radius: 28px;
+  border-radius: 24px;
   border: 1px solid color-mix(in srgb, var(--separator) 55%, transparent);
-  background:
-    linear-gradient(160deg, color-mix(in srgb, var(--surface-solid) 99%, transparent), color-mix(in srgb, var(--surface-muted) 78%, transparent));
+  background: transparent;
   box-shadow: var(--shadow-soft);
   cursor: pointer;
   overflow: hidden;
+  text-align: left;
+  perspective: 1800px;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .lecture-flashcard:hover {
+  transform: translateY(-1px);
   box-shadow: var(--shadow-raised);
 }
 
+.lecture-flashcard-rotator {
+  position: relative;
+  min-height: 22rem;
+  transform-style: preserve-3d;
+  transition: transform 0.72s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lecture-flashcard.flipped .lecture-flashcard-rotator {
+  transform: rotateY(180deg);
+}
+
 .lecture-flashcard-face {
+  position: absolute;
+  inset: 0;
   display: grid;
   align-content: space-between;
   gap: 1rem;
   min-height: 22rem;
-  padding: 1.5rem;
+  padding: 1.45rem 1.55rem;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--separator) 55%, transparent);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--surface-solid) 99%, transparent), color-mix(in srgb, var(--surface-muted) 82%, transparent));
 }
 
-.lecture-flashcard-face-back {
-  border-top: 1px solid color-mix(in srgb, var(--separator) 45%, transparent);
+.lecture-flashcard-face-answer {
   background: color-mix(in srgb, var(--surface-muted) 88%, transparent);
+  transform: rotateY(180deg);
 }
 
 .lecture-flashcard-face-meta {
@@ -2417,8 +2557,8 @@ select:disabled {
 .lecture-flashcard-content {
   margin: 0;
   color: var(--label);
-  font-size: clamp(1.05rem, 1.5vw, 1.3rem);
-  line-height: 1.65;
+  font-size: clamp(1.08rem, 1.05vw + 0.88rem, 1.35rem);
+  line-height: 1.62;
   letter-spacing: -0.02em;
 }
 
@@ -2483,12 +2623,14 @@ select:disabled {
 .lecture-flashcard-toolbar {
   display: grid;
   gap: 0.85rem;
+  width: 100%;
+  max-width: 38rem;
+  margin: 0 auto;
 }
 
-.lecture-flashcard-nav,
 .lecture-flashcard-review {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.7rem;
 }
 
@@ -2506,7 +2648,8 @@ select:disabled {
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease,
-    opacity 0.15s ease;
+    opacity 0.15s ease,
+    background-color 0.15s ease;
 }
 
 .lecture-flashcard-review-button:hover {
@@ -2523,11 +2666,6 @@ select:disabled {
   color: var(--red);
 }
 
-.lecture-flashcard-review-button.good {
-  background: color-mix(in srgb, var(--tint) 14%, var(--surface-solid));
-  color: var(--tint);
-}
-
 .lecture-flashcard-review-button.easy {
   background: var(--green-soft);
   color: var(--green);
@@ -2535,6 +2673,20 @@ select:disabled {
 
 .lecture-study-empty {
   min-height: 18rem;
+  max-width: 38rem;
+  margin: 0 auto;
+}
+
+.lecture-study-restart {
+  margin: 0.6rem auto 0;
+}
+
+.lecture-study-hint {
+  margin: 0;
+  color: var(--secondary-label);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .lecture-markdown > :first-child {
@@ -3073,6 +3225,16 @@ select:disabled {
     min-width: auto;
     padding: 0 0.9rem;
   }
+
+  .ios-row-note-card {
+    gap: 0.8rem;
+    padding: 1.1rem;
+  }
+
+  .dashboard-note-menu-button {
+    width: 2.4rem;
+    height: 2.4rem;
+  }
   
   .ios-nav-inner {
     min-height: 3rem;
@@ -3105,6 +3267,10 @@ select:disabled {
     padding: 0;
   }
 
+  .lecture-study-shell {
+    height: min(61vh, 36rem);
+  }
+
   .lecture-study-header {
     align-items: stretch;
   }
@@ -3113,20 +3279,32 @@ select:disabled {
     width: 100%;
   }
 
+  .lecture-flashcard-stage,
+  .lecture-flashcard-toolbar {
+    max-width: none;
+  }
+
   .lecture-flashcard {
-    min-height: 18rem;
-    border-radius: 22px;
+    min-height: 16rem;
+    border-radius: 20px;
+  }
+
+  .lecture-flashcard-rotator {
+    min-height: 16rem;
   }
 
   .lecture-flashcard-face {
-    min-height: 18rem;
+    min-height: 16rem;
     padding: 1.1rem;
+    border-radius: 20px;
   }
 
-  .lecture-flashcard-nav,
   .lecture-flashcard-review {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lecture-flashcard-review-button {
+    width: 100%;
   }
 
   .lecture-chat-scroll {
