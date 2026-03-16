@@ -103,6 +103,12 @@ export function LibraryFolderMenu({
   const selectedFolder = folders.find((folder) => folder.id === selectedFolderId) ?? null;
   const isEditModalOpen = editingFolderId !== null;
 
+  function handleCancelEdit() {
+    setEditingFolderId(null);
+    setEditingName("");
+    setEditingLectureIds([]);
+  }
+
   useEffect(() => {
     if (!isOpen && !isCreateModalOpen && !isEditModalOpen) {
       return;
@@ -215,12 +221,6 @@ export function LibraryFolderMenu({
     }
 
     handleCancelEdit();
-  }
-
-  function handleCancelEdit() {
-    setEditingFolderId(null);
-    setEditingName("");
-    setEditingLectureIds([]);
   }
 
   function handleDeleteFolder(folderId: string) {

@@ -1,8 +1,11 @@
 import type {
   ChatMessageRow,
   Citation,
+  FlashcardRow,
+  FlashcardProgressRow,
   LectureArtifactRow,
   LectureRow,
+  LectureStudyAssetRow,
   ProfileRow,
   TranscriptSegmentRow,
 } from "@/lib/database.types";
@@ -14,6 +17,8 @@ export interface AppLectureListItem extends LectureRow {
 export interface LectureDetail {
   lecture: LectureRow;
   artifact: LectureArtifactRow | null;
+  studyAsset: LectureStudyAssetRow | null;
+  flashcards: FlashcardWithCitations[];
   transcript: TranscriptSegmentRow[];
   chatMessages: ChatMessageWithCitations[];
   audioUrl: string | null;
@@ -21,6 +26,11 @@ export interface LectureDetail {
 
 export interface ChatMessageWithCitations extends Omit<ChatMessageRow, "citations_json"> {
   citations: Citation[];
+}
+
+export interface FlashcardWithCitations extends Omit<FlashcardRow, "citations_json"> {
+  citations: Citation[];
+  progress: FlashcardProgressRow | null;
 }
 
 export interface CreateLectureResponse {

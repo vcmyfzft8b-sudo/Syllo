@@ -2272,6 +2272,271 @@ select:disabled {
   border-radius: 24px;
 }
 
+.lecture-study-shell {
+  display: grid;
+  gap: 1rem;
+  padding: 1.4rem;
+  border-radius: 24px;
+}
+
+.lecture-study-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.lecture-study-copy {
+  margin: 0.55rem 0 0;
+  max-width: 42rem;
+  color: var(--secondary-label);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.lecture-study-refresh,
+.lecture-study-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.7rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--separator) 60%, transparent);
+  background: color-mix(in srgb, var(--surface-solid) 96%, transparent);
+  color: var(--label);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.lecture-study-refresh:hover,
+.lecture-study-action:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+.lecture-study-refresh:disabled,
+.lecture-study-action:disabled {
+  opacity: 0.45;
+}
+
+.lecture-study-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.lecture-study-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-muted) 92%, transparent);
+  color: var(--secondary-label);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.lecture-study-status.ready {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.lecture-study-status.failed {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.lecture-study-meta-copy {
+  color: var(--secondary-label);
+  font-size: 0.88rem;
+}
+
+.lecture-flashcard {
+  position: relative;
+  display: grid;
+  min-height: 22rem;
+  border-radius: 28px;
+  border: 1px solid color-mix(in srgb, var(--separator) 55%, transparent);
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--surface-solid) 99%, transparent), color-mix(in srgb, var(--surface-muted) 78%, transparent));
+  box-shadow: var(--shadow-soft);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.lecture-flashcard:hover {
+  box-shadow: var(--shadow-raised);
+}
+
+.lecture-flashcard-face {
+  display: grid;
+  align-content: space-between;
+  gap: 1rem;
+  min-height: 22rem;
+  padding: 1.5rem;
+}
+
+.lecture-flashcard-face-back {
+  border-top: 1px solid color-mix(in srgb, var(--separator) 45%, transparent);
+  background: color-mix(in srgb, var(--surface-muted) 88%, transparent);
+}
+
+.lecture-flashcard-face-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  color: var(--secondary-label);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lecture-flashcard-title {
+  margin: 0;
+  color: var(--secondary-label);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.lecture-flashcard-content {
+  margin: 0;
+  color: var(--label);
+  font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+  line-height: 1.65;
+  letter-spacing: -0.02em;
+}
+
+.lecture-flashcard-hintline {
+  margin: 0;
+  color: var(--secondary-label);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.lecture-flashcard-difficulty,
+.lecture-flashcard-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.65rem;
+  padding: 0 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.lecture-flashcard-difficulty {
+  background: color-mix(in srgb, var(--surface-solid) 86%, transparent);
+  color: var(--secondary-label);
+}
+
+.lecture-flashcard-difficulty.easy,
+.lecture-flashcard-progress-pill {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.lecture-flashcard-difficulty.medium {
+  background: color-mix(in srgb, #f59e0b 18%, var(--surface-solid));
+  color: #b66a00;
+}
+
+.lecture-flashcard-difficulty.hard {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.lecture-flashcard-citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.lecture-flashcard-citation {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.7rem;
+  padding: 0 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-solid) 88%, transparent);
+  color: var(--secondary-label);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.lecture-flashcard-toolbar {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.lecture-flashcard-nav,
+.lecture-flashcard-review {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.lecture-flashcard-review-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.8rem;
+  min-width: 6.1rem;
+  padding: 0 1rem;
+  border-radius: 16px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.lecture-flashcard-review-button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+.lecture-flashcard-review-button:disabled {
+  opacity: 0.5;
+}
+
+.lecture-flashcard-review-button.again {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.lecture-flashcard-review-button.good {
+  background: color-mix(in srgb, var(--tint) 14%, var(--surface-solid));
+  color: var(--tint);
+}
+
+.lecture-flashcard-review-button.easy {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.lecture-study-empty {
+  min-height: 18rem;
+}
+
 .lecture-markdown > :first-child {
   margin-top: 0;
 }
@@ -2827,6 +3092,7 @@ select:disabled {
 
   .lecture-summary-card,
   .lecture-notes-card,
+  .lecture-study-shell,
   .lecture-chat-shell,
   .lecture-transcript-card,
   .audio-panel {
@@ -2837,6 +3103,30 @@ select:disabled {
   .lecture-chat-shell {
     height: min(61vh, 36rem);
     padding: 0;
+  }
+
+  .lecture-study-header {
+    align-items: stretch;
+  }
+
+  .lecture-study-refresh {
+    width: 100%;
+  }
+
+  .lecture-flashcard {
+    min-height: 18rem;
+    border-radius: 22px;
+  }
+
+  .lecture-flashcard-face {
+    min-height: 18rem;
+    padding: 1.1rem;
+  }
+
+  .lecture-flashcard-nav,
+  .lecture-flashcard-review {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .lecture-chat-scroll {
@@ -2941,6 +3231,7 @@ select:disabled {
 
   .lecture-summary-card,
   .lecture-notes-card,
+  .lecture-study-shell,
   .lecture-transcript-card,
   .audio-panel {
     padding: 1.55rem;
