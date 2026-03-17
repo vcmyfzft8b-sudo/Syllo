@@ -10,6 +10,7 @@ import type {
   LectureArtifactRow,
   LectureRow,
   LectureStudyAssetRow,
+  LectureStudySectionRow,
   TranscriptSegmentRow,
 } from "@/lib/database.types";
 import type {
@@ -17,8 +18,45 @@ import type {
   ChatMessageWithCitations,
   FlashcardWithCitations,
   LectureDetail,
+  StudySectionWithProgress,
 } from "@/lib/types";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+
+type PostgrestLikeError = {
+  code?: string;
+  message?: string;
+  details?: string | null;
+  hint?: string | null;
+};
+
+function getSchemaErrorText(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return "";
+  }
+
+  const candidate = error as PostgrestLikeError;
+  return [candidate.code, candidate.message, candidate.details, candidate.hint]
+    .filter((value): value is string => typeof value === "string" && value.length > 0)
+    .join(" ")
+    .toLowerCase();
+}
+
+function isMissingStudySectionsSchemaError(error: unknown) {
+  const text = getSchemaErrorText(error);
+
+  if (!text) {
+    return false;
+  }
+
+  return (
+    text.includes("lecture_study_sections") &&
+    (text.includes("does not exist") ||
+      text.includes("could not find") ||
+      text.includes("schema cache") ||
+      text.includes("42p01") ||
+      text.includes("pgrst"))
+  );
+}
 
 function parseCitations(value: ChatMessageRow["citations_json"]): Citation[] {
   return Array.isArray(value) ? (value as unknown as Citation[]) : [];
@@ -37,6 +75,66 @@ function mapFlashcard(flashcard: FlashcardRow): FlashcardWithCitations {
     citations: parseCitations(flashcard.citations_json),
     progress: null,
   };
+}
+
+function buildStudySections(params: {
+  lectureId: string;
+  flashcards: FlashcardWithCitations[];
+  sections: LectureStudySectionRow[];
+}): StudySectionWithProgress[] {
+  if (params.sections.length === 0) {
+    if (params.flashcards.length === 0) {
+      return [];
+    }
+
+    const reviewedCount = params.flashcards.filter((flashcard) => (flashcard.progress?.review_count ?? 0) > 0).length;
+
+    return [
+      {
+        id: `legacy-${params.lectureId}`,
+        lecture_id: params.lectureId,
+        idx: 0,
+        title: "Study deck",
+        source_label: null,
+        source_start_ms: null,
+        source_end_ms: null,
+        source_page_start: null,
+        source_page_end: null,
+        unit_start_idx: 0,
+        unit_end_idx: Math.max(params.flashcards.length - 1, 0),
+        card_count: params.flashcards.length,
+        created_at: new Date(0).toISOString(),
+        reviewedCount,
+        completed: reviewedCount >= params.flashcards.length,
+      },
+    ];
+  }
+
+  const flashcardsBySectionId = new Map<string, FlashcardWithCitations[]>();
+
+  for (const flashcard of params.flashcards) {
+    if (!flashcard.section_id) {
+      continue;
+    }
+
+    const existing = flashcardsBySectionId.get(flashcard.section_id) ?? [];
+    existing.push(flashcard);
+    flashcardsBySectionId.set(flashcard.section_id, existing);
+  }
+
+  return params.sections.map((section) => {
+    const sectionFlashcards = flashcardsBySectionId.get(section.id) ?? [];
+    const reviewedCount = sectionFlashcards.filter(
+      (flashcard) => (flashcard.progress?.review_count ?? 0) > 0,
+    ).length;
+
+    return {
+      ...section,
+      card_count: section.card_count || sectionFlashcards.length,
+      reviewedCount,
+      completed: sectionFlashcards.length > 0 && reviewedCount >= sectionFlashcards.length,
+    };
+  });
 }
 
 export async function listLecturesForUser(userId: string): Promise<AppLectureListItem[]> {
@@ -78,40 +176,47 @@ export async function getLectureDetailForUser(params: {
 
   const lectureRow = lecture as LectureRow;
 
+  const studySectionsPromise = supabase
+    .from("lecture_study_sections")
+    .select("*")
+    .eq("lecture_id", lectureRow.id)
+    .order("idx", { ascending: true });
+
   const [
     { data: artifact, error: artifactError },
     { data: studyAsset, error: studyAssetError },
     { data: flashcards, error: flashcardsError },
     { data: transcript, error: transcriptError },
     { data: chatMessages, error: chatError },
-  ] =
-    await Promise.all([
-      supabase
-        .from("lecture_artifacts")
-        .select("*")
-        .eq("lecture_id", lectureRow.id)
-        .maybeSingle(),
-      supabase
-        .from("lecture_study_assets")
-        .select("*")
-        .eq("lecture_id", lectureRow.id)
-        .maybeSingle(),
-      supabase
-        .from("flashcards")
-        .select("*")
-        .eq("lecture_id", lectureRow.id)
-        .order("idx", { ascending: true }),
-      supabase
-        .from("transcript_segments")
-        .select("*")
-        .eq("lecture_id", lectureRow.id)
-        .order("idx", { ascending: true }),
-      supabase
-        .from("chat_messages")
-        .select("*")
-        .eq("lecture_id", lectureRow.id)
-        .order("created_at", { ascending: true }),
-    ]);
+    studySectionsResult,
+  ] = await Promise.all([
+    supabase
+      .from("lecture_artifacts")
+      .select("*")
+      .eq("lecture_id", lectureRow.id)
+      .maybeSingle(),
+    supabase
+      .from("lecture_study_assets")
+      .select("*")
+      .eq("lecture_id", lectureRow.id)
+      .maybeSingle(),
+    supabase
+      .from("flashcards")
+      .select("*")
+      .eq("lecture_id", lectureRow.id)
+      .order("idx", { ascending: true }),
+    supabase
+      .from("transcript_segments")
+      .select("*")
+      .eq("lecture_id", lectureRow.id)
+      .order("idx", { ascending: true }),
+    supabase
+      .from("chat_messages")
+      .select("*")
+      .eq("lecture_id", lectureRow.id)
+      .order("created_at", { ascending: true }),
+    studySectionsPromise,
+  ]);
 
   if (artifactError) {
     throw artifactError;
@@ -131,6 +236,15 @@ export async function getLectureDetailForUser(params: {
 
   if (chatError) {
     throw chatError;
+  }
+
+  const studySections =
+    studySectionsResult.error && isMissingStudySectionsSchemaError(studySectionsResult.error)
+      ? []
+      : ((studySectionsResult.data ?? []) as LectureStudySectionRow[]);
+
+  if (studySectionsResult.error && !isMissingStudySectionsSchemaError(studySectionsResult.error)) {
+    throw studySectionsResult.error;
   }
 
   const flashcardRows = (flashcards ?? []) as FlashcardRow[];
@@ -154,6 +268,10 @@ export async function getLectureDetailForUser(params: {
       progress,
     ]),
   );
+  const mappedFlashcards = flashcardRows.map((flashcard) => ({
+    ...mapFlashcard(flashcard),
+    progress: progressByFlashcardId.get(flashcard.id) ?? null,
+  }));
 
   let audioUrl: string | null = null;
 
@@ -169,10 +287,12 @@ export async function getLectureDetailForUser(params: {
     lecture: lectureRow,
     artifact: artifact as LectureArtifactRow | null,
     studyAsset: studyAsset as LectureStudyAssetRow | null,
-    flashcards: flashcardRows.map((flashcard) => ({
-      ...mapFlashcard(flashcard),
-      progress: progressByFlashcardId.get(flashcard.id) ?? null,
-    })),
+    studySections: buildStudySections({
+      lectureId: lectureRow.id,
+      flashcards: mappedFlashcards,
+      sections: studySections,
+    }),
+    flashcards: mappedFlashcards,
     transcript: (transcript ?? []) as TranscriptSegmentRow[],
     chatMessages: (chatMessages ?? []).map(mapChatMessage),
     audioUrl,

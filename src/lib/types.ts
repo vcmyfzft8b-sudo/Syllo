@@ -6,6 +6,7 @@ import type {
   LectureArtifactRow,
   LectureRow,
   LectureStudyAssetRow,
+  LectureStudySectionRow,
   ProfileRow,
   TranscriptSegmentRow,
 } from "@/lib/database.types";
@@ -18,6 +19,7 @@ export interface LectureDetail {
   lecture: LectureRow;
   artifact: LectureArtifactRow | null;
   studyAsset: LectureStudyAssetRow | null;
+  studySections: StudySectionWithProgress[];
   flashcards: FlashcardWithCitations[];
   transcript: TranscriptSegmentRow[];
   chatMessages: ChatMessageWithCitations[];
@@ -31,6 +33,11 @@ export interface ChatMessageWithCitations extends Omit<ChatMessageRow, "citation
 export interface FlashcardWithCitations extends Omit<FlashcardRow, "citations_json"> {
   citations: Citation[];
   progress: FlashcardProgressRow | null;
+}
+
+export interface StudySectionWithProgress extends LectureStudySectionRow {
+  reviewedCount: number;
+  completed: boolean;
 }
 
 export interface CreateLectureResponse {

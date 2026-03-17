@@ -36,7 +36,7 @@ export async function enqueueLectureStudyGeneration(lectureId: string) {
     return;
   }
 
-  void generateLectureFlashcards({ lectureId }).catch(() => {
-    // Errors are persisted into lecture_study_assets for later inspection.
+  void generateLectureFlashcards({ lectureId }).catch((error) => {
+    console.error("Lecture study generation failed", { lectureId, error });
   });
 }

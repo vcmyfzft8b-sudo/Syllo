@@ -133,6 +133,34 @@ function sourceLabel(sourceType: string) {
   return "Audio recording";
 }
 
+function studyStageLabel(stage: unknown) {
+  if (stage === "building_sections") {
+    return "Building study sections";
+  }
+
+  if (stage === "planning_coverage") {
+    return "Extracting concepts";
+  }
+
+  if (stage === "generating_cards") {
+    return "Generating cards";
+  }
+
+  if (stage === "repairing_coverage") {
+    return "Repairing gaps";
+  }
+
+  if (stage === "publishing_deck") {
+    return "Validating coverage";
+  }
+
+  return "Preparing study tools";
+}
+
+function isLegacySectionId(value: string) {
+  return value.startsWith("legacy-");
+}
+
 function ChatBubble({ message }: { message: ChatMessageWithCitations }) {
   const assistant = message.role === "assistant";
 
@@ -172,21 +200,44 @@ export function LectureWorkspace({
   const [isRegeneratingStudy, setIsRegeneratingStudy] = useState(false);
   const [studyError, setStudyError] = useState<string | null>(null);
   const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false);
-  const [reviewQueue, setReviewQueue] = useState<string[]>(() =>
-    initialDetail.flashcards.map((flashcard) => flashcard.id),
-  );
+  const [activeStudySectionId, setActiveStudySectionId] = useState<string | null>(null);
+  const [reviewQueue, setReviewQueue] = useState<string[]>([]);
   const [repeatQueue, setRepeatQueue] = useState<string[]>([]);
   const [reviewCycle, setReviewCycle] = useState(1);
-  const [cycleCardCount, setCycleCardCount] = useState(initialDetail.flashcards.length);
+  const [cycleCardCount, setCycleCardCount] = useState(0);
   const [activeProgressFlashcardId, setActiveProgressFlashcardId] = useState<string | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
-  const flashcardDeckKey = detail.flashcards.map((flashcard) => flashcard.id).join("|");
+  const studySections = useMemo(
+    () =>
+      detail.studySections.map((section) => ({
+        ...section,
+        flashcards: detail.flashcards.filter((flashcard) =>
+          isLegacySectionId(section.id) ? !flashcard.section_id : flashcard.section_id === section.id,
+        ),
+      })),
+    [detail.flashcards, detail.studySections],
+  );
+  const activeStudySection =
+    studySections.find((section) => section.id === activeStudySectionId) ?? null;
+  const flashcardDeckKey = activeStudySection
+    ? activeStudySection.flashcards.map((flashcard) => flashcard.id).join("|")
+    : "";
   const currentReviewFlashcardId = reviewQueue[0] ?? null;
   const showsTranscript = detail.lecture.source_type === "audio";
 
   useEffect(() => {
     setDetail(initialDetail);
   }, [initialDetail]);
+
+  useEffect(() => {
+    if (!activeStudySectionId) {
+      return;
+    }
+
+    if (!studySections.some((section) => section.id === activeStudySectionId)) {
+      setActiveStudySectionId(null);
+    }
+  }, [activeStudySectionId, studySections]);
 
   useEffect(() => {
     if (activeTab === "transcript" && !showsTranscript) {
@@ -237,8 +288,9 @@ export function LectureWorkspace({
     setRepeatQueue([]);
     setReviewCycle(1);
     setCycleCardCount(initialQueue.length);
+    setIsFlashcardFlipped(false);
     setStudyError(null);
-  }, [flashcardDeckKey]);
+  }, [activeStudySectionId, flashcardDeckKey]);
 
   useEffect(() => {
     if (reviewQueue.length > 0 || repeatQueue.length === 0) {
@@ -279,6 +331,22 @@ export function LectureWorkspace({
       detail.lecture.title,
     );
   }, [detail.artifact?.structured_notes_md, detail.lecture.title]);
+  const studyStage =
+    detail.studyAsset?.model_metadata &&
+    typeof detail.studyAsset.model_metadata === "object" &&
+    !Array.isArray(detail.studyAsset.model_metadata) &&
+    "stage" in detail.studyAsset.model_metadata
+      ? detail.studyAsset.model_metadata.stage
+      : null;
+  const studyStageCopy = studyStageLabel(studyStage);
+  const totalReviewedCards = detail.flashcards.filter(
+    (flashcard) => (flashcard.progress?.review_count ?? 0) > 0,
+  ).length;
+  const allSectionsCompleted =
+    studySections.length > 0 && studySections.every((section) => section.completed);
+  const nextStudySection = activeStudySection
+    ? studySections.find((section) => section.idx > activeStudySection.idx) ?? null
+    : null;
 
   async function handleRetry() {
     setIsRetrying(true);
@@ -319,7 +387,7 @@ export function LectureWorkspace({
 
   async function handleFlashcardProgress(confidenceBucket: FlashcardConfidenceBucket) {
     const currentFlashcardId = reviewQueue[0];
-    const flashcard = detail.flashcards.find((item) => item.id === currentFlashcardId);
+    const flashcard = activeStudySection?.flashcards.find((item) => item.id === currentFlashcardId);
     if (!flashcard) {
       return;
     }
@@ -344,6 +412,25 @@ export function LectureWorkspace({
 
     setDetail((current) => ({
       ...current,
+      studySections: current.studySections.map((section) => {
+        const matchesSection = isLegacySectionId(section.id)
+          ? !flashcard.section_id
+          : section.id === flashcard.section_id;
+
+        if (!matchesSection) {
+          return section;
+        }
+
+        const wasReviewed = (flashcard.progress?.review_count ?? 0) > 0;
+        const nextReviewedCount = wasReviewed
+          ? section.reviewedCount
+          : Math.min(section.reviewedCount + 1, section.card_count);
+        return {
+          ...section,
+          reviewedCount: nextReviewedCount,
+          completed: nextReviewedCount >= section.card_count,
+        };
+      }),
       flashcards: current.flashcards.map((currentFlashcard) =>
         currentFlashcard.id === flashcard.id
           ? {
@@ -365,7 +452,7 @@ export function LectureWorkspace({
   }
 
   function restartFlashcardReview() {
-    const initialQueue = detail.flashcards.map((flashcard) => flashcard.id);
+    const initialQueue = activeStudySection?.flashcards.map((flashcard) => flashcard.id) ?? [];
     setReviewQueue(initialQueue);
     setRepeatQueue([]);
     setReviewCycle(1);
@@ -499,8 +586,9 @@ export function LectureWorkspace({
 
     if (activeTab === "study") {
       const currentFlashcard =
-        detail.flashcards.find((flashcard) => flashcard.id === currentReviewFlashcardId) ?? null;
-      const masteredCount = detail.flashcards.length - reviewQueue.length - repeatQueue.length;
+        activeStudySection?.flashcards.find((flashcard) => flashcard.id === currentReviewFlashcardId) ?? null;
+      const masteredCount =
+        (activeStudySection?.flashcards.length ?? 0) - reviewQueue.length - repeatQueue.length;
       const completedCount = Math.max(masteredCount, 0);
       const currentCyclePosition = cycleCardCount > 0 ? cycleCardCount - reviewQueue.length + 1 : 0;
 
@@ -508,21 +596,42 @@ export function LectureWorkspace({
         <div className="workspace-panel-stack lecture-panel-stack">
           <div className="ios-card lecture-study-shell">
             <div className="lecture-study-header">
-              <p className="lecture-card-label">Study</p>
+              <div className="lecture-study-title">
+                <p className="lecture-card-label">Study</p>
+                {detail.studyAsset?.status ? (
+                  <div className="lecture-study-meta">
+                    <span className={`lecture-study-status ${detail.studyAsset.status}`}>
+                      {detail.studyAsset.status}
+                    </span>
+                    <span className="lecture-study-meta-copy">{studyStageCopy}</span>
+                  </div>
+                ) : null}
+              </div>
 
-              <button
-                type="button"
-                onClick={handleStudyRegenerate}
-                disabled={detail.lecture.status !== "ready" || isRegeneratingStudy}
-                className="lecture-study-refresh"
-              >
-                {isRegeneratingStudy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCcw className="h-4 w-4" />
-                )}
-                Regenerate
-              </button>
+              <div className="lecture-study-header-actions">
+                {activeStudySection ? (
+                  <button
+                    type="button"
+                    onClick={() => setActiveStudySectionId(null)}
+                    className="lecture-study-action"
+                  >
+                    Back to sections
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={handleStudyRegenerate}
+                  disabled={detail.lecture.status !== "ready" || isRegeneratingStudy}
+                  className="lecture-study-refresh"
+                >
+                  {isRegeneratingStudy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCcw className="h-4 w-4" />
+                  )}
+                  Regenerate
+                </button>
+              </div>
             </div>
 
             {studyError ? <p className="danger-panel lecture-inline-note">{studyError}</p> : null}
@@ -530,10 +639,97 @@ export function LectureWorkspace({
               <p className="danger-panel lecture-inline-note">{detail.studyAsset.error_message}</p>
             ) : null}
 
-            {detail.flashcards.length > 0 && currentFlashcard ? (
+            {!activeStudySection ? (
+              studySections.length > 0 ? (
+                <>
+                  <div className="lecture-study-overview">
+                    <div className="lecture-study-overview-stat">
+                      <span>Sections</span>
+                      <strong>{studySections.length}</strong>
+                    </div>
+                    <div className="lecture-study-overview-stat">
+                      <span>Cards</span>
+                      <strong>{detail.flashcards.length}</strong>
+                    </div>
+                    <div className="lecture-study-overview-stat">
+                      <span>Reviewed</span>
+                      <strong>{totalReviewedCards}</strong>
+                    </div>
+                  </div>
+
+                  {allSectionsCompleted ? (
+                    <div className="empty-state lecture-empty-card lecture-study-empty">
+                      <p className="ios-row-title">All study sections complete.</p>
+                      <p className="ios-row-subtitle">
+                        You reviewed {totalReviewedCards} of {detail.flashcards.length} flashcards across the full material.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <div className="lecture-study-sections">
+                    {studySections.map((section) => {
+                      const hasStarted = section.reviewedCount > 0;
+
+                      return (
+                        <button
+                          key={section.id}
+                          type="button"
+                          className="lecture-study-section-card"
+                          onClick={() => setActiveStudySectionId(section.id)}
+                        >
+                          <div className="lecture-study-section-header">
+                            <div>
+                              <p className="lecture-study-section-title">{section.title}</p>
+                              <p className="lecture-study-section-source">
+                                {section.source_label ?? "Study section"}
+                              </p>
+                            </div>
+                            <span
+                              className={`lecture-flashcard-progress-pill ${
+                                section.completed ? "" : "pending"
+                              }`}
+                            >
+                              {section.completed ? "Complete" : hasStarted ? "In progress" : "Ready"}
+                            </span>
+                          </div>
+
+                          <div className="lecture-study-section-meta">
+                            <span>{section.reviewedCount} / {section.card_count} reviewed</span>
+                            <span>{section.card_count} cards</span>
+                          </div>
+
+                          <span className="lecture-study-section-cta">
+                            {section.completed ? "Review again" : hasStarted ? "Resume section" : "Start section"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <div className="empty-state lecture-empty-card lecture-study-empty">
+                  <p className="ios-row-title">
+                    {detail.lecture.status === "ready"
+                      ? "Flashcards are not ready yet."
+                      : "Study tools unlock after processing finishes."}
+                  </p>
+                  <p className="ios-row-subtitle">
+                    {detail.lecture.status === "ready"
+                      ? "Regenerate flashcards to create a fresh comprehensive deck from this material."
+                      : "Once the lecture is ready, the study tab will fill with sectioned flashcards automatically."}
+                  </p>
+                  {detail.studyAsset?.status === "generating" ? (
+                    <p className="lecture-study-hint">{studyStageCopy}</p>
+                  ) : null}
+                </div>
+              )
+            ) : currentFlashcard ? (
               <>
                 <div className="lecture-flashcard-stage">
                   <div className="lecture-flashcard-stage-meta">
+                    <span>
+                      Section {activeStudySection.idx + 1} / {studySections.length}
+                    </span>
                     <span>Cycle {reviewCycle}</span>
                     <span>
                       Card {currentCyclePosition} / {cycleCardCount}
@@ -548,7 +744,7 @@ export function LectureWorkspace({
                     <div className="lecture-flashcard-rotator">
                       <div className="lecture-flashcard-face lecture-flashcard-face-front">
                         <div className="lecture-flashcard-face-meta">
-                          <span>Question</span>
+                          <span>{activeStudySection.title}</span>
                           <span className={`lecture-flashcard-difficulty ${currentFlashcard.difficulty}`}>
                             {currentFlashcard.difficulty}
                           </span>
@@ -564,14 +760,21 @@ export function LectureWorkspace({
                         </div>
                         <p className="lecture-flashcard-content">{currentFlashcard.back}</p>
                         <div className="lecture-flashcard-citations">
-                          {currentFlashcard.citations.map((citation) => (
-                            <span
-                              key={`${currentFlashcard.id}-${citation.idx}-${citation.startMs}`}
-                              className="lecture-flashcard-citation"
-                            >
-                              {formatTimestamp(citation.startMs)}
+                          {currentFlashcard.source_locator ? (
+                            <span className="lecture-flashcard-citation lecture-flashcard-citation-primary">
+                              {currentFlashcard.source_locator}
                             </span>
-                          ))}
+                          ) : null}
+                          {currentFlashcard.source_type === "audio"
+                            ? currentFlashcard.citations.map((citation) => (
+                                <span
+                                  key={`${currentFlashcard.id}-${citation.idx}-${citation.startMs}`}
+                                  className="lecture-flashcard-citation"
+                                >
+                                  {formatTimestamp(citation.startMs)}
+                                </span>
+                              ))
+                            : null}
                         </div>
                         <p className="lecture-flashcard-hintline">
                           {currentFlashcard.hint ?? "Choose whether you knew it before moving on."}
@@ -609,35 +812,38 @@ export function LectureWorkspace({
                   ) : null}
                 </div>
               </>
-            ) : detail.flashcards.length > 0 ? (
+            ) : activeStudySection?.flashcards.length ? (
               <div className="empty-state lecture-empty-card lecture-study-empty">
-                <p className="ios-row-title">Flashcard set complete.</p>
+                <p className="ios-row-title">{activeStudySection.title} complete.</p>
                 <p className="ios-row-subtitle">
-                  You completed this flashcard set and marked {completedCount} cards as known.
+                  You completed this section and marked {completedCount} cards as known.
                 </p>
-                <button
-                  type="button"
-                  onClick={restartFlashcardReview}
-                  className="lecture-study-refresh lecture-study-restart"
-                  aria-label="Start over"
-                  title="Start over"
-                >
-                  <RefreshCcw className="h-4 w-4" />
-                  Start over
-                </button>
+                <div className="lecture-study-complete-actions">
+                  {nextStudySection ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveStudySectionId(nextStudySection.id)}
+                      className="lecture-study-refresh lecture-study-restart"
+                    >
+                      Next section
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={restartFlashcardReview}
+                    className="lecture-study-refresh lecture-study-restart"
+                    aria-label="Start over"
+                    title="Start over"
+                  >
+                    <RefreshCcw className="h-4 w-4" />
+                    Restart section
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="empty-state lecture-empty-card lecture-study-empty">
-                <p className="ios-row-title">
-                  {detail.lecture.status === "ready"
-                    ? "Flashcards are not ready yet."
-                    : "Study tools unlock after processing finishes."}
-                </p>
-                <p className="ios-row-subtitle">
-                  {detail.lecture.status === "ready"
-                    ? "Regenerate flashcards to create a fresh deck from this lecture."
-                    : "Once the lecture is ready, the study tab will fill with flashcards automatically."}
-                </p>
+                <p className="ios-row-title">This section has no flashcards.</p>
+                <p className="ios-row-subtitle">Go back to the study overview and regenerate if needed.</p>
               </div>
             )}
           </div>

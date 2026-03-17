@@ -34,6 +34,11 @@ export async function POST(request: Request) {
       userId: user.id,
       sourceType: "pdf",
       text: extracted.text,
+      blocks: extracted.pages.map((page) => ({
+        label: `Page ${page.pageNumber}`,
+        pageNumber: page.pageNumber,
+        text: page.text,
+      })),
       titleHint: extracted.title || inputFile.name.replace(/\.pdf$/i, ""),
       languageHint,
       modelMetadata: {

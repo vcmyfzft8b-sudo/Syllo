@@ -30,6 +30,7 @@ export async function GET(
     lectureId: detail.lecture.id,
     status: detail.studyAsset?.status ?? "queued",
     studyAsset: detail.studyAsset,
+    studySections: detail.studySections,
     flashcards: detail.flashcards,
   });
 }
