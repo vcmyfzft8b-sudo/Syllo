@@ -196,6 +196,50 @@ export type Database = {
           updated_at?: string;
         };
       };
+      lecture_study_sections: {
+        Row: {
+          id: string;
+          lecture_id: string;
+          idx: number;
+          title: string;
+          source_label: string | null;
+          source_start_ms: number | null;
+          source_end_ms: number | null;
+          source_page_start: number | null;
+          source_page_end: number | null;
+          unit_start_idx: number;
+          unit_end_idx: number;
+          card_count: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          lecture_id: string;
+          idx: number;
+          title: string;
+          source_label?: string | null;
+          source_start_ms?: number | null;
+          source_end_ms?: number | null;
+          source_page_start?: number | null;
+          source_page_end?: number | null;
+          unit_start_idx: number;
+          unit_end_idx: number;
+          card_count?: number;
+          created_at?: string;
+        };
+        Update: {
+          idx?: number;
+          title?: string;
+          source_label?: string | null;
+          source_start_ms?: number | null;
+          source_end_ms?: number | null;
+          source_page_start?: number | null;
+          source_page_end?: number | null;
+          unit_start_idx?: number;
+          unit_end_idx?: number;
+          card_count?: number;
+        };
+      };
       flashcards: {
         Row: {
           id: string;
@@ -206,6 +250,13 @@ export type Database = {
           hint: string | null;
           citations_json: Json;
           difficulty: FlashcardDifficulty;
+          section_id: string | null;
+          source_unit_idx: number;
+          card_kind: string;
+          concept_key: string;
+          source_type: string;
+          source_locator: string | null;
+          coverage_rank: number;
           created_at: string;
         };
         Insert: {
@@ -217,6 +268,13 @@ export type Database = {
           hint?: string | null;
           citations_json?: Json;
           difficulty: FlashcardDifficulty;
+          section_id?: string | null;
+          source_unit_idx?: number;
+          card_kind?: string;
+          concept_key?: string;
+          source_type?: string;
+          source_locator?: string | null;
+          coverage_rank?: number;
           created_at?: string;
         };
         Update: {
@@ -226,6 +284,13 @@ export type Database = {
           hint?: string | null;
           citations_json?: Json;
           difficulty?: FlashcardDifficulty;
+          section_id?: string | null;
+          source_unit_idx?: number;
+          card_kind?: string;
+          concept_key?: string;
+          source_type?: string;
+          source_locator?: string | null;
+          coverage_rank?: number;
         };
       };
       flashcard_progress: {
@@ -284,6 +349,8 @@ export type LectureArtifactRow =
 export type ChatMessageRow = Database["public"]["Tables"]["chat_messages"]["Row"];
 export type LectureStudyAssetRow =
   Database["public"]["Tables"]["lecture_study_assets"]["Row"];
+export type LectureStudySectionRow =
+  Database["public"]["Tables"]["lecture_study_sections"]["Row"];
 export type FlashcardRow = Database["public"]["Tables"]["flashcards"]["Row"];
 export type FlashcardProgressRow =
   Database["public"]["Tables"]["flashcard_progress"]["Row"];

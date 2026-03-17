@@ -16,25 +16,25 @@ const pdfExtractionSchema = z.object({
   text: z.string().min(120),
 });
 
+type StructuredSourceBlock = {
+  label: string | null;
+  pageNumber: number | null;
+  text: string;
+};
+
+const DOCUMENT_SOURCE_MAX_CHARS = 560;
+
 let pdfJsPromise: Promise<typeof import("pdfjs-dist/legacy/build/pdf.mjs")> | null =
   null;
 
 async function getPdfJs() {
   if (!pdfJsPromise) {
-    pdfJsPromise = Promise.all([
-      import("pdfjs-dist/legacy/build/pdf.mjs"),
-      import("pdfjs-dist/legacy/build/pdf.worker.mjs"),
-    ]).then(([pdfjs, pdfWorker]) => {
-      (
-        globalThis as typeof globalThis & {
-          pdfjsWorker?: typeof pdfWorker;
-        }
-      ).pdfjsWorker = pdfWorker;
+    const pdfGlobal = globalThis as typeof globalThis & {
+      self?: typeof globalThis;
+    };
 
-      pdfjs.GlobalWorkerOptions.workerSrc = "pdf.worker.mjs";
-
-      return pdfjs;
-    });
+    pdfGlobal.self ??= globalThis;
+    pdfJsPromise = import("pdfjs-dist/legacy/build/pdf.mjs");
   }
 
   return pdfJsPromise;
@@ -125,25 +125,90 @@ function splitLongBlock(paragraph: string, maxChars = 850) {
   return chunks;
 }
 
-function buildSyntheticTranscript(text: string): TranscriptSegmentInput[] {
-  const cleanedText = normalizeWhitespace(text);
+function normalizeStructuredBlocks(blocks: StructuredSourceBlock[]) {
+  return blocks.flatMap((block) => {
+    const normalizedText = normalizeWhitespace(block.text);
+    if (!normalizedText) {
+      return [];
+    }
+
+    return splitLongBlock(normalizedText, DOCUMENT_SOURCE_MAX_CHARS).map((chunk) => ({
+      label: block.label?.trim() || null,
+      pageNumber: block.pageNumber ?? null,
+      text: chunk,
+    }));
+  });
+}
+
+function buildBlocksFromText(params: {
+  text: string;
+  sourceType: string;
+}) {
+  const cleanedText = normalizeWhitespace(params.text);
   const paragraphs = cleanedText
     .split(/\n{2,}|\f+/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean);
+  const blocks: StructuredSourceBlock[] = [];
+  let activeSection = `${params.sourceType === "link" ? "Section" : "Section"} 1`;
+  let sectionIndex = 1;
 
-  const blocks =
-    paragraphs.length > 0
-      ? paragraphs.flatMap((paragraph) => splitLongBlock(paragraph))
-      : splitLongBlock(cleanedText);
+  for (const paragraph of paragraphs) {
+    const normalized = paragraph.trim();
+    if (!normalized) {
+      continue;
+    }
 
+    const headingLike =
+      normalized.length <= 90 &&
+      (normalized.startsWith("#") ||
+        /^[A-Z][A-Z\s0-9:,-]{5,}$/.test(normalized) ||
+        /^\d+(\.\d+)*\s+[A-Z]/.test(normalized));
+
+    if (headingLike) {
+      sectionIndex += 1;
+      activeSection = normalized.replace(/^#+\s*/, "").trim() || `Section ${sectionIndex}`;
+      continue;
+    }
+
+    for (const chunk of splitLongBlock(normalized, DOCUMENT_SOURCE_MAX_CHARS)) {
+      blocks.push({
+        label: activeSection,
+        pageNumber: null,
+        text: chunk,
+      });
+    }
+  }
+
+  if (blocks.length > 0) {
+    return blocks;
+  }
+
+  return splitLongBlock(cleanedText, DOCUMENT_SOURCE_MAX_CHARS).map((chunk, index) => ({
+    label: `Section ${index + 1}`,
+    pageNumber: null,
+    text: chunk,
+  }));
+}
+
+function buildSyntheticTranscript(params: {
+  text?: string;
+  blocks?: StructuredSourceBlock[];
+  sourceType: string;
+}): TranscriptSegmentInput[] {
+  const blocks = params.blocks?.length
+    ? normalizeStructuredBlocks(params.blocks)
+    : buildBlocksFromText({
+        text: params.text ?? "",
+        sourceType: params.sourceType,
+      });
   const segments: TranscriptSegmentInput[] = [];
   let startMs = 0;
   let elapsedMs = 0;
 
-  for (const textValue of blocks) {
+  for (const block of blocks) {
     const durationMs = Math.max(
-      Math.round(textValue.split(/\s+/).filter(Boolean).length * 420),
+      Math.round(block.text.split(/\s+/).filter(Boolean).length * 420),
       6000,
     );
 
@@ -151,8 +216,13 @@ function buildSyntheticTranscript(text: string): TranscriptSegmentInput[] {
       idx: segments.length,
       startMs,
       endMs: startMs + durationMs,
-      speakerLabel: null,
-      text: textValue,
+      speakerLabel:
+        block.pageNumber != null
+          ? block.label
+            ? `Page ${block.pageNumber} · ${block.label}`
+            : `Page ${block.pageNumber}`
+          : block.label,
+      text: block.text,
     });
 
     elapsedMs += durationMs;
@@ -163,6 +233,7 @@ function buildSyntheticTranscript(text: string): TranscriptSegmentInput[] {
     return segments;
   }
 
+  const cleanedText = normalizeWhitespace(params.text ?? "");
   if (!cleanedText) {
     return [];
   }
@@ -267,73 +338,87 @@ export async function fetchReadableWebpage(params: { url: string }) {
 }
 
 export async function extractTextFromPdf(file: File) {
-  const pdfjs = await getPdfJs();
   const fileBytes = new Uint8Array(await file.arrayBuffer());
   const buffer = Buffer.from(fileBytes);
-  const loadingTask = pdfjs.getDocument({
-    data: fileBytes,
-    useWorkerFetch: false,
-    isEvalSupported: false,
-  });
-
   try {
-    const document = await loadingTask.promise;
+    const pdfjs = await getPdfJs();
+    const loadingTask = pdfjs.getDocument({
+      data: fileBytes,
+      disableWorker: true,
+      useWorkerFetch: false,
+      isEvalSupported: false,
+    });
 
     try {
-      const [metadata, pageTexts] = await Promise.all([
-        document.getMetadata().catch(() => null),
-        Promise.all(
-          Array.from({ length: document.numPages }, async (_, pageIndex) => {
-            const page = await document.getPage(pageIndex + 1);
+      const document = await loadingTask.promise;
 
-            try {
-              const textContent = await page.getTextContent();
-              const pageText = textContent.items.reduce<string[]>((accumulator, item) => {
-                if (!isPdfTextItem(item)) {
-                  return accumulator;
-                }
+      try {
+        const [metadata, pageTexts] = await Promise.all([
+          document.getMetadata().catch(() => null),
+          Promise.all(
+            Array.from({ length: document.numPages }, async (_, pageIndex) => {
+              const page = await document.getPage(pageIndex + 1);
 
-                const value = item.str.trim();
+              try {
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.reduce<string[]>(
+                  (accumulator, item) => {
+                    if (!isPdfTextItem(item)) {
+                      return accumulator;
+                    }
 
-                if (!value) {
-                  return accumulator;
-                }
+                    const value = item.str.trim();
 
-                accumulator.push(item.hasEOL ? `${value}\n` : value);
+                    if (!value) {
+                      return accumulator;
+                    }
 
-                return accumulator;
-              }, []);
+                    accumulator.push(item.hasEOL ? `${value}\n` : value);
 
-              return normalizeWhitespace(pageText.join(" "));
-            } finally {
-              page.cleanup();
-            }
-          }),
-        ),
-      ]);
+                    return accumulator;
+                  },
+                  [],
+                );
 
-      const parsedText = normalizeWhitespace(pageTexts.filter(Boolean).join("\n\n"));
-      const metadataTitle =
-        (typeof metadata?.info === "object" &&
-        metadata.info !== null &&
-        "Title" in metadata.info &&
-        typeof metadata.info.Title === "string"
-          ? metadata.info.Title.replace(/\s+/g, " ").trim()
-          : "") ||
-        file.name.replace(/\.pdf$/i, "");
+                return {
+                  pageNumber: pageIndex + 1,
+                  text: normalizeWhitespace(pageText.join(" ")),
+                };
+              } finally {
+                page.cleanup();
+              }
+            }),
+          ),
+        ]);
 
-      if (parsedText.split(/\s+/).filter(Boolean).length >= 250) {
-        return {
-          title: metadataTitle || "PDF document",
-          text: parsedText,
-        };
+        const parsedText = normalizeWhitespace(
+          pageTexts.map((page) => page.text).filter(Boolean).join("\n\n"),
+        );
+        const metadataTitle =
+          (typeof metadata?.info === "object" &&
+          metadata.info !== null &&
+          "Title" in metadata.info &&
+          typeof metadata.info.Title === "string"
+            ? metadata.info.Title.replace(/\s+/g, " ").trim()
+            : "") ||
+          file.name.replace(/\.pdf$/i, "");
+
+        if (parsedText.split(/\s+/).filter(Boolean).length >= 250) {
+          return {
+            title: metadataTitle || "PDF document",
+            text: parsedText,
+            pages: pageTexts.filter((page) => page.text.length > 0),
+          };
+        }
+      } finally {
+        await document.cleanup();
+        await document.destroy();
       }
     } finally {
-      await document.cleanup();
-      await document.destroy();
+      await loadingTask.destroy();
     }
-  } finally {
-    await loadingTask.destroy();
+  } catch (error) {
+    console.warn("PDF.js extraction failed, falling back to OpenAI file extraction.", error);
   }
 
   const base64 = buffer.toString("base64");
@@ -364,6 +449,7 @@ export async function extractTextFromPdf(file: File) {
   return {
     title: fallback.title,
     text: normalizeWhitespace(fallback.text),
+    pages: [],
   };
 }
 
@@ -371,6 +457,7 @@ export async function createLectureFromTextSource(params: {
   userId: string;
   sourceType: string;
   text: string;
+  blocks?: StructuredSourceBlock[];
   languageHint?: string;
   titleHint?: string;
   modelMetadata?: Record<string, unknown>;
@@ -382,7 +469,11 @@ export async function createLectureFromTextSource(params: {
     throw new Error("Please provide a bit more source material before creating notes.");
   }
 
-  const transcript = buildSyntheticTranscript(cleanedText);
+  const transcript = buildSyntheticTranscript({
+    text: cleanedText,
+    blocks: params.blocks,
+    sourceType: params.sourceType,
+  });
 
   if (transcript.length === 0) {
     throw new Error("The source did not contain enough text to process.");
