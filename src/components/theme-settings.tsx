@@ -1,21 +1,53 @@
 "use client";
 
 import { Check, Monitor, Moon, Sun } from "lucide-react";
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 
 type ThemePreference = "system" | "light" | "dark";
+const THEME_EVENT = "nota-theme-change";
+
+function readStoredThemePreference(): ThemePreference {
+  if (typeof window === "undefined") {
+    return "system";
+  }
+
+  const stored = window.localStorage.getItem("nota-theme");
+  return stored === "light" || stored === "dark" ? stored : "system";
+}
 
 function applyTheme(preference: ThemePreference) {
   if (preference === "system") {
     document.documentElement.removeAttribute("data-theme");
     document.documentElement.style.colorScheme = "";
     localStorage.removeItem("nota-theme");
+    window.dispatchEvent(new Event(THEME_EVENT));
     return;
   }
 
   document.documentElement.dataset.theme = preference;
   document.documentElement.style.colorScheme = preference;
   localStorage.setItem("nota-theme", preference);
+  window.dispatchEvent(new Event(THEME_EVENT));
+}
+
+function subscribeToThemePreference(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
+
+  function handleStorage(event: StorageEvent) {
+    if (event.key === null || event.key === "nota-theme") {
+      onStoreChange();
+    }
+  }
+
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener(THEME_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener(THEME_EVENT, onStoreChange);
+  };
 }
 
 const OPTIONS: Array<{
@@ -41,17 +73,13 @@ const OPTIONS: Array<{
 ];
 
 export function ThemeSettings() {
-  const [preference, setPreference] = useState<ThemePreference>(() => {
-    if (typeof window === "undefined") {
-      return "system";
-    }
-
-    const stored = window.localStorage.getItem("nota-theme");
-    return stored === "light" || stored === "dark" ? stored : "system";
-  });
+  const preference = useSyncExternalStore(
+    subscribeToThemePreference,
+    readStoredThemePreference,
+    () => "system",
+  );
 
   function updatePreference(next: ThemePreference) {
-    setPreference(next);
     applyTheme(next);
   }
 

@@ -7,7 +7,7 @@ type SearchParams = Promise<{
   next?: string;
 }>;
 
-export default async function LoginPage({
+export default async function SignupPage({
   searchParams,
 }: {
   searchParams?: SearchParams;
@@ -20,5 +20,5 @@ export default async function LoginPage({
     redirect(next);
   }
 
-  return <AuthPageShell mode="login" next={next} />;
+  return <AuthPageShell mode="signup" next={next} />;
 }
