@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getAuthProviderAvailability } from "@/lib/auth-providers";
 import { getPublicEnv } from "@/lib/public-env";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 
@@ -27,6 +28,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const next = getNextPath(request, formData.get("next"));
+  const providers = await getAuthProviderAvailability();
+
+  if (!providers.apple) {
+    const errorUrl = request.nextUrl.clone();
+    errorUrl.pathname = "/auth/error";
+    errorUrl.search = "";
+    errorUrl.searchParams.set(
+      "message",
+      "Apple sign-in is not enabled for this Syllo project yet.",
+    );
+
+    return NextResponse.redirect(errorUrl, { status: 303 });
+  }
+
   const { siteUrl } = getPublicEnv();
   const { supabase, applyCookies } = await createSupabaseRouteHandlerClient();
 

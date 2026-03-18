@@ -5,6 +5,7 @@ import { getOptionalUser } from "@/lib/auth";
 
 type SearchParams = Promise<{
   next?: string;
+  email?: string;
 }>;
 
 export default async function SignupPage({
@@ -15,10 +16,11 @@ export default async function SignupPage({
   const user = await getOptionalUser();
   const params = await searchParams;
   const next = params?.next ?? "/app";
+  const email = params?.email;
 
   if (user) {
     redirect(next);
   }
 
-  return <AuthPageShell mode="signup" next={next} />;
+  return <AuthPageShell mode="signup" next={next} prefilledEmail={email} />;
 }

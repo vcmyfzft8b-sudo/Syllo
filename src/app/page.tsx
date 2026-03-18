@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Mail } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { getAuthProviderAvailability } from "@/lib/auth-providers";
 import { getOptionalUser } from "@/lib/auth";
 import { hasPublicSupabaseEnv } from "@/lib/public-env";
 
@@ -47,6 +49,10 @@ export default async function HomePage() {
     }
   }
 
+  const providers = hasPublicSupabaseEnv
+    ? await getAuthProviderAvailability()
+    : { apple: false, email: false, google: false };
+
   return (
     <main className="landing-shell landing-auth-page">
       <div className="landing-auth-wrap">
@@ -62,21 +68,35 @@ export default async function HomePage() {
         </section>
 
         <div className="landing-auth-stack">
-          <form action="/auth/google" method="post" className="auth-provider-form">
-            <input type="hidden" name="next" value="/app" />
-            <button type="submit" className="landing-provider-button primary">
-              <GoogleMark />
-              <span>Continue with Google</span>
-            </button>
-          </form>
+          {providers.google ? (
+            <form action="/auth/google" method="post" className="auth-provider-form">
+              <input type="hidden" name="next" value="/app" />
+              <button type="submit" className="landing-provider-button primary">
+                <GoogleMark />
+                <span>Continue with Google</span>
+              </button>
+            </form>
+          ) : null}
 
-          <form action="/auth/apple" method="post" className="auth-provider-form">
-            <input type="hidden" name="next" value="/app" />
-            <button type="submit" className="landing-provider-button secondary">
-              <AppleMark />
-              <span>Continue with Apple</span>
-            </button>
-          </form>
+          {providers.apple ? (
+            <form action="/auth/apple" method="post" className="auth-provider-form">
+              <input type="hidden" name="next" value="/app" />
+              <button type="submit" className="landing-provider-button secondary">
+                <AppleMark />
+                <span>Continue with Apple</span>
+              </button>
+            </form>
+          ) : null}
+
+          {providers.email ? (
+            <Link
+              href="/auth/email-entry?mode=signup&next=%2Fapp"
+              className="landing-provider-button tertiary"
+            >
+              <Mail className="auth-provider-icon" />
+              <span>Continue with email</span>
+            </Link>
+          ) : null}
         </div>
 
         <p className="landing-auth-legal">

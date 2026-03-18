@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Mail } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { getAuthProviderAvailability } from "@/lib/auth-providers";
 import { BrandLogo } from "@/components/brand-logo";
 
 type AuthMode = "login" | "signup";
@@ -57,10 +58,12 @@ function AuthProviderButton(props: {
   );
 }
 
-export function AuthPageShell(props: {
+export async function AuthPageShell(props: {
   mode: AuthMode;
   next: string;
+  prefilledEmail?: string;
 }) {
+  const providers = await getAuthProviderAvailability();
   const loginMode = props.mode === "login";
   const title = loginMode ? "Welcome back" : "Create your account";
   const copy = loginMode
@@ -68,6 +71,7 @@ export function AuthPageShell(props: {
     : "Start with one lecture and get transcript, summary, flashcards, and chat in one workspace.";
   const googleLabel = loginMode ? "Sign in with Google" : "Create account with Google";
   const appleLabel = loginMode ? "Sign in with Apple" : "Create account with Apple";
+  const emailLabel = loginMode ? "Email me a sign-in link" : "Email me a sign-up link";
   const switchHref = loginMode ? "/auth/signup" : "/auth/login";
   const switchLabel = loginMode ? "Create account" : "Log in";
   const switchCopy = loginMode ? "New here?" : "Already have an account?";
@@ -97,19 +101,56 @@ export function AuthPageShell(props: {
             <p className="auth-copy">{copy}</p>
 
             <div className="auth-provider-stack">
-              <AuthProviderButton
-                action="/auth/apple"
-                label={appleLabel}
-                next={props.next}
-                mark={<AppleMark />}
-              />
-              <AuthProviderButton
-                action="/auth/google"
-                label={googleLabel}
-                next={props.next}
-                mark={<GoogleMark />}
-              />
+              {providers.apple ? (
+                <AuthProviderButton
+                  action="/auth/apple"
+                  label={appleLabel}
+                  next={props.next}
+                  mark={<AppleMark />}
+                />
+              ) : null}
+              {providers.google ? (
+                <AuthProviderButton
+                  action="/auth/google"
+                  label={googleLabel}
+                  next={props.next}
+                  mark={<GoogleMark />}
+                />
+              ) : null}
             </div>
+
+            {providers.email ? (
+              <>
+                <div className="auth-divider">
+                  <span>or</span>
+                </div>
+
+                <form action="/auth/email" method="post" className="auth-email-form">
+                  <input type="hidden" name="mode" value={props.mode} />
+                  <input type="hidden" name="next" value={props.next} />
+
+                  <label className="auth-field">
+                    <Mail className="auth-field-icon h-5 w-5" />
+                    <input
+                      type="email"
+                      name="email"
+                      required
+                      defaultValue={props.prefilledEmail}
+                      placeholder="Enter your email"
+                      autoComplete="email"
+                    />
+                  </label>
+
+                  <button type="submit" className="ios-primary-button auth-submit-button">
+                    {emailLabel}
+                  </button>
+                </form>
+
+                <p className="auth-helper-copy">
+                  We&apos;ll send a secure magic link to your inbox.
+                </p>
+              </>
+            ) : null}
 
             <p className="auth-switch-copy">
               {switchCopy}{" "}

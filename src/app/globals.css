@@ -3788,6 +3788,79 @@ select:disabled {
   margin-top: 1.5rem;
 }
 
+.email-entry-page {
+  position: relative;
+}
+
+.email-entry-topbar {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 20;
+}
+
+.email-entry-wrap {
+  gap: 1.4rem;
+}
+
+.email-entry-brand {
+  margin-bottom: 1.9rem;
+}
+
+.email-entry-copy {
+  gap: 0.8rem;
+}
+
+.email-entry-text {
+  max-width: 33rem;
+}
+
+.email-entry-form {
+  display: grid;
+  gap: 0.8rem;
+  width: 100%;
+  margin-top: 2.9rem;
+}
+
+.email-entry-input {
+  width: 100%;
+  min-height: 4.5rem;
+  padding: 0 1.35rem;
+  border: 1px solid rgba(116, 129, 154, 0.58);
+  border-radius: 18px;
+  background: rgba(24, 24, 28, 0.92);
+  color: white;
+  font-size: 1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.email-entry-input::placeholder {
+  color: rgba(145, 159, 182, 0.9);
+}
+
+.email-entry-submit {
+  display: inline-flex;
+  width: 100%;
+  min-height: 4.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #4d58ea, #4250d8);
+  color: white;
+  font-size: 1.02rem;
+  font-weight: 650;
+  box-shadow: 0 18px 40px rgba(56, 72, 200, 0.26);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.email-entry-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 22px 42px rgba(56, 72, 200, 0.3);
+}
+
 .landing-feature-card {
   min-height: 5.8rem;
 }
@@ -3996,6 +4069,24 @@ select:disabled {
   .auth-panel {
     padding: 1.2rem;
     border-radius: 24px;
+  }
+
+  .email-entry-wrap {
+    gap: 1.2rem;
+  }
+
+  .email-entry-topbar {
+    top: 1rem;
+    right: 1rem;
+  }
+
+  .email-entry-input {
+    min-height: 4.35rem;
+    padding: 0 1.2rem;
+  }
+
+  .email-entry-submit {
+    min-height: 4.35rem;
   }
 
   .app-topbar-cta,
