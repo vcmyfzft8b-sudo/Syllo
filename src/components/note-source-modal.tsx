@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 
 import { BRAND_NAME } from "@/lib/brand";
 import { MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS, STORAGE_BUCKET } from "@/lib/constants";
+import { NOTE_LANGUAGE_OPTIONS } from "@/lib/languages";
 import { getExtensionForMimeType, normalizeMimeType } from "@/lib/storage";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { formatTimestamp } from "@/lib/utils";
@@ -27,14 +28,6 @@ type AudioSource = {
   previewUrl: string;
   origin: "upload" | "recording";
 };
-
-const LANGUAGE_OPTIONS = [
-  { value: "en", label: "English" },
-  { value: "sl", label: "Slovenian" },
-  { value: "de", label: "German" },
-  { value: "hr", label: "Croatian" },
-  { value: "it", label: "Italian" },
-];
 
 const MODES: Array<{
   id: NoteSourceMode;
@@ -629,7 +622,7 @@ export function NoteSourceModal({
                     onChange={(event) => setLanguageHint(event.target.value)}
                     className="ios-select appearance-none pr-10"
                   >
-                    {LANGUAGE_OPTIONS.map((option) => (
+                    {NOTE_LANGUAGE_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>

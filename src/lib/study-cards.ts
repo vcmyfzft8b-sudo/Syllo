@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { citationSchema } from "@/lib/ai/schemas";
 import { generateStructuredObject } from "@/lib/ai/json";
+import { buildGeneratedContentLanguageInstruction } from "@/lib/languages";
 import type { CoverageCardDraft, CoverageConcept, CoverageUnitPlan, SourceUnit } from "@/lib/study-models";
 
 const CARD_CONCURRENCY = 4;
@@ -82,19 +83,22 @@ async function generateCardsForUnit(params: {
   plan: CoverageUnitPlan;
   contextUnits: SourceUnit[];
   concepts: CoverageConcept[];
+  outputLanguage?: string | null;
   repairOnly?: boolean;
 }) {
   const targetCount = params.concepts.reduce(
     (total, concept) => total + concept.recommendedCardCount,
     0,
   );
+  const languageInstruction = buildGeneratedContentLanguageInstruction(params.outputLanguage);
 
   const batch = await generateStructuredObject({
     schema: generatedCardBatchSchema,
     schemaName: `coverage_cards_unit_${params.unit.unitIndex}`,
     maxOutputTokens: Math.max(2600, targetCount * 560),
     instructions:
-      `${params.repairOnly ? "Repair missing concept coverage." : "Generate source-grounded study flashcards."}
+      `${languageInstruction}
+${params.repairOnly ? "Repair missing concept coverage." : "Generate source-grounded study flashcards."}
 Use only the supplied source units.
 Cover every requested concept explicitly.
 Produce mixed study cards:
@@ -159,6 +163,7 @@ export async function generateCoverageCards(params: {
   keyTopics: string[];
   units: SourceUnit[];
   plans: CoverageUnitPlan[];
+  outputLanguage?: string | null;
 }) {
   const planByUnit = new Map(params.plans.map((plan) => [plan.unitIndex, plan]));
 
@@ -176,6 +181,7 @@ export async function generateCoverageCards(params: {
       plan,
       concepts: plan.concepts,
       contextUnits: params.units.slice(Math.max(0, index - 1), Math.min(params.units.length, index + 2)),
+      outputLanguage: params.outputLanguage,
     });
   });
 
@@ -189,6 +195,7 @@ export async function repairCoverageCards(params: {
   units: SourceUnit[];
   plans: CoverageUnitPlan[];
   missingConceptsByUnit: Map<number, CoverageConcept[]>;
+  outputLanguage?: string | null;
 }) {
   const unitByIndex = new Map(params.units.map((unit) => [unit.unitIndex, unit]));
   const planByUnit = new Map(params.plans.map((plan) => [plan.unitIndex, plan]));
@@ -210,6 +217,7 @@ export async function repairCoverageCards(params: {
       plan,
       concepts,
       contextUnits: params.units.slice(Math.max(0, unitIndex - 1), Math.min(params.units.length, unitIndex + 2)),
+      outputLanguage: params.outputLanguage,
       repairOnly: true,
     });
   });

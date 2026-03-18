@@ -514,6 +514,7 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
       keyTopics: artifactRow.key_topics,
       units: effectiveUnits,
       plans: plannedCoverage,
+      outputLanguage: lectureRow.language_hint,
     });
 
     let validation = validateCoverage({
@@ -551,6 +552,7 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
         units: effectiveUnits,
         plans: plannedCoverage,
         missingConceptsByUnit: validation.missingConceptsByUnit,
+        outputLanguage: lectureRow.language_hint,
       });
 
       generatedCards = dedupeAcceptedCards([...generatedCards, ...repairedCards]);

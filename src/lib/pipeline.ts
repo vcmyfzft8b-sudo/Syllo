@@ -5,6 +5,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
 import { chatAnswerSchema } from "@/lib/ai/schemas";
 import { generateStructuredObject } from "@/lib/ai/json";
 import { CHAT_MATCH_COUNT } from "@/lib/constants";
+import { buildGeneratedContentLanguageInstruction } from "@/lib/languages";
 import type { ChatMessageWithCitations } from "@/lib/types";
 import { generateNotesFromTranscript } from "@/lib/note-generation";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -139,6 +140,7 @@ export async function runLecturePipeline(params: { lectureId: string }) {
     const notes = await generateNotesFromTranscript(transcript.segments, {
       sourceLabel: "lecture transcripts",
       pipelineName: "map-reduce-notes-v2",
+      outputLanguage: lectureRow.language_hint,
     });
 
     const { error: artifactError } = await supabase
@@ -210,11 +212,16 @@ export async function answerLectureChat(params: {
   const env = getServerEnv();
   const openai = getOpenAiClient();
 
-  const [{ data: artifact }, embeddingResponse] = await Promise.all([
+  const [{ data: artifact }, { data: lecture }, embeddingResponse] = await Promise.all([
     supabase
       .from("lecture_artifacts")
       .select("*")
       .eq("lecture_id", params.lectureId)
+      .maybeSingle(),
+    supabase
+      .from("lectures")
+      .select("language_hint")
+      .eq("id", params.lectureId)
       .maybeSingle(),
     openai.embeddings.create({
       model: env.OPENAI_EMBEDDING_MODEL,
@@ -227,6 +234,7 @@ export async function answerLectureChat(params: {
     summary: string;
     key_topics: string[];
   } | null;
+  const lectureRow = (lecture ?? null) as { language_hint: string | null } | null;
 
   const { data: matches, error: matchError } = await supabase.rpc(
     "match_transcript_segments" as never,
@@ -246,8 +254,7 @@ export async function answerLectureChat(params: {
   const answer = await generateStructuredObject({
     schema: chatAnswerSchema,
     schemaName: "chat_answer",
-    instructions:
-      "Answer the student in English. Use only the supplied lecture context. If the answer is not fully supported, say that the lecture does not clearly state it. Cite only transcript chunks that are genuinely relevant.",
+    instructions: `${buildGeneratedContentLanguageInstruction(lectureRow?.language_hint)} Answer the student using only the supplied lecture context. If the answer is not fully supported, say that the lecture does not clearly state it. Cite only transcript chunks that are genuinely relevant.`,
     input: JSON.stringify(
       {
         question: params.question,

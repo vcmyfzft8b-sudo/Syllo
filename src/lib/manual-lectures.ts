@@ -525,6 +525,8 @@ export async function createLectureFromTextSource(params: {
     const notes = await generateNotesFromTranscript(transcript, {
       sourceLabel: "uploaded documents and text sources",
       pipelineName: "document-to-notes-v2",
+      outputLanguage: params.languageHint,
+      sourceTitleHint: params.titleHint,
     });
     const { error: artifactError } = await supabase
       .from("lecture_artifacts")
@@ -552,7 +554,7 @@ export async function createLectureFromTextSource(params: {
       .from("lectures")
       .update(
         {
-          title: params.titleHint?.trim() || notes.title,
+          title: notes.title,
           status: "ready",
           error_message: null,
           duration_seconds: durationSeconds,
