@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { isPreviewAuthBypassEnabled } from "@/lib/preview-mode";
 import { getPublicEnv } from "@/lib/public-env";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 
-async function startGoogleAuth(request: NextRequest) {
+function getNextPath(request: NextRequest, value: FormDataEntryValue | null) {
+  if (typeof value !== "string" || !value.startsWith("/")) {
+    return request.nextUrl.searchParams.get("next")?.startsWith("/")
+      ? (request.nextUrl.searchParams.get("next") as string)
+      : "/app";
+  }
+
+  return value;
+}
+
+async function startGoogleAuth(request: NextRequest, next: string) {
   const { supabase, applyCookies } = await createSupabaseRouteHandlerClient();
   const { siteUrl } = getPublicEnv();
-  const next = request.nextUrl.searchParams.get("next") ?? "/app";
 
   const callbackUrl = new URL("/auth/callback", siteUrl);
   callbackUrl.searchParams.set("next", next);
@@ -39,18 +47,11 @@ async function startGoogleAuth(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  if (isPreviewAuthBypassEnabled()) {
-    const previewUrl = request.nextUrl.clone();
-    previewUrl.pathname = request.nextUrl.searchParams.get("next") ?? "/app";
-    previewUrl.search = "";
-    return NextResponse.redirect(previewUrl, { status: 303 });
-  }
-
-  const { siteUrl } = getPublicEnv();
-  const loginUrl = new URL("/auth/login", siteUrl);
-
+  const loginUrl = request.nextUrl.clone();
+  loginUrl.pathname = "/auth/login";
+  loginUrl.search = "";
   const next = request.nextUrl.searchParams.get("next");
-  if (next) {
+  if (next?.startsWith("/")) {
     loginUrl.searchParams.set("next", next);
   }
 
@@ -58,12 +59,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (isPreviewAuthBypassEnabled()) {
-    const previewUrl = request.nextUrl.clone();
-    previewUrl.pathname = request.nextUrl.searchParams.get("next") ?? "/app";
-    previewUrl.search = "";
-    return NextResponse.redirect(previewUrl, { status: 303 });
-  }
-
-  return startGoogleAuth(request);
+  const formData = await request.formData();
+  const next = getNextPath(request, formData.get("next"));
+  return startGoogleAuth(request, next);
 }
