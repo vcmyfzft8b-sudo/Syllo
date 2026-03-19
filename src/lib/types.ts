@@ -46,11 +46,38 @@ export interface CreateLectureResponse {
   token: string;
 }
 
+export type NoteStudyPointType =
+  | "definition"
+  | "process"
+  | "comparison"
+  | "cause_effect"
+  | "example"
+  | "term"
+  | "sequence"
+  | "formula"
+  | "warning";
+
+export type NoteStudyPointValue = "high" | "medium" | "low";
+
+export interface NoteStudyPoint {
+  pointKey: string;
+  text: string;
+  pointType: NoteStudyPointType;
+  studyValue: NoteStudyPointValue;
+}
+
+export interface NoteStudySection {
+  title: string;
+  summary: string;
+  points: NoteStudyPoint[];
+}
+
 export interface NoteGenerationResult {
   title: string;
   summary: string;
   keyTopics: string[];
   structuredNotesMd: string;
+  studyOutline: NoteStudySection[];
   modelMetadata: Record<string, unknown>;
 }
 

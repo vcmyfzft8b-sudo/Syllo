@@ -37,6 +37,35 @@ function normalizeCard(card: CoverageCardDraft): CoverageCardDraft {
   };
 }
 
+function buildCitationQuote(text: string) {
+  const sentence = text.split(/(?<=[.!?])\s+/).find((value) => value.trim().length > 0) ?? text;
+  return normalizeCardText(sentence).slice(0, 180);
+}
+
+function normalizeCitations(params: {
+  citations: CoverageCardDraft["citations"];
+  unit: SourceUnit;
+  contextUnits: SourceUnit[];
+}) {
+  const availableUnits = new Map(
+    [params.unit, ...params.contextUnits].map((unit) => [unit.unitIndex, unit]),
+  );
+  const citedUnits = params.citations
+    .map((citation) => availableUnits.get(citation.idx))
+    .filter((unit): unit is SourceUnit => Boolean(unit));
+  const uniqueUnits = Array.from(
+    new Map(citedUnits.map((unit) => [unit.unitIndex, unit])).values(),
+  ).slice(0, 2);
+  const citationUnits = uniqueUnits.length > 0 ? uniqueUnits : [params.unit];
+
+  return citationUnits.map((unit) => ({
+    idx: unit.unitIndex,
+    startMs: Math.max(0, unit.startMs ?? 0),
+    endMs: Math.max(0, unit.endMs ?? unit.startMs ?? 0),
+    quote: buildCitationQuote(unit.text),
+  }));
+}
+
 function dedupeCards(cards: CoverageCardDraft[]) {
   const seen = new Set<string>();
   const output: CoverageCardDraft[] = [];
@@ -145,7 +174,11 @@ Keep fronts concise and backs concise enough to review quickly.`,
         back: card.back,
         hint: card.hint,
         difficulty: card.difficulty,
-        citations: card.citations,
+        citations: normalizeCitations({
+          citations: card.citations,
+          unit: params.unit,
+          contextUnits: params.contextUnits,
+        }),
         conceptKey: card.conceptKey,
         cardKind: card.cardKind,
         sourceUnitIdx: params.unit.unitIndex,

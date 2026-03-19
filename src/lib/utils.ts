@@ -46,6 +46,10 @@ export function serializeVector(values: number[]) {
   return `[${values.join(",")}]`;
 }
 
+export function parseVector(value: string) {
+  return JSON.parse(value) as number[];
+}
+
 export function safeJsonParse<T>(value: string): T {
   return JSON.parse(stripCodeFences(value)) as T;
 }

@@ -16,11 +16,37 @@ export const chunkSummarySchema = z.object({
   terminology: z.array(z.string().min(2)).min(3).max(10),
 });
 
+export const noteStudyPointSchema = z.object({
+  pointKey: z.string().min(3).max(80),
+  text: z.string().min(18).max(320),
+  pointType: z.enum([
+    "definition",
+    "process",
+    "comparison",
+    "cause_effect",
+    "example",
+    "term",
+    "sequence",
+    "formula",
+    "warning",
+  ]),
+  studyValue: z.enum(["high", "medium", "low"]),
+});
+
+export const noteStudySectionSchema = z.object({
+  title: z.string().min(3).max(160),
+  summary: z.string().min(20).max(400),
+  points: z.array(noteStudyPointSchema).min(1).max(10),
+});
+
+export const noteStudyOutlineSchema = z.array(noteStudySectionSchema).min(1).max(18);
+
 export const noteArtifactSchema = z.object({
   title: z.string().min(3),
   summary: z.string().min(40).max(1200),
   keyTopics: z.array(z.string().min(2)).min(6).max(14),
   structuredNotesMd: z.string().min(300),
+  studyOutline: noteStudyOutlineSchema,
 });
 
 export const chatAnswerSchema = z.object({

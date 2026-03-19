@@ -15,6 +15,7 @@ function buildNoteTargets(sourceWordCount: number, chunkCount: number) {
     targetNoteWordCount: Math.max(700, Math.min(3200, Math.round(sourceWordCount * 0.42))),
     minSectionCount: Math.max(4, Math.min(12, chunkCount)),
     recommendedTopicCount: Math.max(6, Math.min(14, Math.ceil(chunkCount / 1.5))),
+    targetStudyPointCount: Math.max(10, Math.min(42, Math.round(sourceWordCount / 90))),
   };
 }
 
@@ -49,7 +50,7 @@ export async function generateNotesFromTranscript(
     schema: noteArtifactSchema,
     schemaName: "note_artifact",
     maxOutputTokens: 7000,
-    instructions: `${languageInstruction} You are preparing final study notes in ${languageLabel} from ${params.sourceLabel}. Produce a title, summary, key topics, and detailed student-ready notes that cover nearly all meaningful material in the source. Do not compress the lecture into a short outline. Organize the markdown with headings, subheadings, bullet lists, and short explanatory paragraphs. Explain the logic behind processes and relationships, preserve technical terms, and include examples only when supported by the source material. Every chunk summary should contribute substantive content to the final notes. Aim for about ${targets.targetNoteWordCount} words when the source supports it. Build at least ${targets.minSectionCount} substantial sections when the material supports it.`,
+    instructions: `${languageInstruction} You are preparing final study notes in ${languageLabel} from ${params.sourceLabel}. Produce a title, summary, key topics, detailed student-ready markdown notes, and a structured studyOutline that mirrors those notes. The notes must cover nearly all meaningful material in the source, but the studyOutline should contain only study-worthy points that deserve a flashcard. Be selective: merge tiny details into a larger point when they belong together, and omit filler or repeated phrasing. Every studyOutline point must be a complete, self-contained fact, mechanism, sequence step-set, comparison, warning, or exam-relevant takeaway. Each studyOutline section must correspond to a real section in the markdown notes. Organize the markdown with headings, subheadings, bullet lists, and short explanatory paragraphs. Explain the logic behind processes and relationships, preserve technical terms, and include examples only when supported by the source material. Every chunk summary should contribute substantive content to the final notes. Aim for about ${targets.targetNoteWordCount} words when the source supports it. Build at least ${targets.minSectionCount} substantial sections when the material supports it. Aim for roughly ${targets.targetStudyPointCount} studyOutline points overall when the source supports it.`,
     input: JSON.stringify(
       {
         sourceWordCount,
@@ -67,14 +68,21 @@ export async function generateNotesFromTranscript(
 
   return {
     ...result,
+    studyOutline: result.studyOutline,
     modelMetadata: {
       chunkCount: chunkOutputs.length,
       sourceWordCount,
       noteWordCount,
+      studyOutlineSectionCount: result.studyOutline.length,
+      studyOutlinePointCount: result.studyOutline.reduce(
+        (total, section) => total + section.points.length,
+        0,
+      ),
       coverageRatio:
         sourceWordCount > 0 ? Number((noteWordCount / sourceWordCount).toFixed(3)) : null,
       targetNoteWordCount: targets.targetNoteWordCount,
       recommendedTopicCount: targets.recommendedTopicCount,
+      targetStudyPointCount: targets.targetStudyPointCount,
       pipeline: params.pipelineName,
     },
   };

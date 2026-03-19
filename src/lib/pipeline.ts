@@ -151,7 +151,10 @@ export async function runLecturePipeline(params: { lectureId: string }) {
           summary: notes.summary,
           key_topics: notes.keyTopics,
           structured_notes_md: notes.structuredNotesMd,
-          model_metadata: notes.modelMetadata,
+          model_metadata: {
+            ...notes.modelMetadata,
+            studyOutline: notes.studyOutline,
+          },
         } as never,
         {
           onConflict: "lecture_id",
