@@ -33,7 +33,7 @@ const plannerUnitSchema = z.object({
   sectionIndex: z.number().int().nonnegative(),
   sectionTitle: z.string().min(2).max(160),
   importance: z.enum(["high", "medium", "low"]),
-  concepts: z.array(plannerConceptSchema).min(1).max(8),
+  concepts: z.array(plannerConceptSchema).max(10),
 });
 
 const plannerBatchSchema = z.object({
@@ -46,6 +46,24 @@ function slugify(value: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")
     .slice(0, 48);
+}
+
+function normalizeUnitText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isMetaStudyUnit(unit: SourceUnit) {
+  const text = normalizeUnitText(unit.text);
+
+  return (
+    text.startsWith("cilji poglavja") ||
+    text.includes("slika prikazuje") ||
+    text.includes("primer poslovnega portala") ||
+    (text.startsWith("omrežje z vozlišči") && text.includes("postaje povezane preko vozlišč"))
+  );
 }
 
 function fallbackConceptType(text: string): CoverageConceptType {
@@ -93,14 +111,14 @@ function buildFallbackConcept(unit: SourceUnit): CoverageConcept {
     conceptLabel: excerpt.slice(0, 100),
     conceptType,
     studyValue: unit.importance,
-    recommendedCardCount: unit.importance === "high" ? 3 : unit.importance === "medium" ? 2 : 1,
+    recommendedCardCount: unit.importance === "high" ? 2 : 1,
     preferredCardStyle: fallbackCardStyle(conceptType),
     supportingExcerpt: excerpt.slice(0, 200),
   };
 }
 
 function normalizeUnitPlan(unit: SourceUnit, plan: CoverageUnitPlan | undefined): CoverageUnitPlan {
-  if (!plan || plan.concepts.length === 0) {
+  if (!plan) {
     return {
       unitIndex: unit.unitIndex,
       sectionIndex: unit.sectionIndex,
@@ -118,7 +136,7 @@ function normalizeUnitPlan(unit: SourceUnit, plan: CoverageUnitPlan | undefined)
     concepts: plan.concepts.map((concept, index) => ({
       ...concept,
       conceptKey: concept.conceptKey || `${unit.unitIndex}-${slugify(concept.conceptLabel) || index}`,
-      recommendedCardCount: Math.min(Math.max(concept.recommendedCardCount, 1), 3),
+      recommendedCardCount: Math.min(Math.max(concept.recommendedCardCount, 1), 2),
     })),
   };
 }
@@ -150,10 +168,25 @@ export async function createCoveragePlan(params: {
   keyTopics: string[];
   units: SourceUnit[];
 }) {
+  const skippedPlans = new Map<number, CoverageUnitPlan>();
+  const includedUnits = params.units.filter((unit) => {
+    if (!isMetaStudyUnit(unit)) {
+      return true;
+    }
+
+    skippedPlans.set(unit.unitIndex, {
+      unitIndex: unit.unitIndex,
+      sectionIndex: unit.sectionIndex,
+      sectionTitle: unit.sectionTitle,
+      importance: "low",
+      concepts: [],
+    });
+    return false;
+  });
   const batches: SourceUnit[][] = [];
 
-  for (let index = 0; index < params.units.length; index += UNIT_BATCH_SIZE) {
-    batches.push(params.units.slice(index, index + UNIT_BATCH_SIZE));
+  for (let index = 0; index < includedUnits.length; index += UNIT_BATCH_SIZE) {
+    batches.push(includedUnits.slice(index, index + UNIT_BATCH_SIZE));
   }
 
   const plannedBatches = await mapWithConcurrency(batches, UNIT_PLAN_CONCURRENCY, async (batch) =>
@@ -162,7 +195,7 @@ export async function createCoveragePlan(params: {
       schemaName: "coverage_plan_batch",
       maxOutputTokens: Math.max(3200, batch.length * 760),
       instructions:
-        "Create a coverage-first flashcard plan from the supplied source units. Do not summarize away details. Every unit with meaningful content must produce at least one study-worthy concept, and dense units should produce several concepts. Preserve technical terms, steps, examples, definitions, comparisons, formulas, caveats, lists, and warnings that a student would need to know after reading the source. Favor over-coverage rather than under-coverage. Ignore obvious boilerplate or repeated headers only when they add no study value. Use high importance when the unit introduces a core definition, major mechanism, key process, or exam-relevant detail. When a unit contains multiple explicit facts or sub-points, split them into separate concepts rather than collapsing them.",
+        "Create a study-worthy flashcard plan from the supplied source units. Be selective like a strong human-made study deck, but still preserve broad coverage of the material. Prefer atomic, testable facts over broad summaries. Good concepts are: acronym meanings, term definitions, protocol purposes, device roles, named examples, exact lists, step sequences, comparisons, warnings, and concrete numeric or structural facts. When a unit contains several distinct facts, split them into separate concepts rather than merging them. If a unit is mostly slide metadata, learning goals, repeated headings, or image/diagram narration such as 'the figure shows ...', return an empty concepts array for that unit. Do not create concepts for generic chapter goals, obvious captions, or paraphrases of the same point. Use high importance only for core exam-relevant facts. Default to one card per concept; recommend two cards only when the source clearly supports two distinct study angles such as recall plus process/comparison.",
       input: JSON.stringify(
         {
           title: params.title,
@@ -189,6 +222,10 @@ export async function createCoveragePlan(params: {
     for (const unitPlan of batch.units) {
       planByUnit.set(unitPlan.unitIndex, unitPlan);
     }
+  }
+
+  for (const [unitIndex, plan] of skippedPlans) {
+    planByUnit.set(unitIndex, plan);
   }
 
   return params.units.map((unit) => normalizeUnitPlan(unit, planByUnit.get(unit.unitIndex)));

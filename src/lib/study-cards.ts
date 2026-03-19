@@ -28,6 +28,33 @@ function normalizeCardText(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
 
+function normalizeSimilarityText(value: string) {
+  return normalizeCardText(value)
+    .toLowerCase()
+    .replace(/["'`]/g, "")
+    .replace(/[^a-z0-9ščžćđ\s]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenOverlap(left: string, right: string) {
+  const leftTokens = new Set(normalizeSimilarityText(left).split(" ").filter((token) => token.length > 2));
+  const rightTokens = new Set(normalizeSimilarityText(right).split(" ").filter((token) => token.length > 2));
+
+  if (leftTokens.size === 0 || rightTokens.size === 0) {
+    return 0;
+  }
+
+  let overlap = 0;
+  for (const token of leftTokens) {
+    if (rightTokens.has(token)) {
+      overlap += 1;
+    }
+  }
+
+  return overlap / Math.min(leftTokens.size, rightTokens.size);
+}
+
 function normalizeCard(card: CoverageCardDraft): CoverageCardDraft {
   return {
     ...card,
@@ -38,16 +65,28 @@ function normalizeCard(card: CoverageCardDraft): CoverageCardDraft {
 }
 
 function dedupeCards(cards: CoverageCardDraft[]) {
-  const seen = new Set<string>();
   const output: CoverageCardDraft[] = [];
 
   for (const card of cards) {
-    const key = `${card.conceptKey}::${card.cardKind}::${card.front.toLowerCase()}::${card.back.toLowerCase()}`;
-    if (seen.has(key)) {
+    const exactKey = `${card.conceptKey}::${card.cardKind}::${card.front.toLowerCase()}::${card.back.toLowerCase()}`;
+    const nearDuplicate = output.some((existing) => {
+      if (existing.conceptKey !== card.conceptKey) {
+        return false;
+      }
+
+      if (existing.cardKind === card.cardKind) {
+        return true;
+      }
+
+      const backOverlap = tokenOverlap(existing.back, card.back);
+      const frontOverlap = tokenOverlap(existing.front, card.front);
+      return backOverlap >= 0.82 || frontOverlap >= 0.9;
+    });
+
+    if (nearDuplicate || output.some((existing) => `${existing.conceptKey}::${existing.cardKind}::${existing.front.toLowerCase()}::${existing.back.toLowerCase()}` === exactKey)) {
       continue;
     }
 
-    seen.add(key);
     output.push(card);
   }
 
@@ -108,10 +147,17 @@ Produce mixed study cards:
 - sequence cards for steps and ordered processes
 - apply cards only when the source includes an example or practical case
 Do not collapse different concepts into one card.
-When a concept requests 2 or 3 cards, make them materially different from each other and cover distinct recall vs understanding angles from the same source concept.
+When a concept requests 2 cards, make them materially different from each other and cover distinct recall vs understanding angles from the same source concept.
 Do not invent facts or examples.
 Every card must cite 1 or 2 source units and the answer must be fully supported by those citations.
 Use the provided conceptKey exactly.
+Prefer concise, exam-style cards over broad explanatory paraphrases.
+Prefer direct definition, acronym, device-role, protocol-purpose, and exact-list cards.
+Only use broad "zakaj" or "kako" explanation cards when the source clearly teaches a mechanism or ordered process that matters to understand, not just to recall.
+For acronyms, named protocols, named devices, or named services, prefer direct cards such as "Kaj pomeni kratica X?" or "Kaj je vloga X?".
+For list facts, ask for the complete set only when the set itself matters.
+Do not create cards about generic chapter goals, obvious figure captions, or "what does the picture show" unless the figure adds a distinct fact not stated elsewhere.
+Backs should usually be one short sentence or one short list item unless a full sequence is required.
 Keep fronts concise and backs concise enough to review quickly.`,
     input: JSON.stringify(
       {
