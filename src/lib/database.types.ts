@@ -196,6 +196,31 @@ export type Database = {
           updated_at?: string;
         };
       };
+      lecture_quiz_assets: {
+        Row: {
+          lecture_id: string;
+          status: StudyAssetStatus;
+          error_message: string | null;
+          model_metadata: Json;
+          generated_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          lecture_id: string;
+          status?: StudyAssetStatus;
+          error_message?: string | null;
+          model_metadata?: Json;
+          generated_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          status?: StudyAssetStatus;
+          error_message?: string | null;
+          model_metadata?: Json;
+          generated_at?: string;
+          updated_at?: string;
+        };
+      };
       lecture_study_sections: {
         Row: {
           id: string;
@@ -314,6 +339,41 @@ export type Database = {
           last_reviewed_at?: string | null;
         };
       };
+      quiz_questions: {
+        Row: {
+          id: string;
+          lecture_id: string;
+          idx: number;
+          prompt: string;
+          options_json: Json;
+          correct_option_idx: number;
+          explanation: string;
+          difficulty: FlashcardDifficulty;
+          source_locator: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          lecture_id: string;
+          idx: number;
+          prompt: string;
+          options_json?: Json;
+          correct_option_idx: number;
+          explanation: string;
+          difficulty: FlashcardDifficulty;
+          source_locator?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          idx?: number;
+          prompt?: string;
+          options_json?: Json;
+          correct_option_idx?: number;
+          explanation?: string;
+          difficulty?: FlashcardDifficulty;
+          source_locator?: string | null;
+        };
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -349,8 +409,11 @@ export type LectureArtifactRow =
 export type ChatMessageRow = Database["public"]["Tables"]["chat_messages"]["Row"];
 export type LectureStudyAssetRow =
   Database["public"]["Tables"]["lecture_study_assets"]["Row"];
+export type LectureQuizAssetRow =
+  Database["public"]["Tables"]["lecture_quiz_assets"]["Row"];
 export type LectureStudySectionRow =
   Database["public"]["Tables"]["lecture_study_sections"]["Row"];
 export type FlashcardRow = Database["public"]["Tables"]["flashcards"]["Row"];
 export type FlashcardProgressRow =
   Database["public"]["Tables"]["flashcard_progress"]["Row"];
+export type QuizQuestionRow = Database["public"]["Tables"]["quiz_questions"]["Row"];

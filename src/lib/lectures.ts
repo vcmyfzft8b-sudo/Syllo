@@ -7,10 +7,12 @@ import type {
   Citation,
   FlashcardRow,
   FlashcardProgressRow,
+  LectureQuizAssetRow,
   LectureArtifactRow,
   LectureRow,
   LectureStudyAssetRow,
   LectureStudySectionRow,
+  QuizQuestionRow,
   TranscriptSegmentRow,
 } from "@/lib/database.types";
 import type {
@@ -18,6 +20,7 @@ import type {
   ChatMessageWithCitations,
   FlashcardWithCitations,
   LectureDetail,
+  QuizQuestionWithOptions,
   StudySectionWithProgress,
 } from "@/lib/types";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -58,6 +61,23 @@ function isMissingStudySectionsSchemaError(error: unknown) {
   );
 }
 
+function isMissingQuizSchemaError(error: unknown) {
+  const text = getSchemaErrorText(error);
+
+  if (!text) {
+    return false;
+  }
+
+  return (
+    (text.includes("lecture_quiz_assets") || text.includes("quiz_questions")) &&
+    (text.includes("does not exist") ||
+      text.includes("could not find") ||
+      text.includes("schema cache") ||
+      text.includes("42p01") ||
+      text.includes("pgrst"))
+  );
+}
+
 function parseCitations(value: ChatMessageRow["citations_json"]): Citation[] {
   return Array.isArray(value) ? (value as unknown as Citation[]) : [];
 }
@@ -74,6 +94,19 @@ function mapFlashcard(flashcard: FlashcardRow): FlashcardWithCitations {
     ...flashcard,
     citations: parseCitations(flashcard.citations_json),
     progress: null,
+  };
+}
+
+function parseQuizOptions(value: QuizQuestionRow["options_json"]): string[] {
+  return Array.isArray(value)
+    ? value.filter((option): option is string => typeof option === "string")
+    : [];
+}
+
+function mapQuizQuestion(question: QuizQuestionRow): QuizQuestionWithOptions {
+  return {
+    ...question,
+    options: parseQuizOptions(question.options_json),
   };
 }
 
@@ -181,6 +214,16 @@ export async function getLectureDetailForUser(params: {
     .select("*")
     .eq("lecture_id", lectureRow.id)
     .order("idx", { ascending: true });
+  const quizAssetPromise = supabase
+    .from("lecture_quiz_assets")
+    .select("*")
+    .eq("lecture_id", lectureRow.id)
+    .maybeSingle();
+  const quizQuestionsPromise = supabase
+    .from("quiz_questions")
+    .select("*")
+    .eq("lecture_id", lectureRow.id)
+    .order("idx", { ascending: true });
 
   const [
     { data: artifact, error: artifactError },
@@ -189,6 +232,8 @@ export async function getLectureDetailForUser(params: {
     { data: transcript, error: transcriptError },
     { data: chatMessages, error: chatError },
     studySectionsResult,
+    quizAssetResult,
+    quizQuestionsResult,
   ] = await Promise.all([
     supabase
       .from("lecture_artifacts")
@@ -216,6 +261,8 @@ export async function getLectureDetailForUser(params: {
       .eq("lecture_id", lectureRow.id)
       .order("created_at", { ascending: true }),
     studySectionsPromise,
+    quizAssetPromise,
+    quizQuestionsPromise,
   ]);
 
   if (artifactError) {
@@ -238,10 +285,26 @@ export async function getLectureDetailForUser(params: {
     throw chatError;
   }
 
+  if (quizAssetResult.error && !isMissingQuizSchemaError(quizAssetResult.error)) {
+    throw quizAssetResult.error;
+  }
+
+  if (quizQuestionsResult.error && !isMissingQuizSchemaError(quizQuestionsResult.error)) {
+    throw quizQuestionsResult.error;
+  }
+
   const studySections =
     studySectionsResult.error && isMissingStudySectionsSchemaError(studySectionsResult.error)
       ? []
       : ((studySectionsResult.data ?? []) as LectureStudySectionRow[]);
+  const quizAsset =
+    quizAssetResult.error && isMissingQuizSchemaError(quizAssetResult.error)
+      ? null
+      : (quizAssetResult.data as LectureQuizAssetRow | null);
+  const quizQuestions =
+    quizQuestionsResult.error && isMissingQuizSchemaError(quizQuestionsResult.error)
+      ? []
+      : ((quizQuestionsResult.data ?? []) as QuizQuestionRow[]);
 
   if (studySectionsResult.error && !isMissingStudySectionsSchemaError(studySectionsResult.error)) {
     throw studySectionsResult.error;
@@ -287,12 +350,14 @@ export async function getLectureDetailForUser(params: {
     lecture: lectureRow,
     artifact: artifact as LectureArtifactRow | null,
     studyAsset: studyAsset as LectureStudyAssetRow | null,
+    quizAsset,
     studySections: buildStudySections({
       lectureId: lectureRow.id,
       flashcards: mappedFlashcards,
       sections: studySections,
     }),
     flashcards: mappedFlashcards,
+    quizQuestions: quizQuestions.map(mapQuizQuestion),
     transcript: (transcript ?? []) as TranscriptSegmentRow[],
     chatMessages: (chatMessages ?? []).map(mapChatMessage),
     audioUrl,

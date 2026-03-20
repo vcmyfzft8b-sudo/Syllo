@@ -2417,6 +2417,11 @@ select:disabled {
   gap: 0.75rem;
 }
 
+.lecture-study-mode-switch {
+  width: fit-content;
+  max-width: 100%;
+}
+
 .lecture-study-overview {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2769,6 +2774,157 @@ select:disabled {
   margin: 0 auto;
 }
 
+.lecture-quiz-stage {
+  display: grid;
+  gap: 0.85rem;
+  width: 100%;
+  max-width: 38rem;
+  margin: 0 auto;
+}
+
+.lecture-quiz-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  color: var(--secondary-label);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.lecture-quiz-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-muted) 84%, transparent);
+}
+
+.lecture-quiz-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.35rem;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--separator) 55%, transparent);
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--surface-solid) 99%, transparent), color-mix(in srgb, var(--surface-muted) 82%, transparent));
+  box-shadow: var(--shadow-soft);
+}
+
+.lecture-quiz-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.lecture-quiz-prompt {
+  margin: 0;
+  color: var(--label);
+  font-size: clamp(1.02rem, 0.95vw + 0.88rem, 1.22rem);
+  line-height: 1.55;
+  letter-spacing: -0.02em;
+}
+
+.lecture-quiz-options {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.lecture-quiz-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--separator) 55%, transparent);
+  background: color-mix(in srgb, var(--surface-solid) 94%, transparent);
+  color: var(--label);
+  text-align: left;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.lecture-quiz-option:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+.lecture-quiz-option:disabled {
+  opacity: 1;
+}
+
+.lecture-quiz-option.selected {
+  border-color: color-mix(in srgb, var(--blue) 40%, var(--separator));
+}
+
+.lecture-quiz-option.correct {
+  border-color: color-mix(in srgb, var(--green) 45%, var(--separator));
+  background: color-mix(in srgb, var(--green-soft) 72%, var(--surface-solid));
+}
+
+.lecture-quiz-option.incorrect {
+  border-color: color-mix(in srgb, var(--red) 45%, var(--separator));
+  background: color-mix(in srgb, var(--red-soft) 72%, var(--surface-solid));
+}
+
+.lecture-quiz-option-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-muted) 92%, transparent);
+  color: var(--secondary-label);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.lecture-quiz-option-copy {
+  display: block;
+  color: var(--label);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.lecture-quiz-feedback {
+  display: grid;
+  gap: 0.35rem;
+  padding-top: 0.2rem;
+}
+
+.lecture-quiz-feedback-title,
+.lecture-quiz-feedback-copy {
+  margin: 0;
+}
+
+.lecture-quiz-feedback-title {
+  color: var(--label);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.lecture-quiz-feedback-copy {
+  color: var(--secondary-label);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.lecture-quiz-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
 .lecture-flashcard-review {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2829,6 +2985,10 @@ select:disabled {
   font-size: 0.88rem;
   line-height: 1.5;
   text-align: center;
+}
+
+.lecture-study-create-button {
+  margin: 0.3rem auto 0;
 }
 
 .lecture-markdown > :first-child {
@@ -4150,7 +4310,8 @@ select:disabled {
 
   .lecture-study-title,
   .lecture-study-header-actions,
-  .lecture-study-overview {
+  .lecture-study-overview,
+  .lecture-study-mode-switch {
     width: 100%;
   }
 
@@ -4163,7 +4324,8 @@ select:disabled {
   }
 
   .lecture-flashcard-stage,
-  .lecture-flashcard-toolbar {
+  .lecture-flashcard-toolbar,
+  .lecture-quiz-stage {
     max-width: none;
   }
 
@@ -4183,6 +4345,10 @@ select:disabled {
   }
 
   .lecture-flashcard-review {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lecture-quiz-actions {
     grid-template-columns: minmax(0, 1fr);
   }
 

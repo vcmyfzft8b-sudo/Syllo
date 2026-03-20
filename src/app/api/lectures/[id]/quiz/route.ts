@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
-import { enqueueLectureStudyGeneration } from "@/lib/jobs";
+import { enqueueLectureQuizGeneration } from "@/lib/jobs";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 
 export async function GET(
@@ -29,10 +29,9 @@ export async function GET(
 
   return NextResponse.json({
     lectureId: detail.lecture.id,
-    status: detail.studyAsset?.status ?? null,
-    studyAsset: detail.studyAsset,
-    studySections: detail.studySections,
-    flashcards: detail.flashcards,
+    status: detail.quizAsset?.status ?? null,
+    quizAsset: detail.quizAsset,
+    quizQuestions: detail.quizQuestions,
   });
 }
 
@@ -61,14 +60,14 @@ export async function POST(
 
   if (lecture.status !== "ready") {
     return NextResponse.json(
-      { error: "Study tools are available after the note is ready." },
+      { error: "Quiz creation is available after the note is ready." },
       { status: 409 },
     );
   }
 
   const service = createSupabaseServiceRoleClient();
   const { error } = await service
-    .from("lecture_study_assets")
+    .from("lecture_quiz_assets")
     .upsert(
       {
         lecture_id: id,
@@ -85,7 +84,7 @@ export async function POST(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  await enqueueLectureStudyGeneration(id);
+  await enqueueLectureQuizGeneration(id);
 
   return NextResponse.json({ ok: true });
 }

@@ -4,10 +4,12 @@ import type {
   FlashcardRow,
   FlashcardProgressRow,
   LectureArtifactRow,
+  LectureQuizAssetRow,
   LectureRow,
   LectureStudyAssetRow,
   LectureStudySectionRow,
   ProfileRow,
+  QuizQuestionRow,
   TranscriptSegmentRow,
 } from "@/lib/database.types";
 
@@ -19,8 +21,10 @@ export interface LectureDetail {
   lecture: LectureRow;
   artifact: LectureArtifactRow | null;
   studyAsset: LectureStudyAssetRow | null;
+  quizAsset: LectureQuizAssetRow | null;
   studySections: StudySectionWithProgress[];
   flashcards: FlashcardWithCitations[];
+  quizQuestions: QuizQuestionWithOptions[];
   transcript: TranscriptSegmentRow[];
   chatMessages: ChatMessageWithCitations[];
   audioUrl: string | null;
@@ -33,6 +37,10 @@ export interface ChatMessageWithCitations extends Omit<ChatMessageRow, "citation
 export interface FlashcardWithCitations extends Omit<FlashcardRow, "citations_json"> {
   citations: Citation[];
   progress: FlashcardProgressRow | null;
+}
+
+export interface QuizQuestionWithOptions extends Omit<QuizQuestionRow, "options_json"> {
+  options: string[];
 }
 
 export interface StudySectionWithProgress extends LectureStudySectionRow {

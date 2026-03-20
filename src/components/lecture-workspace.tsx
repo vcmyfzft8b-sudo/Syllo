@@ -26,6 +26,7 @@ import {
 } from "@/lib/utils";
 
 type WorkspaceTab = "notes" | "study" | "chat" | "transcript" | "audio";
+type StudyMaterialView = "flashcards" | "quiz";
 
 function getTabItems({
   hasAudio,
@@ -59,7 +60,7 @@ function shouldPollLecture(status: LectureDetail["lecture"]["status"]) {
   return ["uploading", "queued", "transcribing", "generating_notes"].includes(status);
 }
 
-function shouldPollStudy(status: StudyAssetStatus | null | undefined) {
+function shouldPollAsset(status: StudyAssetStatus | null | undefined) {
   return status === "queued" || status === "generating";
 }
 
@@ -157,6 +158,22 @@ function studyStageLabel(stage: unknown) {
   return "Preparing study tools";
 }
 
+function quizStageLabel(stage: unknown) {
+  if (stage === "generating_questions") {
+    return "Generating quiz";
+  }
+
+  if (stage === "publishing_quiz") {
+    return "Publishing quiz";
+  }
+
+  if (stage === "ready") {
+    return "Quiz ready";
+  }
+
+  return "Preparing quiz";
+}
+
 function isLegacySectionId(value: string) {
   return value.startsWith("legacy-");
 }
@@ -198,16 +215,27 @@ export function LectureWorkspace({
   const [isRetrying, setIsRetrying] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isRegeneratingStudy, setIsRegeneratingStudy] = useState(false);
+  const [isRegeneratingQuiz, setIsRegeneratingQuiz] = useState(false);
   const [studyError, setStudyError] = useState<string | null>(null);
   const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false);
+  const [activeStudyView, setActiveStudyView] = useState<StudyMaterialView>(
+    initialDetail.flashcards.length > 0
+      ? "flashcards"
+      : initialDetail.quizQuestions.length > 0
+        ? "quiz"
+        : "flashcards",
+  );
   const [reviewQueue, setReviewQueue] = useState<string[]>([]);
   const [repeatQueue, setRepeatQueue] = useState<string[]>([]);
   const [reviewCycle, setReviewCycle] = useState(1);
   const [cycleCardCount, setCycleCardCount] = useState(0);
   const [activeProgressFlashcardId, setActiveProgressFlashcardId] = useState<string | null>(null);
+  const [activeQuizQuestionIndex, setActiveQuizQuestionIndex] = useState(0);
+  const [quizSelections, setQuizSelections] = useState<Record<string, number>>({});
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const studyDeck = detail.flashcards;
   const flashcardDeckKey = studyDeck.map((flashcard) => flashcard.id).join("|");
+  const quizDeckKey = detail.quizQuestions.map((question) => question.id).join("|");
   const currentReviewFlashcardId = reviewQueue[0] ?? null;
   const showsTranscript = detail.lecture.source_type === "audio";
 
@@ -236,7 +264,8 @@ export function LectureWorkspace({
   useEffect(() => {
     if (
       !shouldPollLecture(detail.lecture.status) &&
-      !shouldPollStudy(detail.studyAsset?.status)
+      !shouldPollAsset(detail.studyAsset?.status) &&
+      !shouldPollAsset(detail.quizAsset?.status)
     ) {
       return;
     }
@@ -252,7 +281,7 @@ export function LectureWorkspace({
     }, POLL_INTERVAL_MS);
 
     return () => window.clearInterval(interval);
-  }, [detail.lecture.id, detail.lecture.status, detail.studyAsset?.status]);
+  }, [detail.lecture.id, detail.lecture.status, detail.quizAsset?.status, detail.studyAsset?.status]);
 
   useEffect(() => {
     setIsFlashcardFlipped(false);
@@ -278,6 +307,11 @@ export function LectureWorkspace({
     setRepeatQueue([]);
     setReviewCycle((current) => current + 1);
   }, [repeatQueue, reviewQueue]);
+
+  useEffect(() => {
+    setActiveQuizQuestionIndex(0);
+    setQuizSelections({});
+  }, [quizDeckKey]);
 
   useEffect(() => {
     if (activeTab !== "chat") {
@@ -315,9 +349,31 @@ export function LectureWorkspace({
       ? detail.studyAsset.model_metadata.stage
       : null;
   const studyStageCopy = studyStageLabel(studyStage);
+  const quizStage =
+    detail.quizAsset?.model_metadata &&
+    typeof detail.quizAsset.model_metadata === "object" &&
+    !Array.isArray(detail.quizAsset.model_metadata) &&
+    "stage" in detail.quizAsset.model_metadata
+      ? detail.quizAsset.model_metadata.stage
+      : null;
+  const quizStageCopy = quizStageLabel(quizStage);
   const totalReviewedCards = detail.flashcards.filter(
     (flashcard) => (flashcard.progress?.review_count ?? 0) > 0,
   ).length;
+  const activeQuizQuestion = detail.quizQuestions[activeQuizQuestionIndex] ?? null;
+  const activeQuizSelection =
+    activeQuizQuestion ? (quizSelections[activeQuizQuestion.id] ?? null) : null;
+  const correctQuizAnswers = detail.quizQuestions.reduce((total, question) => {
+    return quizSelections[question.id] === question.correct_option_idx ? total + 1 : total;
+  }, 0);
+  const activeMaterialStatus =
+    activeStudyView === "flashcards" ? detail.studyAsset?.status : detail.quizAsset?.status;
+  const activeMaterialStageCopy =
+    activeStudyView === "flashcards" ? studyStageCopy : quizStageCopy;
+  const hasActiveMaterial =
+    activeStudyView === "flashcards" ? studyDeck.length > 0 : detail.quizQuestions.length > 0;
+  const isActiveMaterialBusy =
+    activeStudyView === "flashcards" ? isRegeneratingStudy : isRegeneratingQuiz;
 
   async function handleRetry() {
     setIsRetrying(true);
@@ -336,10 +392,17 @@ export function LectureWorkspace({
     }
   }
 
-  async function handleStudyRegenerate() {
+  async function refreshLectureDetail() {
+    const refresh = await fetch(`/api/lectures/${detail.lecture.id}`);
+    if (refresh.ok) {
+      setDetail((await refresh.json()) as LectureDetail);
+    }
+  }
+
+  async function handleStudyCreate() {
     setStudyError(null);
     setIsRegeneratingStudy(true);
-    const response = await fetch(`/api/lectures/${detail.lecture.id}/study/regenerate`, {
+    const response = await fetch(`/api/lectures/${detail.lecture.id}/study`, {
       method: "POST",
     });
     const payload = await response.json().catch(() => null);
@@ -350,10 +413,24 @@ export function LectureWorkspace({
       return;
     }
 
-    const refresh = await fetch(`/api/lectures/${detail.lecture.id}`);
-    if (refresh.ok) {
-      setDetail((await refresh.json()) as LectureDetail);
+    await refreshLectureDetail();
+  }
+
+  async function handleQuizCreate() {
+    setStudyError(null);
+    setIsRegeneratingQuiz(true);
+    const response = await fetch(`/api/lectures/${detail.lecture.id}/quiz`, {
+      method: "POST",
+    });
+    const payload = await response.json().catch(() => null);
+    setIsRegeneratingQuiz(false);
+
+    if (!response.ok) {
+      setStudyError(payload?.error ?? "Quiz could not be created.");
+      return;
     }
+
+    await refreshLectureDetail();
   }
 
   async function handleFlashcardProgress(confidenceBucket: FlashcardConfidenceBucket) {
@@ -429,6 +506,36 @@ export function LectureWorkspace({
     setReviewCycle(1);
     setCycleCardCount(initialQueue.length);
     setIsFlashcardFlipped(false);
+    setStudyError(null);
+  }
+
+  function handleQuizSelection(optionIndex: number) {
+    if (!activeQuizQuestion) {
+      return;
+    }
+
+    setQuizSelections((current) => {
+      if (typeof current[activeQuizQuestion.id] === "number") {
+        return current;
+      }
+
+      return {
+        ...current,
+        [activeQuizQuestion.id]: optionIndex,
+      };
+    });
+  }
+
+  function moveQuizQuestion(direction: -1 | 1) {
+    setActiveQuizQuestionIndex((current) => {
+      const nextIndex = current + direction;
+      return Math.max(0, Math.min(nextIndex, detail.quizQuestions.length));
+    });
+  }
+
+  function restartQuiz() {
+    setActiveQuizQuestionIndex(0);
+    setQuizSelections({});
     setStudyError(null);
   }
 
@@ -560,6 +667,11 @@ export function LectureWorkspace({
       const currentCyclePosition = cycleCardCount > 0 ? cycleCardCount - reviewQueue.length + 1 : 0;
       const totalFlashcards = studyDeck.length;
       const remainingFlashcards = reviewQueue.length + repeatQueue.length;
+      const totalQuizQuestions = detail.quizQuestions.length;
+      const activeMaterialError =
+        activeStudyView === "flashcards"
+          ? detail.studyAsset?.error_message
+          : detail.quizAsset?.error_message;
 
       return (
         <div className="workspace-panel-stack lecture-panel-stack">
@@ -567,155 +679,328 @@ export function LectureWorkspace({
             <div className="lecture-study-header">
               <div className="lecture-study-title">
                 <p className="lecture-card-label">Study</p>
-                {detail.studyAsset?.status ? (
+                {activeMaterialStatus ? (
                   <div className="lecture-study-meta">
-                    <span className={`lecture-study-status ${detail.studyAsset.status}`}>
-                      {detail.studyAsset.status}
+                    <span className={`lecture-study-status ${activeMaterialStatus}`}>
+                      {activeMaterialStatus}
                     </span>
-                    <span className="lecture-study-meta-copy">{studyStageCopy}</span>
+                    <span className="lecture-study-meta-copy">{activeMaterialStageCopy}</span>
                   </div>
                 ) : null}
               </div>
 
               <div className="lecture-study-header-actions">
-                <button
-                  type="button"
-                  onClick={handleStudyRegenerate}
-                  disabled={detail.lecture.status !== "ready" || isRegeneratingStudy}
-                  className="lecture-study-refresh"
-                >
-                  {isRegeneratingStudy ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCcw className="h-4 w-4" />
-                  )}
-                  Regenerate
-                </button>
+                {hasActiveMaterial ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void (activeStudyView === "flashcards" ? handleStudyCreate() : handleQuizCreate())
+                    }
+                    disabled={detail.lecture.status !== "ready" || isActiveMaterialBusy}
+                    className="lecture-study-refresh"
+                  >
+                    {isActiveMaterialBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCcw className="h-4 w-4" />
+                    )}
+                    {activeStudyView === "flashcards" ? "Regenerate flashcards" : "Regenerate quiz"}
+                  </button>
+                ) : null}
               </div>
             </div>
 
+            <div className="ios-segmented lecture-study-mode-switch">
+              {([
+                { id: "flashcards", label: "Flashcards" },
+                { id: "quiz", label: "Quiz" },
+              ] as const).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveStudyView(item.id)}
+                  className={`ios-segment ${activeStudyView === item.id ? "active" : ""}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
             {studyError ? <p className="danger-panel lecture-inline-note">{studyError}</p> : null}
-            {detail.studyAsset?.error_message ? (
-              <p className="danger-panel lecture-inline-note">{detail.studyAsset.error_message}</p>
+            {activeMaterialError ? (
+              <p className="danger-panel lecture-inline-note">{activeMaterialError}</p>
             ) : null}
 
-            {totalFlashcards === 0 ? (
-              <div className="empty-state lecture-empty-card lecture-study-empty">
-                <p className="ios-row-title">
-                  {detail.lecture.status === "ready"
-                    ? "Flashcards are not ready yet."
-                    : "Study tools unlock after processing finishes."}
-                </p>
-                <p className="ios-row-subtitle">
-                  {detail.lecture.status === "ready"
-                    ? "Regenerate flashcards to create a fresh deck from this material."
-                    : "Once the lecture is ready, the study tab will fill with flashcards automatically."}
-                </p>
-                {detail.studyAsset?.status === "generating" ? (
-                  <p className="lecture-study-hint">{studyStageCopy}</p>
-                ) : null}
-              </div>
-            ) : currentFlashcard ? (
-              <>
-                <div className="lecture-flashcard-stage">
-                  <div className="lecture-flashcard-stage-meta">
-                    <span>Card {currentCyclePosition} / {cycleCardCount}</span>
-                    <span>{remainingFlashcards} left</span>
-                    {reviewCycle > 1 ? <span>Cycle {reviewCycle}</span> : null}
-                  </div>
-
-                  <button
-                    type="button"
-                    className={`lecture-flashcard ${isFlashcardFlipped ? "flipped" : ""}`}
-                    onClick={() => setIsFlashcardFlipped((current) => !current)}
-                  >
-                    <div className="lecture-flashcard-rotator">
-                      <div className="lecture-flashcard-face lecture-flashcard-face-front">
-                        <div className="lecture-flashcard-face-meta">
-                          <span>Flashcard</span>
-                          <span className={`lecture-flashcard-difficulty ${currentFlashcard.difficulty}`}>
-                            {currentFlashcard.difficulty}
-                          </span>
-                        </div>
-                        <p className="lecture-flashcard-content">{currentFlashcard.front}</p>
-                        <p className="lecture-flashcard-hintline">
-                          Click anywhere on the card to reveal the answer.
-                        </p>
-                      </div>
-                      <div className="lecture-flashcard-face lecture-flashcard-face-answer">
-                        <div className="lecture-flashcard-face-meta">
-                          <span>Answer</span>
-                        </div>
-                        <p className="lecture-flashcard-content">{currentFlashcard.back}</p>
-                        <div className="lecture-flashcard-citations">
-                          {currentFlashcard.source_locator ? (
-                            <span className="lecture-flashcard-citation lecture-flashcard-citation-primary">
-                              {currentFlashcard.source_locator}
-                            </span>
-                          ) : null}
-                          {currentFlashcard.source_type === "audio"
-                            ? currentFlashcard.citations.map((citation) => (
-                                <span
-                                  key={`${currentFlashcard.id}-${citation.idx}-${citation.startMs}`}
-                                  className="lecture-flashcard-citation"
-                                >
-                                  {formatTimestamp(citation.startMs)}
-                                </span>
-                              ))
-                            : null}
-                        </div>
-                        <p className="lecture-flashcard-hintline">
-                          {currentFlashcard.hint ?? "Choose whether you knew it before moving on."}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                </div>
-
-                <div className="lecture-flashcard-toolbar">
-                  {isFlashcardFlipped ? (
-                    <div className="lecture-flashcard-review">
-                      {(["again", "easy"] as const).map((bucket) => {
-                        const Icon = confidenceIcon(bucket);
-
-                        return (
-                          <button
-                            key={bucket}
-                            type="button"
-                            onClick={() => void handleFlashcardProgress(bucket)}
-                            disabled={activeProgressFlashcardId === currentFlashcard.id}
-                            className={`lecture-flashcard-review-button ${bucket}`}
-                            aria-label={confidenceLabel(bucket)}
-                            title={confidenceLabel(bucket)}
-                          >
-                            {activeProgressFlashcardId === currentFlashcard.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Icon className="h-5 w-5" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
+            {activeStudyView === "flashcards" ? (
+              totalFlashcards === 0 ? (
+                <div className="empty-state lecture-empty-card lecture-study-empty">
+                  <p className="ios-row-title">
+                    {detail.lecture.status !== "ready"
+                      ? "Study tools unlock after note processing finishes."
+                      : shouldPollAsset(detail.studyAsset?.status)
+                        ? "Creating flashcards."
+                        : detail.studyAsset?.status === "failed"
+                          ? "Flashcard creation failed."
+                          : "Create flashcards when you're ready."}
+                  </p>
+                  <p className="ios-row-subtitle">
+                    {detail.lecture.status !== "ready"
+                      ? "Notes are created first. After that, you can generate flashcards manually."
+                      : shouldPollAsset(detail.studyAsset?.status)
+                        ? "This view refreshes automatically as your deck is prepared."
+                        : "Build a study deck from the same language and content as your notes."}
+                  </p>
+                  {detail.lecture.status === "ready" && !shouldPollAsset(detail.studyAsset?.status) ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleStudyCreate()}
+                      disabled={isRegeneratingStudy}
+                      className="lecture-study-refresh lecture-study-create-button"
+                    >
+                      {isRegeneratingStudy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : null}
+                      Create flashcards
+                    </button>
+                  ) : null}
+                  {shouldPollAsset(detail.studyAsset?.status) ? (
+                    <p className="lecture-study-hint">{studyStageCopy}</p>
                   ) : null}
                 </div>
-              </>
+              ) : currentFlashcard ? (
+                <>
+                  <div className="lecture-flashcard-stage">
+                    <div className="lecture-flashcard-stage-meta">
+                      <span>Card {currentCyclePosition} / {cycleCardCount}</span>
+                      <span>{remainingFlashcards} left</span>
+                      {reviewCycle > 1 ? <span>Cycle {reviewCycle}</span> : null}
+                    </div>
+
+                    <button
+                      type="button"
+                      className={`lecture-flashcard ${isFlashcardFlipped ? "flipped" : ""}`}
+                      onClick={() => setIsFlashcardFlipped((current) => !current)}
+                    >
+                      <div className="lecture-flashcard-rotator">
+                        <div className="lecture-flashcard-face lecture-flashcard-face-front">
+                          <div className="lecture-flashcard-face-meta">
+                            <span>Flashcard</span>
+                            <span className={`lecture-flashcard-difficulty ${currentFlashcard.difficulty}`}>
+                              {currentFlashcard.difficulty}
+                            </span>
+                          </div>
+                          <p className="lecture-flashcard-content">{currentFlashcard.front}</p>
+                          <p className="lecture-flashcard-hintline">
+                            Click anywhere on the card to reveal the answer.
+                          </p>
+                        </div>
+                        <div className="lecture-flashcard-face lecture-flashcard-face-answer">
+                          <div className="lecture-flashcard-face-meta">
+                            <span>Answer</span>
+                          </div>
+                          <p className="lecture-flashcard-content">{currentFlashcard.back}</p>
+                          <div className="lecture-flashcard-citations">
+                            {currentFlashcard.source_locator ? (
+                              <span className="lecture-flashcard-citation lecture-flashcard-citation-primary">
+                                {currentFlashcard.source_locator}
+                              </span>
+                            ) : null}
+                            {currentFlashcard.source_type === "audio"
+                              ? currentFlashcard.citations.map((citation) => (
+                                  <span
+                                    key={`${currentFlashcard.id}-${citation.idx}-${citation.startMs}`}
+                                    className="lecture-flashcard-citation"
+                                  >
+                                    {formatTimestamp(citation.startMs)}
+                                  </span>
+                                ))
+                              : null}
+                          </div>
+                          <p className="lecture-flashcard-hintline">
+                            {currentFlashcard.hint ?? "Choose whether you knew it before moving on."}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+
+                  <div className="lecture-flashcard-toolbar">
+                    {isFlashcardFlipped ? (
+                      <div className="lecture-flashcard-review">
+                        {(["again", "easy"] as const).map((bucket) => {
+                          const Icon = confidenceIcon(bucket);
+
+                          return (
+                            <button
+                              key={bucket}
+                              type="button"
+                              onClick={() => void handleFlashcardProgress(bucket)}
+                              disabled={activeProgressFlashcardId === currentFlashcard.id}
+                              className={`lecture-flashcard-review-button ${bucket}`}
+                              aria-label={confidenceLabel(bucket)}
+                              title={confidenceLabel(bucket)}
+                            >
+                              {activeProgressFlashcardId === currentFlashcard.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Icon className="h-5 w-5" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <div className="empty-state lecture-empty-card lecture-study-empty">
+                  <p className="ios-row-title">You reached the end of the deck.</p>
+                  <p className="ios-row-subtitle">
+                    You reviewed {totalReviewedCards} of {totalFlashcards} flashcards. Restart anytime for another pass.
+                  </p>
+                  <div className="lecture-study-complete-actions">
+                    <button
+                      type="button"
+                      onClick={restartFlashcardReview}
+                      className="lecture-study-refresh lecture-study-restart"
+                      aria-label="Start over"
+                      title="Start over"
+                    >
+                      <RefreshCcw className="h-4 w-4" />
+                      Restart deck
+                    </button>
+                  </div>
+                </div>
+              )
+            ) : totalQuizQuestions === 0 ? (
+              <div className="empty-state lecture-empty-card lecture-study-empty">
+                <p className="ios-row-title">
+                  {detail.lecture.status !== "ready"
+                    ? "Study tools unlock after note processing finishes."
+                    : shouldPollAsset(detail.quizAsset?.status)
+                      ? "Creating quiz."
+                      : detail.quizAsset?.status === "failed"
+                        ? "Quiz creation failed."
+                        : "Create a quiz when you're ready."}
+                </p>
+                <p className="ios-row-subtitle">
+                  {detail.lecture.status !== "ready"
+                    ? "Notes are created first. After that, you can generate quizzes manually."
+                    : shouldPollAsset(detail.quizAsset?.status)
+                      ? "This view refreshes automatically as your quiz is prepared."
+                      : "Generate multiple-choice questions in the same language as your notes."}
+                </p>
+                {detail.lecture.status === "ready" && !shouldPollAsset(detail.quizAsset?.status) ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleQuizCreate()}
+                    disabled={isRegeneratingQuiz}
+                    className="lecture-study-refresh lecture-study-create-button"
+                  >
+                    {isRegeneratingQuiz ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : null}
+                    Create quiz
+                  </button>
+                ) : null}
+                {shouldPollAsset(detail.quizAsset?.status) ? (
+                  <p className="lecture-study-hint">{quizStageCopy}</p>
+                ) : null}
+              </div>
+            ) : activeQuizQuestion ? (
+              <div className="lecture-quiz-stage">
+                <div className="lecture-quiz-meta">
+                  <span>Question {activeQuizQuestionIndex + 1} / {totalQuizQuestions}</span>
+                  <span>{Object.keys(quizSelections).length} answered</span>
+                </div>
+
+                <div className="lecture-quiz-card">
+                  <div className="lecture-quiz-card-header">
+                    <span className={`lecture-flashcard-difficulty ${activeQuizQuestion.difficulty}`}>
+                      {activeQuizQuestion.difficulty}
+                    </span>
+                    {activeQuizQuestion.source_locator ? (
+                      <span className="lecture-flashcard-citation lecture-flashcard-citation-primary">
+                        {activeQuizQuestion.source_locator}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <p className="lecture-quiz-prompt">{activeQuizQuestion.prompt}</p>
+
+                  <div className="lecture-quiz-options">
+                    {activeQuizQuestion.options.map((option, optionIndex) => {
+                      const isSelected = activeQuizSelection === optionIndex;
+                      const isCorrect = activeQuizSelection !== null && optionIndex === activeQuizQuestion.correct_option_idx;
+                      const isIncorrect =
+                        activeQuizSelection !== null &&
+                        isSelected &&
+                        optionIndex !== activeQuizQuestion.correct_option_idx;
+
+                      return (
+                        <button
+                          key={`${activeQuizQuestion.id}-${optionIndex}`}
+                          type="button"
+                          onClick={() => handleQuizSelection(optionIndex)}
+                          disabled={activeQuizSelection !== null}
+                          className={`lecture-quiz-option ${isSelected ? "selected" : ""} ${isCorrect ? "correct" : ""} ${isIncorrect ? "incorrect" : ""}`}
+                        >
+                          <span className="lecture-quiz-option-label">
+                            {String.fromCharCode(65 + optionIndex)}
+                          </span>
+                          <span className="lecture-quiz-option-copy">{option}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {activeQuizSelection !== null ? (
+                    <div className="lecture-quiz-feedback">
+                      <p className="lecture-quiz-feedback-title">
+                        {activeQuizSelection === activeQuizQuestion.correct_option_idx ? "Correct" : "Review this one"}
+                      </p>
+                      <p className="lecture-quiz-feedback-copy">{activeQuizQuestion.explanation}</p>
+                    </div>
+                  ) : (
+                    <p className="lecture-flashcard-hintline">
+                      Choose one answer to reveal the explanation.
+                    </p>
+                  )}
+                </div>
+
+                <div className="lecture-quiz-actions">
+                  <button
+                    type="button"
+                    onClick={() => moveQuizQuestion(-1)}
+                    disabled={activeQuizQuestionIndex === 0}
+                    className="lecture-study-action"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveQuizQuestion(1)}
+                    disabled={activeQuizSelection === null}
+                    className="lecture-study-refresh"
+                  >
+                    {activeQuizQuestionIndex === totalQuizQuestions - 1 ? "Finish" : "Next"}
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="empty-state lecture-empty-card lecture-study-empty">
-                <p className="ios-row-title">You reached the end of the deck.</p>
+                <p className="ios-row-title">Quiz complete.</p>
                 <p className="ios-row-subtitle">
-                  You reviewed {totalReviewedCards} of {totalFlashcards} flashcards. Restart anytime for another pass.
+                  You answered {correctQuizAnswers} of {totalQuizQuestions} questions correctly.
                 </p>
                 <div className="lecture-study-complete-actions">
                   <button
                     type="button"
-                    onClick={restartFlashcardReview}
+                    onClick={restartQuiz}
                     className="lecture-study-refresh lecture-study-restart"
-                    aria-label="Start over"
-                    title="Start over"
                   >
                     <RefreshCcw className="h-4 w-4" />
-                    Restart deck
+                    Restart quiz
                   </button>
                 </div>
               </div>
@@ -884,7 +1169,9 @@ export function LectureWorkspace({
             <p className="danger-panel lecture-inline-note">{detail.lecture.error_message}</p>
           ) : null}
 
-          {shouldPollLecture(detail.lecture.status) || shouldPollStudy(detail.studyAsset?.status) ? (
+          {shouldPollLecture(detail.lecture.status) ||
+          shouldPollAsset(detail.studyAsset?.status) ||
+          shouldPollAsset(detail.quizAsset?.status) ? (
             <p className="ios-info lecture-inline-note">
               Processing is still running. This view refreshes automatically.
             </p>
