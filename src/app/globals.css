@@ -2418,8 +2418,19 @@ select:disabled {
 }
 
 .lecture-study-mode-switch {
-  width: fit-content;
-  max-width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 20rem);
+  padding: 0.25rem;
+  border-radius: 16px;
+}
+
+.lecture-study-mode-switch .ios-segment {
+  min-height: 2.65rem;
+  border-radius: 12px;
+  padding: 0 1rem;
+  font-size: 0.96rem;
+  font-weight: 600;
 }
 
 .lecture-study-overview {
@@ -4313,6 +4324,10 @@ select:disabled {
   .lecture-study-overview,
   .lecture-study-mode-switch {
     width: 100%;
+  }
+
+  .lecture-study-mode-switch {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .lecture-study-overview {

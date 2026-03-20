@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 
 import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
 import { enqueueLectureQuizGeneration } from "@/lib/jobs";
-import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { queueLectureQuizGeneration } from "@/lib/quiz";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function GET(
   _request: Request,
@@ -65,23 +66,15 @@ export async function POST(
     );
   }
 
-  const service = createSupabaseServiceRoleClient();
-  const { error } = await service
-    .from("lecture_quiz_assets")
-    .upsert(
+  try {
+    await queueLectureQuizGeneration(id);
+  } catch (error) {
+    return NextResponse.json(
       {
-        lecture_id: id,
-        status: "queued",
-        error_message: null,
-        model_metadata: {},
-      } as never,
-      {
-        onConflict: "lecture_id",
+        error: error instanceof Error ? error.message : "Quiz creation could not be queued.",
       },
+      { status: 500 },
     );
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   await enqueueLectureQuizGeneration(id);
