@@ -1020,7 +1020,6 @@ export function LectureWorkspace({
               <StudyCompletionCard
                 eyebrow="Congratulations"
                 title="Quiz complete"
-                subtitle={`You answered ${correctQuizAnswers} of ${totalQuizQuestions} questions correctly.`}
                 percentage={quizScorePercent}
                 percentageLabel="Score"
                 primaryMetric={{

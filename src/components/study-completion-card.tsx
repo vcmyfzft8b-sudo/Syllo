@@ -11,7 +11,7 @@ interface StudyCompletionMetric {
 interface StudyCompletionCardProps {
   eyebrow: string;
   title: string;
-  subtitle: string;
+  subtitle?: string;
   percentage: number;
   percentageLabel: string;
   primaryMetric: StudyCompletionMetric;
@@ -56,7 +56,9 @@ export function StudyCompletionCard({
         </span>
         <div className="lecture-study-completion-copy">
           <h3 className="lecture-study-completion-title">{title}</h3>
-          <p className="lecture-study-completion-subtitle">{subtitle}</p>
+          {subtitle ? (
+            <p className="lecture-study-completion-subtitle">{subtitle}</p>
+          ) : null}
         </div>
       </div>
 
