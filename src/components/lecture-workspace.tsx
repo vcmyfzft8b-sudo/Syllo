@@ -671,7 +671,7 @@ export function LectureWorkspace({
 
       return (
         <div className="workspace-panel-stack lecture-panel-stack">
-          <div className="ios-card lecture-study-shell">
+          <div className={`ios-card lecture-study-shell ${activeStudyView === "quiz" ? "quiz-mode" : ""}`}>
             <div className="lecture-study-header">
               <div className="lecture-study-title">
                 <p className="lecture-card-label">Study</p>
