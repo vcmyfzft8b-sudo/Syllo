@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { StatusBadge } from "@/components/status-badge";
+import { StudyCompletionCard } from "@/components/study-completion-card";
 import type { FlashcardConfidenceBucket, StudyAssetStatus } from "@/lib/database.types";
 import { POLL_INTERVAL_MS } from "@/lib/constants";
 import type { ChatMessageWithCitations, LectureDetail } from "@/lib/types";
@@ -27,6 +28,11 @@ import {
 
 type WorkspaceTab = "notes" | "study" | "chat" | "transcript" | "audio";
 type StudyMaterialView = "flashcards" | "quiz";
+type FlashcardSessionResult = {
+  attempts: number;
+  firstConfidence: FlashcardConfidenceBucket;
+  latestConfidence: FlashcardConfidenceBucket;
+};
 
 function getTabItems({
   hasAudio,
@@ -230,6 +236,9 @@ export function LectureWorkspace({
   const [reviewCycle, setReviewCycle] = useState(1);
   const [cycleCardCount, setCycleCardCount] = useState(0);
   const [activeProgressFlashcardId, setActiveProgressFlashcardId] = useState<string | null>(null);
+  const [flashcardSessionResults, setFlashcardSessionResults] = useState<
+    Record<string, FlashcardSessionResult>
+  >({});
   const [activeQuizQuestionIndex, setActiveQuizQuestionIndex] = useState(0);
   const [quizSelections, setQuizSelections] = useState<Record<string, number>>({});
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
@@ -294,6 +303,7 @@ export function LectureWorkspace({
     setReviewCycle(1);
     setCycleCardCount(initialQueue.length);
     setIsFlashcardFlipped(false);
+    setFlashcardSessionResults({});
     setStudyError(null);
   }, [flashcardDeckKey]);
 
@@ -357,15 +367,32 @@ export function LectureWorkspace({
       ? detail.quizAsset.model_metadata.stage
       : null;
   const quizStageCopy = quizStageLabel(quizStage);
-  const totalReviewedCards = detail.flashcards.filter(
-    (flashcard) => (flashcard.progress?.review_count ?? 0) > 0,
-  ).length;
+  const totalFlashcards = studyDeck.length;
+  const flashcardFirstPassKnownCount = studyDeck.reduce((total, flashcard) => {
+    return flashcardSessionResults[flashcard.id]?.firstConfidence !== "again" &&
+      flashcardSessionResults[flashcard.id]?.firstConfidence
+      ? total + 1
+      : total;
+  }, 0);
+  const flashcardRepeatCount = studyDeck.reduce((total, flashcard) => {
+    const sessionResult = flashcardSessionResults[flashcard.id];
+    return sessionResult && sessionResult.attempts > 1 ? total + 1 : total;
+  }, 0);
+  const flashcardAttemptCount = studyDeck.reduce((total, flashcard) => {
+    return total + (flashcardSessionResults[flashcard.id]?.attempts ?? 0);
+  }, 0);
+  const flashcardConfidencePercent =
+    totalFlashcards > 0 ? Math.round((flashcardFirstPassKnownCount / totalFlashcards) * 100) : 0;
   const activeQuizQuestion = detail.quizQuestions[activeQuizQuestionIndex] ?? null;
   const activeQuizSelection =
     activeQuizQuestion ? (quizSelections[activeQuizQuestion.id] ?? null) : null;
+  const totalQuizQuestions = detail.quizQuestions.length;
+  const answeredQuizQuestions = Object.keys(quizSelections).length;
   const correctQuizAnswers = detail.quizQuestions.reduce((total, question) => {
     return quizSelections[question.id] === question.correct_option_idx ? total + 1 : total;
   }, 0);
+  const quizScorePercent =
+    totalQuizQuestions > 0 ? Math.round((correctQuizAnswers / totalQuizQuestions) * 100) : 0;
   const activeMaterialStatus =
     activeStudyView === "flashcards" ? detail.studyAsset?.status : detail.quizAsset?.status;
   const activeMaterialStageCopy =
@@ -484,6 +511,18 @@ export function LectureWorkspace({
           : currentFlashcard,
       ),
     }));
+    setFlashcardSessionResults((current) => {
+      const previous = current[flashcard.id];
+
+      return {
+        ...current,
+        [flashcard.id]: {
+          attempts: (previous?.attempts ?? 0) + 1,
+          firstConfidence: previous?.firstConfidence ?? confidenceBucket,
+          latestConfidence: confidenceBucket,
+        },
+      };
+    });
 
     setReviewQueue((current) => {
       const [activeId, ...remaining] = current;
@@ -502,6 +541,7 @@ export function LectureWorkspace({
     setReviewCycle(1);
     setCycleCardCount(initialQueue.length);
     setIsFlashcardFlipped(false);
+    setFlashcardSessionResults({});
     setStudyError(null);
   }
 
@@ -661,9 +701,7 @@ export function LectureWorkspace({
     if (activeTab === "study") {
       const currentFlashcard = studyDeck.find((flashcard) => flashcard.id === currentReviewFlashcardId) ?? null;
       const currentCyclePosition = cycleCardCount > 0 ? cycleCardCount - reviewQueue.length + 1 : 0;
-      const totalFlashcards = studyDeck.length;
       const remainingFlashcards = reviewQueue.length + repeatQueue.length;
-      const totalQuizQuestions = detail.quizQuestions.length;
       const activeMaterialError =
         activeStudyView === "flashcards"
           ? detail.studyAsset?.error_message
@@ -743,7 +781,7 @@ export function LectureWorkspace({
                     <p className="lecture-study-hint">{studyStageCopy}</p>
                   ) : null}
                 </div>
-              ) : currentFlashcard ? (
+            ) : currentFlashcard ? (
                 <>
                   <div className="lecture-flashcard-stage">
                     <div className="lecture-flashcard-stage-meta">
@@ -829,12 +867,27 @@ export function LectureWorkspace({
                   </div>
                 </>
               ) : (
-                <div className="empty-state lecture-empty-card lecture-study-empty">
-                  <p className="ios-row-title">You reached the end of the deck.</p>
-                  <p className="ios-row-subtitle">
-                    You reviewed {totalReviewedCards} of {totalFlashcards} flashcards. Restart anytime for another pass.
-                  </p>
-                  <div className="lecture-study-complete-actions">
+                <StudyCompletionCard
+                  eyebrow="Congratulations"
+                  title="Flashcard session complete"
+                  subtitle={`You cleared all ${totalFlashcards} flashcards. ${flashcardRepeatCount > 0 ? `${flashcardRepeatCount} needed another pass before they stuck.` : "You moved through the deck cleanly on the first pass."}`}
+                  percentage={flashcardConfidencePercent}
+                  percentageLabel="First-pass confidence"
+                  metrics={[
+                    {
+                      label: "Knew right away",
+                      value: `${flashcardFirstPassKnownCount}/${totalFlashcards}`,
+                    },
+                    {
+                      label: "Reviewed again",
+                      value: `${flashcardRepeatCount}`,
+                    },
+                    {
+                      label: "Total attempts",
+                      value: `${flashcardAttemptCount}`,
+                    },
+                  ]}
+                  actions={
                     <button
                       type="button"
                       onClick={restartFlashcardReview}
@@ -845,8 +898,8 @@ export function LectureWorkspace({
                       <RefreshCcw className="h-4 w-4" />
                       Restart deck
                     </button>
-                  </div>
-                </div>
+                  }
+                />
               )
             ) : totalQuizQuestions === 0 ? (
               <div className="empty-state lecture-empty-card lecture-study-empty">
@@ -887,7 +940,7 @@ export function LectureWorkspace({
               <div className="lecture-quiz-stage">
                 <div className="lecture-quiz-meta">
                   <span>Question {activeQuizQuestionIndex + 1} / {totalQuizQuestions}</span>
-                  <span>{Object.keys(quizSelections).length} answered</span>
+                  <span>{answeredQuizQuestions} answered</span>
                 </div>
 
                 <div className="lecture-quiz-card">
@@ -964,12 +1017,27 @@ export function LectureWorkspace({
                 </div>
               </div>
             ) : (
-              <div className="empty-state lecture-empty-card lecture-study-empty">
-                <p className="ios-row-title">Quiz complete.</p>
-                <p className="ios-row-subtitle">
-                  You answered {correctQuizAnswers} of {totalQuizQuestions} questions correctly.
-                </p>
-                <div className="lecture-study-complete-actions">
+              <StudyCompletionCard
+                eyebrow="Congratulations"
+                title="Quiz complete"
+                subtitle={`You answered ${correctQuizAnswers} of ${totalQuizQuestions} questions correctly.`}
+                percentage={quizScorePercent}
+                percentageLabel="Score"
+                metrics={[
+                  {
+                    label: "Correct answers",
+                    value: `${correctQuizAnswers}/${totalQuizQuestions}`,
+                  },
+                  {
+                    label: "Missed",
+                    value: `${totalQuizQuestions - correctQuizAnswers}`,
+                  },
+                  {
+                    label: "Completion",
+                    value: `${answeredQuizQuestions}/${totalQuizQuestions}`,
+                  },
+                ]}
+                actions={
                   <button
                     type="button"
                     onClick={restartQuiz}
@@ -978,8 +1046,8 @@ export function LectureWorkspace({
                     <RefreshCcw className="h-4 w-4" />
                     Restart quiz
                   </button>
-                </div>
-              </div>
+                }
+              />
             )}
           </div>
         </div>

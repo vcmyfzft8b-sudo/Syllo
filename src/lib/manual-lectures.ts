@@ -28,8 +28,8 @@ let pdfJsPromise: Promise<typeof import("pdfjs-dist/legacy/build/pdf.mjs")> | nu
 
 async function getPdfJs() {
   if (!pdfJsPromise) {
-    const pdfGlobal = globalThis as typeof globalThis & {
-      self?: typeof globalThis;
+    const pdfGlobal = globalThis as {
+      self?: unknown;
     };
 
     pdfGlobal.self ??= globalThis;
@@ -343,7 +343,6 @@ export async function extractTextFromPdf(file: File) {
     const pdfjs = await getPdfJs();
     const loadingTask = pdfjs.getDocument({
       data: fileBytes,
-      disableWorker: true,
       useWorkerFetch: false,
       isEvalSupported: false,
     });
