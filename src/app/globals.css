@@ -2401,7 +2401,7 @@ select:disabled {
   height: min(66.6vh, 52.2rem);
 }
 
-.lecture-study-shell.quiz-mode {
+.lecture-study-shell.auto-height {
   height: auto;
   min-height: min(66.6vh, 52.2rem);
 }
@@ -2607,6 +2607,7 @@ select:disabled {
   display: grid;
   gap: 1.35rem;
   width: min(100%, 40rem);
+  max-width: 100%;
   margin: auto;
   padding: 1.75rem 1.55rem 1.55rem;
   border-radius: 28px;
@@ -2665,6 +2666,7 @@ select:disabled {
   font-size: clamp(1.45rem, 1.6vw + 1.08rem, 2rem);
   font-weight: 720;
   letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
 }
 
 .lecture-study-completion-subtitle {
@@ -2672,6 +2674,7 @@ select:disabled {
   color: var(--secondary-label);
   font-size: 0.98rem;
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .lecture-study-completion-body {
@@ -2761,6 +2764,7 @@ select:disabled {
   font-size: clamp(2rem, 2vw + 1.2rem, 2.7rem);
   line-height: 1;
   letter-spacing: -0.06em;
+  overflow-wrap: anywhere;
 }
 
 .lecture-study-completion-metrics {
@@ -2773,6 +2777,7 @@ select:disabled {
 .lecture-study-completion-metric {
   display: grid;
   gap: 0.3rem;
+  min-width: 0;
   padding: 0.95rem 1rem;
   border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--separator) 55%, transparent);
@@ -2797,6 +2802,7 @@ select:disabled {
   font-size: 1.3rem;
   line-height: 1.05;
   letter-spacing: -0.04em;
+  overflow-wrap: anywhere;
 }
 
 .lecture-flashcard-stage {
@@ -4519,7 +4525,7 @@ select:disabled {
     height: min(61vh, 36rem);
   }
 
-  .lecture-study-shell.quiz-mode {
+  .lecture-study-shell.auto-height {
     height: auto;
     min-height: min(61vh, 36rem);
   }

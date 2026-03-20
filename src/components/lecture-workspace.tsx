@@ -374,13 +374,6 @@ export function LectureWorkspace({
       ? total + 1
       : total;
   }, 0);
-  const flashcardRepeatCount = studyDeck.reduce((total, flashcard) => {
-    const sessionResult = flashcardSessionResults[flashcard.id];
-    return sessionResult && sessionResult.attempts > 1 ? total + 1 : total;
-  }, 0);
-  const flashcardAttemptCount = studyDeck.reduce((total, flashcard) => {
-    return total + (flashcardSessionResults[flashcard.id]?.attempts ?? 0);
-  }, 0);
   const flashcardConfidencePercent =
     totalFlashcards > 0 ? Math.round((flashcardFirstPassKnownCount / totalFlashcards) * 100) : 0;
   const activeQuizQuestion = detail.quizQuestions[activeQuizQuestionIndex] ?? null;
@@ -700,6 +693,9 @@ export function LectureWorkspace({
 
     if (activeTab === "study") {
       const currentFlashcard = studyDeck.find((flashcard) => flashcard.id === currentReviewFlashcardId) ?? null;
+      const flashcardsCompleted = totalFlashcards > 0 && currentFlashcard === null;
+      const shouldAutoSizeStudyShell =
+        activeStudyView === "quiz" || (activeStudyView === "flashcards" && flashcardsCompleted);
       const currentCyclePosition = cycleCardCount > 0 ? cycleCardCount - reviewQueue.length + 1 : 0;
       const remainingFlashcards = reviewQueue.length + repeatQueue.length;
       const activeMaterialError =
@@ -709,7 +705,9 @@ export function LectureWorkspace({
 
       return (
         <div className="workspace-panel-stack lecture-panel-stack">
-          <div className={`ios-card lecture-study-shell ${activeStudyView === "quiz" ? "quiz-mode" : ""}`}>
+          <div
+            className={`ios-card lecture-study-shell ${shouldAutoSizeStudyShell ? "auto-height" : ""}`}
+          >
             <div className="lecture-study-header">
               <div className="lecture-study-title">
                 <p className="lecture-card-label">Study</p>
@@ -870,23 +868,12 @@ export function LectureWorkspace({
                 <StudyCompletionCard
                   eyebrow="Congratulations"
                   title="Flashcard session complete"
-                  subtitle={`You cleared all ${totalFlashcards} flashcards. ${flashcardRepeatCount > 0 ? `${flashcardRepeatCount} needed another pass before they stuck.` : "You moved through the deck cleanly on the first pass."}`}
                   percentage={flashcardConfidencePercent}
                   percentageLabel="First-pass confidence"
                   primaryMetric={{
                     label: "Knew right away",
                     value: `${flashcardFirstPassKnownCount}/${totalFlashcards}`,
                   }}
-                  secondaryMetrics={[
-                    {
-                      label: "Reviewed again",
-                      value: `${flashcardRepeatCount}`,
-                    },
-                    {
-                      label: "Total attempts",
-                      value: `${flashcardAttemptCount}`,
-                    },
-                  ]}
                   actions={
                     <button
                       type="button"
