@@ -34,6 +34,13 @@ type FlashcardSessionResult = {
   latestConfidence: FlashcardConfidenceBucket;
 };
 
+type FlashcardRoundSummary = {
+  cycle: number;
+  total: number;
+  known: number;
+  missed: number;
+};
+
 function getTabItems({
   hasAudio,
   showsTranscript,
@@ -236,6 +243,7 @@ export function LectureWorkspace({
   const [reviewCycle, setReviewCycle] = useState(1);
   const [cycleCardCount, setCycleCardCount] = useState(0);
   const [activeProgressFlashcardId, setActiveProgressFlashcardId] = useState<string | null>(null);
+  const [flashcardRoundSummary, setFlashcardRoundSummary] = useState<FlashcardRoundSummary | null>(null);
   const [flashcardSessionResults, setFlashcardSessionResults] = useState<
     Record<string, FlashcardSessionResult>
   >({});
@@ -303,20 +311,10 @@ export function LectureWorkspace({
     setReviewCycle(1);
     setCycleCardCount(initialQueue.length);
     setIsFlashcardFlipped(false);
+    setFlashcardRoundSummary(null);
     setFlashcardSessionResults({});
     setStudyError(null);
   }, [flashcardDeckKey]);
-
-  useEffect(() => {
-    if (reviewQueue.length > 0 || repeatQueue.length === 0) {
-      return;
-    }
-
-    setCycleCardCount(repeatQueue.length);
-    setReviewQueue(repeatQueue);
-    setRepeatQueue([]);
-    setReviewCycle((current) => current + 1);
-  }, [repeatQueue, reviewQueue]);
 
   useEffect(() => {
     setActiveQuizQuestionIndex(0);
@@ -376,6 +374,10 @@ export function LectureWorkspace({
   }, 0);
   const flashcardConfidencePercent =
     totalFlashcards > 0 ? Math.round((flashcardFirstPassKnownCount / totalFlashcards) * 100) : 0;
+  const flashcardRoundPercent =
+    flashcardRoundSummary && flashcardRoundSummary.total > 0
+      ? Math.round((flashcardRoundSummary.known / flashcardRoundSummary.total) * 100)
+      : 0;
   const activeQuizQuestion = detail.quizQuestions[activeQuizQuestionIndex] ?? null;
   const activeQuizSelection =
     activeQuizQuestion ? (quizSelections[activeQuizQuestion.id] ?? null) : null;
@@ -474,6 +476,9 @@ export function LectureWorkspace({
       return;
     }
 
+    const isLastCardInRound = reviewQueue.length === 1;
+    const nextMissedCount = confidenceBucket === "again" ? repeatQueue.length + 1 : repeatQueue.length;
+
     setDetail((current) => ({
       ...current,
       studySections: current.studySections.map((section) => {
@@ -525,6 +530,29 @@ export function LectureWorkspace({
     if (confidenceBucket === "again") {
       setRepeatQueue((current) => [...current, flashcard.id]);
     }
+
+    if (isLastCardInRound) {
+      setFlashcardRoundSummary({
+        cycle: reviewCycle,
+        total: cycleCardCount,
+        known: cycleCardCount - nextMissedCount,
+        missed: nextMissedCount,
+      });
+    }
+  }
+
+  function continueFlashcardReview() {
+    if (repeatQueue.length === 0) {
+      return;
+    }
+
+    setReviewQueue(repeatQueue);
+    setRepeatQueue([]);
+    setReviewCycle((current) => current + 1);
+    setCycleCardCount(repeatQueue.length);
+    setIsFlashcardFlipped(false);
+    setFlashcardRoundSummary(null);
+    setStudyError(null);
   }
 
   function restartFlashcardReview() {
@@ -534,6 +562,7 @@ export function LectureWorkspace({
     setReviewCycle(1);
     setCycleCardCount(initialQueue.length);
     setIsFlashcardFlipped(false);
+    setFlashcardRoundSummary(null);
     setFlashcardSessionResults({});
     setStudyError(null);
   }
@@ -774,7 +803,7 @@ export function LectureWorkspace({
                     <p className="lecture-study-hint">{studyStageCopy}</p>
                   ) : null}
                 </div>
-            ) : currentFlashcard ? (
+              ) : currentFlashcard ? (
                 <>
                   <div className="lecture-flashcard-stage">
                     <div className="lecture-flashcard-stage-meta">
@@ -859,9 +888,84 @@ export function LectureWorkspace({
                     ) : null}
                   </div>
                 </>
+              ) : flashcardRoundSummary ? (
+                <StudyCompletionCard
+                  eyebrow={
+                    flashcardRoundSummary.missed === 0
+                      ? "Completed"
+                      : `Round ${flashcardRoundSummary.cycle} complete`
+                  }
+                  title={
+                    flashcardRoundSummary.missed === 0
+                      ? "All flashcards cleared"
+                      : "Review the ones you missed"
+                  }
+                  subtitle={
+                    flashcardRoundSummary.missed === 0
+                      ? `You cleared the deck in ${flashcardRoundSummary.cycle} ${
+                          flashcardRoundSummary.cycle === 1 ? "round" : "rounds"
+                        }.`
+                      : `${flashcardRoundSummary.missed} ${
+                          flashcardRoundSummary.missed === 1 ? "card still needs" : "cards still need"
+                        } another pass.`
+                  }
+                  percentage={flashcardRoundSummary.missed === 0 ? 100 : flashcardRoundPercent}
+                  percentageLabel={flashcardRoundSummary.missed === 0 ? "Deck cleared" : "Round score"}
+                  primaryMetric={{
+                    label: "Knew this round",
+                    value: `${flashcardRoundSummary.known}/${flashcardRoundSummary.total}`,
+                  }}
+                  secondaryMetrics={
+                    flashcardRoundSummary.missed === 0
+                      ? [
+                          {
+                            label: "Knew right away",
+                            value: `${flashcardFirstPassKnownCount}/${totalFlashcards}`,
+                          },
+                          {
+                            label: "Rounds completed",
+                            value: String(flashcardRoundSummary.cycle),
+                          },
+                        ]
+                      : [
+                          {
+                            label: "Missed this round",
+                            value: String(flashcardRoundSummary.missed),
+                          },
+                          {
+                            label: "First-pass confidence",
+                            value: `${flashcardConfidencePercent}%`,
+                          },
+                        ]
+                  }
+                  actions={
+                    flashcardRoundSummary.missed === 0 ? (
+                      <button
+                        type="button"
+                        onClick={restartFlashcardReview}
+                        className="lecture-study-refresh lecture-study-restart"
+                        aria-label="Start over"
+                        title="Start over"
+                      >
+                        <RefreshCcw className="h-4 w-4" />
+                        Restart deck
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={continueFlashcardReview}
+                        className="lecture-study-refresh lecture-study-restart"
+                      >
+                        <RefreshCcw className="h-4 w-4" />
+                        Review {flashcardRoundSummary.missed}{" "}
+                        {flashcardRoundSummary.missed === 1 ? "missed card" : "missed cards"}
+                      </button>
+                    )
+                  }
+                />
               ) : (
                 <StudyCompletionCard
-                  eyebrow="Congratulations"
+                  eyebrow="Completed"
                   title="Flashcard session complete"
                   percentage={flashcardConfidencePercent}
                   percentageLabel="First-pass confidence"
