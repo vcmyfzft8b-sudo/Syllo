@@ -61,6 +61,12 @@ export function validateCoverage(params: {
   const missingConceptsByUnit = new Map<number, CoverageConcept[]>();
 
   for (const unit of params.units) {
+    const plan = planByUnit.get(unit.unitIndex);
+
+    if (plan && plan.concepts.length === 0) {
+      continue;
+    }
+
     const unitCards = cardsByUnit.get(unit.unitIndex) ?? [];
     const validUnitCards = unitCards.filter(
       (card) => cardHasValidCitation(card, unit) && cardMatchesUnit(card, unit),
@@ -80,7 +86,7 @@ export function validateCoverage(params: {
 
     const missingConcepts = getMissingConcepts({
       unit,
-      plan: planByUnit.get(unit.unitIndex),
+      plan,
       cards: validUnitCards,
     });
 
