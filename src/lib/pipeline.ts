@@ -14,10 +14,6 @@ import { serializeVector } from "@/lib/utils";
 import { OpenAiTranscriptionProvider } from "@/lib/transcription/openai";
 import { getOpenAiClient } from "@/lib/ai/openai";
 import { getServerEnv } from "@/lib/server-env";
-import { queueLectureQuizGeneration } from "@/lib/quiz";
-import { generateLectureQuiz } from "@/lib/quiz";
-import { generateLectureFlashcards, queueLectureStudyGeneration } from "@/lib/study";
-import { inngest } from "@/inngest/client";
 
 const transcriptionProvider = new OpenAiTranscriptionProvider();
 const EMBEDDING_BATCH_SIZE = 100;
@@ -189,55 +185,6 @@ export async function runLecturePipeline(params: { lectureId: string }) {
     if (lectureUpdateError) {
       throw lectureUpdateError;
     }
-
-    const followUpResults = await Promise.allSettled([
-      (async () => {
-        await queueLectureStudyGeneration(lectureRow.id);
-        if (getServerEnv().INNGEST_EVENT_KEY) {
-          await inngest.send({
-            name: "lecture/study.requested",
-            data: { lectureId: lectureRow.id },
-          });
-          return;
-        }
-
-        void generateLectureFlashcards({ lectureId: lectureRow.id }).catch((studyError) => {
-          console.error("Lecture study generation failed", {
-            lectureId: lectureRow.id,
-            error: studyError,
-          });
-        });
-      })(),
-      (async () => {
-        await queueLectureQuizGeneration(lectureRow.id);
-        if (getServerEnv().INNGEST_EVENT_KEY) {
-          await inngest.send({
-            name: "lecture/quiz.requested",
-            data: { lectureId: lectureRow.id },
-          });
-          return;
-        }
-
-        void generateLectureQuiz({ lectureId: lectureRow.id }).catch((quizError) => {
-          console.error("Lecture quiz generation failed", {
-            lectureId: lectureRow.id,
-            error: quizError,
-          });
-        });
-      })(),
-    ]);
-
-    followUpResults.forEach((result, index) => {
-      if (result.status === "rejected") {
-        console.error(
-          index === 0 ? "Lecture study generation could not be queued" : "Lecture quiz generation could not be queued",
-          {
-            lectureId: lectureRow.id,
-            error: result.reason,
-          },
-        );
-      }
-    });
   } catch (error) {
     await createSupabaseServiceRoleClient()
       .from("lectures")
