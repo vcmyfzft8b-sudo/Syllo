@@ -2401,6 +2401,11 @@ select:disabled {
   height: min(66.6vh, 52.2rem);
 }
 
+.lecture-study-shell.quiz-mode {
+  height: auto;
+  min-height: min(66.6vh, 52.2rem);
+}
+
 .lecture-study-header {
   display: flex;
   flex-wrap: wrap;
@@ -4314,6 +4319,11 @@ select:disabled {
 
   .lecture-study-shell {
     height: min(61vh, 36rem);
+  }
+
+  .lecture-study-shell.quiz-mode {
+    height: auto;
+    min-height: min(61vh, 36rem);
   }
 
   .lecture-study-header {
