@@ -2,6 +2,7 @@ import "server-only";
 
 import { inngest } from "@/inngest/client";
 import { runLecturePipeline } from "@/lib/pipeline";
+import { generateLectureQuiz } from "@/lib/quiz";
 import { getServerEnv } from "@/lib/server-env";
 import { generateLectureFlashcards } from "@/lib/study";
 
@@ -16,13 +17,9 @@ export async function enqueueLectureProcessing(lectureId: string) {
     return;
   }
 
-  void runLecturePipeline({ lectureId })
-    .then(async () => {
-      await enqueueLectureStudyGeneration(lectureId);
-    })
-    .catch(() => {
-      // Flashcards only generate after the note pipeline succeeds.
-    });
+  void runLecturePipeline({ lectureId }).catch(() => {
+    // Errors are persisted on the lecture row by the pipeline.
+  });
 }
 
 export async function enqueueLectureStudyGeneration(lectureId: string) {
@@ -38,5 +35,21 @@ export async function enqueueLectureStudyGeneration(lectureId: string) {
 
   void generateLectureFlashcards({ lectureId }).catch((error) => {
     console.error("Lecture study generation failed", { lectureId, error });
+  });
+}
+
+export async function enqueueLectureQuizGeneration(lectureId: string) {
+  const env = getServerEnv();
+
+  if (env.INNGEST_EVENT_KEY) {
+    await inngest.send({
+      name: "lecture/quiz.requested",
+      data: { lectureId },
+    });
+    return;
+  }
+
+  void generateLectureQuiz({ lectureId }).catch((error) => {
+    console.error("Lecture quiz generation failed", { lectureId, error });
   });
 }

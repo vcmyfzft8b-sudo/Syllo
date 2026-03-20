@@ -7,10 +7,12 @@ import type {
   Citation,
   FlashcardRow,
   FlashcardProgressRow,
+  LectureQuizAssetRow,
   LectureArtifactRow,
   LectureRow,
   LectureStudyAssetRow,
   LectureStudySectionRow,
+  QuizQuestionRow,
   TranscriptSegmentRow,
 } from "@/lib/database.types";
 import type {
@@ -18,6 +20,7 @@ import type {
   ChatMessageWithCitations,
   FlashcardWithCitations,
   LectureDetail,
+  QuizQuestionWithOptions,
   StudySectionWithProgress,
 } from "@/lib/types";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -58,6 +61,23 @@ function isMissingStudySectionsSchemaError(error: unknown) {
   );
 }
 
+function isMissingQuizSchemaError(error: unknown) {
+  const text = getSchemaErrorText(error);
+
+  if (!text) {
+    return false;
+  }
+
+  return (
+    (text.includes("lecture_quiz_assets") || text.includes("quiz_questions")) &&
+    (text.includes("does not exist") ||
+      text.includes("could not find") ||
+      text.includes("schema cache") ||
+      text.includes("42p01") ||
+      text.includes("pgrst"))
+  );
+}
+
 function parseCitations(value: ChatMessageRow["citations_json"]): Citation[] {
   return Array.isArray(value) ? (value as unknown as Citation[]) : [];
 }
@@ -74,6 +94,112 @@ function mapFlashcard(flashcard: FlashcardRow): FlashcardWithCitations {
     ...flashcard,
     citations: parseCitations(flashcard.citations_json),
     progress: null,
+  };
+}
+
+function parseQuizOptions(value: QuizQuestionRow["options_json"]): string[] {
+  return Array.isArray(value)
+    ? value.filter((option): option is string => typeof option === "string")
+    : [];
+}
+
+function parseJsonRecord(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {} as Record<string, unknown>;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function mapQuizQuestion(question: QuizQuestionRow): QuizQuestionWithOptions {
+  return {
+    ...question,
+    options: parseQuizOptions(question.options_json),
+  };
+}
+
+function parseFallbackQuizState(params: {
+  lectureId: string;
+  metadata: unknown;
+}) {
+  const metadata = parseJsonRecord(params.metadata);
+  const rawAsset = parseJsonRecord(metadata.quizAsset);
+  const rawQuestions = Array.isArray(metadata.quizQuestions) ? metadata.quizQuestions : [];
+
+  const assetStatus =
+    rawAsset.status === "queued" ||
+    rawAsset.status === "generating" ||
+    rawAsset.status === "ready" ||
+    rawAsset.status === "failed"
+      ? (rawAsset.status as LectureQuizAssetRow["status"])
+      : null;
+
+  const quizAsset: LectureQuizAssetRow | null =
+    assetStatus
+      ? {
+          lecture_id: params.lectureId,
+          status: assetStatus,
+          error_message:
+            typeof rawAsset.error_message === "string" ? rawAsset.error_message : null,
+          model_metadata: parseJsonRecord(rawAsset.model_metadata) as LectureQuizAssetRow["model_metadata"],
+          generated_at:
+            typeof rawAsset.generated_at === "string"
+              ? rawAsset.generated_at
+              : new Date(0).toISOString(),
+          updated_at:
+            typeof rawAsset.updated_at === "string"
+              ? rawAsset.updated_at
+              : new Date(0).toISOString(),
+        }
+      : null;
+
+  const quizQuestions = rawQuestions.flatMap((item, index) => {
+    const question = parseJsonRecord(item);
+    const options = Array.isArray(question.options)
+      ? question.options.filter((option): option is string => typeof option === "string")
+      : [];
+    const difficulty =
+      question.difficulty === "easy" ||
+      question.difficulty === "medium" ||
+      question.difficulty === "hard"
+        ? (question.difficulty as QuizQuestionRow["difficulty"])
+        : null;
+    const correctOptionIndex =
+      typeof question.correct_option_idx === "number" ? question.correct_option_idx : null;
+
+    if (
+      typeof question.id !== "string" ||
+      typeof question.prompt !== "string" ||
+      typeof question.explanation !== "string" ||
+      !difficulty ||
+      correctOptionIndex == null
+    ) {
+      return [];
+    }
+
+    return [
+      {
+        id: question.id,
+        lecture_id: params.lectureId,
+        idx: typeof question.idx === "number" ? question.idx : index,
+        prompt: question.prompt,
+        options,
+        correct_option_idx: correctOptionIndex,
+        explanation: question.explanation,
+        difficulty,
+        source_locator:
+          typeof question.source_locator === "string" ? question.source_locator : null,
+        created_at:
+          typeof question.created_at === "string"
+            ? question.created_at
+            : new Date(0).toISOString(),
+      },
+    ];
+  });
+
+  return {
+    quizAsset,
+    quizQuestions,
   };
 }
 
@@ -181,6 +307,16 @@ export async function getLectureDetailForUser(params: {
     .select("*")
     .eq("lecture_id", lectureRow.id)
     .order("idx", { ascending: true });
+  const quizAssetPromise = supabase
+    .from("lecture_quiz_assets")
+    .select("*")
+    .eq("lecture_id", lectureRow.id)
+    .maybeSingle();
+  const quizQuestionsPromise = supabase
+    .from("quiz_questions")
+    .select("*")
+    .eq("lecture_id", lectureRow.id)
+    .order("idx", { ascending: true });
 
   const [
     { data: artifact, error: artifactError },
@@ -189,6 +325,8 @@ export async function getLectureDetailForUser(params: {
     { data: transcript, error: transcriptError },
     { data: chatMessages, error: chatError },
     studySectionsResult,
+    quizAssetResult,
+    quizQuestionsResult,
   ] = await Promise.all([
     supabase
       .from("lecture_artifacts")
@@ -216,6 +354,8 @@ export async function getLectureDetailForUser(params: {
       .eq("lecture_id", lectureRow.id)
       .order("created_at", { ascending: true }),
     studySectionsPromise,
+    quizAssetPromise,
+    quizQuestionsPromise,
   ]);
 
   if (artifactError) {
@@ -238,10 +378,31 @@ export async function getLectureDetailForUser(params: {
     throw chatError;
   }
 
+  if (quizAssetResult.error && !isMissingQuizSchemaError(quizAssetResult.error)) {
+    throw quizAssetResult.error;
+  }
+
+  if (quizQuestionsResult.error && !isMissingQuizSchemaError(quizQuestionsResult.error)) {
+    throw quizQuestionsResult.error;
+  }
+
   const studySections =
     studySectionsResult.error && isMissingStudySectionsSchemaError(studySectionsResult.error)
       ? []
       : ((studySectionsResult.data ?? []) as LectureStudySectionRow[]);
+  const fallbackQuizState = parseFallbackQuizState({
+    lectureId: lectureRow.id,
+    metadata: (artifact as LectureArtifactRow | null)?.model_metadata,
+  });
+  const quizAsset =
+    (quizAssetResult.error && isMissingQuizSchemaError(quizAssetResult.error)
+      ? null
+      : (quizAssetResult.data as LectureQuizAssetRow | null)) ?? fallbackQuizState.quizAsset;
+  const quizQuestions = (
+    quizQuestionsResult.error && isMissingQuizSchemaError(quizQuestionsResult.error)
+      ? []
+      : ((quizQuestionsResult.data ?? []) as QuizQuestionRow[])
+  ).map(mapQuizQuestion);
 
   if (studySectionsResult.error && !isMissingStudySectionsSchemaError(studySectionsResult.error)) {
     throw studySectionsResult.error;
@@ -287,12 +448,14 @@ export async function getLectureDetailForUser(params: {
     lecture: lectureRow,
     artifact: artifact as LectureArtifactRow | null,
     studyAsset: studyAsset as LectureStudyAssetRow | null,
+    quizAsset,
     studySections: buildStudySections({
       lectureId: lectureRow.id,
       flashcards: mappedFlashcards,
       sections: studySections,
     }),
     flashcards: mappedFlashcards,
+    quizQuestions: quizQuestions.length > 0 ? quizQuestions : fallbackQuizState.quizQuestions,
     transcript: (transcript ?? []) as TranscriptSegmentRow[],
     chatMessages: (chatMessages ?? []).map(mapChatMessage),
     audioUrl,

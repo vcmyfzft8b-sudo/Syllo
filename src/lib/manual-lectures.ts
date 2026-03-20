@@ -3,7 +3,6 @@ import "server-only";
 import { z } from "zod";
 
 import { generateStructuredObject } from "@/lib/ai/json";
-import { enqueueLectureStudyGeneration } from "@/lib/jobs";
 import { generateNotesFromTranscript } from "@/lib/note-generation";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import type { TranscriptSegmentInput } from "@/lib/types";
@@ -565,8 +564,6 @@ export async function createLectureFromTextSource(params: {
     if (updateError) {
       throw new Error(updateError.message);
     }
-
-    await enqueueLectureStudyGeneration(lectureId);
 
     return lectureId;
   } catch (error) {

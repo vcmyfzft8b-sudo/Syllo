@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
-import { enqueueLectureStudyGeneration } from "@/lib/jobs";
-import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { enqueueLectureQuizGeneration } from "@/lib/jobs";
+import { queueLectureQuizGeneration } from "@/lib/quiz";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function GET(
   _request: Request,
@@ -29,10 +30,9 @@ export async function GET(
 
   return NextResponse.json({
     lectureId: detail.lecture.id,
-    status: detail.studyAsset?.status ?? null,
-    studyAsset: detail.studyAsset,
-    studySections: detail.studySections,
-    flashcards: detail.flashcards,
+    status: detail.quizAsset?.status ?? null,
+    quizAsset: detail.quizAsset,
+    quizQuestions: detail.quizQuestions,
   });
 }
 
@@ -61,31 +61,23 @@ export async function POST(
 
   if (lecture.status !== "ready") {
     return NextResponse.json(
-      { error: "Study tools are available after the note is ready." },
+      { error: "Quiz creation is available after the note is ready." },
       { status: 409 },
     );
   }
 
-  const service = createSupabaseServiceRoleClient();
-  const { error } = await service
-    .from("lecture_study_assets")
-    .upsert(
+  try {
+    await queueLectureQuizGeneration(id);
+  } catch (error) {
+    return NextResponse.json(
       {
-        lecture_id: id,
-        status: "queued",
-        error_message: null,
-        model_metadata: {},
-      } as never,
-      {
-        onConflict: "lecture_id",
+        error: error instanceof Error ? error.message : "Quiz creation could not be queued.",
       },
+      { status: 500 },
     );
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  await enqueueLectureStudyGeneration(id);
+  await enqueueLectureQuizGeneration(id);
 
   return NextResponse.json({ ok: true });
 }
