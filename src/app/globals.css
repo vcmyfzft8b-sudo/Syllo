@@ -2398,11 +2398,10 @@ select:disabled {
   gap: 1.1rem;
   padding: 1.5rem;
   border-radius: 24px;
-  height: min(66.6vh, 52.2rem);
+  min-height: min(66.6vh, 52.2rem);
 }
 
 .lecture-study-shell.quiz-mode {
-  height: auto;
   min-height: min(66.6vh, 52.2rem);
 }
 

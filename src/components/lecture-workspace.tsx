@@ -900,44 +900,12 @@ export function LectureWorkspace({
                       ? "All flashcards cleared"
                       : "Review the ones you missed"
                   }
-                  subtitle={
-                    flashcardRoundSummary.missed === 0
-                      ? `You cleared the deck in ${flashcardRoundSummary.cycle} ${
-                          flashcardRoundSummary.cycle === 1 ? "round" : "rounds"
-                        }.`
-                      : `${flashcardRoundSummary.missed} ${
-                          flashcardRoundSummary.missed === 1 ? "card still needs" : "cards still need"
-                        } another pass.`
-                  }
                   percentage={flashcardRoundSummary.missed === 0 ? 100 : flashcardRoundPercent}
                   percentageLabel={flashcardRoundSummary.missed === 0 ? "Deck cleared" : "Round score"}
                   primaryMetric={{
                     label: "Knew this round",
                     value: `${flashcardRoundSummary.known}/${flashcardRoundSummary.total}`,
                   }}
-                  secondaryMetrics={
-                    flashcardRoundSummary.missed === 0
-                      ? [
-                          {
-                            label: "Knew right away",
-                            value: `${flashcardFirstPassKnownCount}/${totalFlashcards}`,
-                          },
-                          {
-                            label: "Rounds completed",
-                            value: String(flashcardRoundSummary.cycle),
-                          },
-                        ]
-                      : [
-                          {
-                            label: "Missed this round",
-                            value: String(flashcardRoundSummary.missed),
-                          },
-                          {
-                            label: "First-pass confidence",
-                            value: `${flashcardConfidencePercent}%`,
-                          },
-                        ]
-                  }
                   actions={
                     flashcardRoundSummary.missed === 0 ? (
                       <button
