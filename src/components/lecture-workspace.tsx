@@ -690,12 +690,10 @@ export function LectureWorkspace({
               </div>
 
               <div className="lecture-study-header-actions">
-                {hasActiveMaterial ? (
+                {hasActiveMaterial && activeStudyView === "quiz" ? (
                   <button
                     type="button"
-                    onClick={() =>
-                      void (activeStudyView === "flashcards" ? handleStudyCreate() : handleQuizCreate())
-                    }
+                    onClick={() => void handleQuizCreate()}
                     disabled={detail.lecture.status !== "ready" || isActiveMaterialBusy}
                     className="lecture-study-refresh"
                   >
@@ -704,7 +702,7 @@ export function LectureWorkspace({
                     ) : (
                       <RefreshCcw className="h-4 w-4" />
                     )}
-                    {activeStudyView === "flashcards" ? "Regenerate flashcards" : "Regenerate quiz"}
+                    Regenerate quiz
                   </button>
                 ) : null}
               </div>
