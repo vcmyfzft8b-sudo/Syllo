@@ -869,9 +869,9 @@ export function LectureWorkspace({
                   eyebrow="Congratulations"
                   title="Flashcard session complete"
                   percentage={flashcardConfidencePercent}
-                  percentageLabel="First-pass confidence"
+                  percentageLabel="Score"
                   primaryMetric={{
-                    label: "Knew right away",
+                    label: "Correct answers",
                     value: `${flashcardFirstPassKnownCount}/${totalFlashcards}`,
                   }}
                   actions={
