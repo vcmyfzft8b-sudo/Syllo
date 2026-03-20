@@ -374,6 +374,9 @@ export function NoteSourceModal({
       return;
     }
 
+    let createdLectureId: string | null = null;
+    let processingStarted = false;
+
     try {
       const normalizedMimeType = normalizeMimeType(audioSource.file.type || "audio/webm");
 
@@ -398,6 +401,8 @@ export function NoteSourceModal({
       if (!createResponse.ok) {
         throw new Error(createData.error ?? "The lecture could not be created.");
       }
+
+      createdLectureId = createData.lectureId;
 
       setBusyLabel("Uploading audio...");
       const supabase = createSupabaseBrowserClient();
@@ -429,10 +434,17 @@ export function NoteSourceModal({
         throw new Error(finalizeData.error ?? "The audio could not be sent for processing.");
       }
 
+      processingStarted = true;
       onClose();
       router.push(`/app/lectures/${createData.lectureId}`);
       router.refresh();
     } catch (submitError) {
+      if (createdLectureId && !processingStarted) {
+        await fetch(`/api/lectures/${createdLectureId}`, {
+          method: "DELETE",
+        }).catch(() => null);
+      }
+
       setError(
         submitError instanceof Error
           ? submitError.message

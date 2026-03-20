@@ -733,3 +733,12 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
     throw error;
   }
 }
+
+export async function queueLectureStudyGeneration(lectureId: string) {
+  await setStudyAssetStatus({
+    lectureId,
+    status: "queued",
+    errorMessage: null,
+    modelMetadata: {},
+  });
+}

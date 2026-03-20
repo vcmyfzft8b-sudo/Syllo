@@ -296,7 +296,7 @@ export function HomeDashboard({
                       {lecture.error_message ? "Error processing note" : "Error creating note"}
                     </p>
                     <p className="ios-row-subtitle mt-1" style={{ fontSize: "0.8rem", color: "var(--label)" }}>
-                      Retry the note or remove it from the library.
+                      {lecture.error_message ?? "Retry the note or remove it from the library."}
                     </p>
                   </div>
 

@@ -265,6 +265,9 @@ export function CaptureStudio({
       return;
     }
 
+    let createdLectureId: string | null = null;
+    let processingStarted = false;
+
     try {
       const normalizedMimeType = normalizeMimeType(source.file.type || "audio/webm");
 
@@ -290,6 +293,8 @@ export function CaptureStudio({
       if (!createResponse.ok) {
         throw new Error(createData.error ?? "The lecture could not be created.");
       }
+
+      createdLectureId = createData.lectureId;
 
       setStage("uploading");
       const supabase = createSupabaseBrowserClient();
@@ -326,9 +331,16 @@ export function CaptureStudio({
         );
       }
 
+      processingStarted = true;
       router.push(`/app/lectures/${createData.lectureId}`);
       router.refresh();
     } catch (submitError) {
+      if (createdLectureId && !processingStarted) {
+        await fetch(`/api/lectures/${createdLectureId}`, {
+          method: "DELETE",
+        }).catch(() => null);
+      }
+
       setError(
         submitError instanceof Error
           ? submitError.message
