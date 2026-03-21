@@ -692,15 +692,6 @@ export function LectureWorkspace({
     if (activeTab === "notes") {
       return (
         <div className="workspace-panel-stack lecture-panel-stack">
-          <div className="ios-card lecture-summary-card">
-            <div className="lecture-card-heading">
-              <p className="lecture-card-label">Summary</p>
-            </div>
-            <p className="lecture-summary-text">
-              {detail.artifact?.summary ?? "The summary will appear once processing is complete."}
-            </p>
-          </div>
-
           <div className="ios-card lecture-notes-card">
             <div className="markdown lecture-markdown">
               {cleanedStructuredNotes ? (
