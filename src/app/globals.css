@@ -2079,6 +2079,9 @@ select:disabled {
   display: flex;
   align-items: center;
   gap: 1rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 1.35rem 1.7rem;
   background-color: var(--surface-solid);
   border: 1px solid color-mix(in srgb, var(--separator) 65%, transparent);
@@ -2112,6 +2115,7 @@ select:disabled {
   align-items: center;
   gap: 1rem;
   min-width: 0;
+  max-width: 100%;
   flex: 1;
 }
 
@@ -2131,11 +2135,15 @@ select:disabled {
 .ios-row-note-card .ios-row-title {
   font-weight: 500;
   font-size: 0.98rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dashboard-note-list {
   display: grid;
   gap: 0.7rem;
+  min-width: 0;
 }
 
 .dashboard-note-menu-button {
