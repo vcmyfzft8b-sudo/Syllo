@@ -41,6 +41,14 @@ type FlashcardRoundSummary = {
   missed: number;
 };
 
+type QuizRoundSummary = {
+  cycle: number;
+  total: number;
+  correct: number;
+  missed: number;
+  missedQuestionIds: string[];
+};
+
 function getTabItems({
   hasAudio,
   showsTranscript,
@@ -247,12 +255,20 @@ export function LectureWorkspace({
   const [flashcardSessionResults, setFlashcardSessionResults] = useState<
     Record<string, FlashcardSessionResult>
   >({});
+  const [quizQueue, setQuizQueue] = useState<string[]>([]);
+  const [quizRound, setQuizRound] = useState(1);
+  const [quizRoundCount, setQuizRoundCount] = useState(0);
+  const [quizRoundSummary, setQuizRoundSummary] = useState<QuizRoundSummary | null>(null);
   const [activeQuizQuestionIndex, setActiveQuizQuestionIndex] = useState(0);
   const [quizSelections, setQuizSelections] = useState<Record<string, number>>({});
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const studyDeck = detail.flashcards;
   const flashcardDeckKey = studyDeck.map((flashcard) => flashcard.id).join("|");
   const quizDeckKey = detail.quizQuestions.map((question) => question.id).join("|");
+  const quizQuestionsById = useMemo(
+    () => new Map(detail.quizQuestions.map((question) => [question.id, question])),
+    [detail.quizQuestions],
+  );
   const currentReviewFlashcardId = reviewQueue[0] ?? null;
   const showsTranscript = detail.lecture.source_type === "audio";
 
@@ -311,6 +327,11 @@ export function LectureWorkspace({
   }, [flashcardDeckKey]);
 
   useEffect(() => {
+    const initialQueue = quizDeckKey ? quizDeckKey.split("|") : [];
+    setQuizQueue(initialQueue);
+    setQuizRound(1);
+    setQuizRoundCount(initialQueue.length);
+    setQuizRoundSummary(null);
     setActiveQuizQuestionIndex(0);
     setQuizSelections({});
   }, [quizDeckKey]);
@@ -372,15 +393,17 @@ export function LectureWorkspace({
     flashcardRoundSummary && flashcardRoundSummary.total > 0
       ? Math.round((flashcardRoundSummary.known / flashcardRoundSummary.total) * 100)
       : 0;
-  const activeQuizQuestion = detail.quizQuestions[activeQuizQuestionIndex] ?? null;
+  const currentQuizQuestionId = quizQueue[activeQuizQuestionIndex] ?? null;
+  const activeQuizQuestion = currentQuizQuestionId
+    ? (quizQuestionsById.get(currentQuizQuestionId) ?? null)
+    : null;
   const activeQuizSelection =
-    activeQuizQuestion ? (quizSelections[activeQuizQuestion.id] ?? null) : null;
+    currentQuizQuestionId ? (quizSelections[currentQuizQuestionId] ?? null) : null;
   const totalQuizQuestions = detail.quizQuestions.length;
-  const correctQuizAnswers = detail.quizQuestions.reduce((total, question) => {
-    return quizSelections[question.id] === question.correct_option_idx ? total + 1 : total;
-  }, 0);
-  const quizScorePercent =
-    totalQuizQuestions > 0 ? Math.round((correctQuizAnswers / totalQuizQuestions) * 100) : 0;
+  const quizRoundPercent =
+    quizRoundSummary && quizRoundSummary.total > 0
+      ? Math.round((quizRoundSummary.correct / quizRoundSummary.total) * 100)
+      : 0;
   const activeMaterialStatus =
     activeStudyView === "flashcards" ? detail.studyAsset?.status : detail.quizAsset?.status;
   const activeMaterialStageCopy =
@@ -561,30 +584,85 @@ export function LectureWorkspace({
   }
 
   function handleQuizSelection(optionIndex: number) {
-    if (!activeQuizQuestion) {
+    if (!activeQuizQuestion || !currentQuizQuestionId) {
       return;
     }
 
     setQuizSelections((current) => {
-      if (typeof current[activeQuizQuestion.id] === "number") {
+      if (typeof current[currentQuizQuestionId] === "number") {
         return current;
       }
 
       return {
         ...current,
-        [activeQuizQuestion.id]: optionIndex,
+        [currentQuizQuestionId]: optionIndex,
       };
     });
   }
 
+  function finishQuizRound() {
+    const summary = quizQueue.reduce<QuizRoundSummary>(
+      (current, questionId) => {
+        const question = quizQuestionsById.get(questionId);
+
+        if (!question) {
+          return current;
+        }
+
+        if (quizSelections[questionId] === question.correct_option_idx) {
+          current.correct += 1;
+          return current;
+        }
+
+        current.missed += 1;
+        current.missedQuestionIds.push(questionId);
+        return current;
+      },
+      {
+        cycle: quizRound,
+        total: quizRoundCount,
+        correct: 0,
+        missed: 0,
+        missedQuestionIds: [],
+      },
+    );
+
+    setQuizRoundSummary(summary);
+  }
+
   function moveQuizQuestion(direction: -1 | 1) {
-    setActiveQuizQuestionIndex((current) => {
-      const nextIndex = current + direction;
-      return Math.max(0, Math.min(nextIndex, detail.quizQuestions.length));
-    });
+    const nextIndex = activeQuizQuestionIndex + direction;
+
+    if (direction === 1 && nextIndex >= quizQueue.length) {
+      finishQuizRound();
+      return;
+    }
+
+    setActiveQuizQuestionIndex(
+      Math.max(0, Math.min(nextIndex, Math.max(quizQueue.length - 1, 0))),
+    );
+  }
+
+  function continueQuizReview() {
+    if (!quizRoundSummary || quizRoundSummary.missedQuestionIds.length === 0) {
+      return;
+    }
+
+    setQuizQueue(quizRoundSummary.missedQuestionIds);
+    setQuizRound((current) => current + 1);
+    setQuizRoundCount(quizRoundSummary.missedQuestionIds.length);
+    setQuizRoundSummary(null);
+    setActiveQuizQuestionIndex(0);
+    setQuizSelections({});
+    setStudyError(null);
   }
 
   function restartQuiz() {
+    const initialQueue = quizDeckKey ? quizDeckKey.split("|") : [];
+    setQuizQueue(initialQueue);
+    setQuizRound(1);
+    setQuizRoundCount(initialQueue.length);
+    setQuizRoundSummary(null);
     setActiveQuizQuestionIndex(0);
     setQuizSelections({});
     setStudyError(null);
@@ -977,10 +1055,55 @@ export function LectureWorkspace({
                   <p className="lecture-study-hint">{quizStageCopy}</p>
                 ) : null}
               </div>
+            ) : quizRoundSummary ? (
+              <StudyCompletionCard
+                eyebrow={
+                  quizRoundSummary.missed === 0
+                    ? "Completed"
+                    : `Round ${quizRoundSummary.cycle} complete`
+                }
+                title={
+                  quizRoundSummary.missed === 0
+                    ? "All quiz questions cleared"
+                    : "Review the questions you missed"
+                }
+                percentage={quizRoundSummary.missed === 0 ? 100 : quizRoundPercent}
+                percentageLabel={quizRoundSummary.missed === 0 ? "Deck cleared" : "Round score"}
+                primaryMetric={{
+                  label: quizRoundSummary.missed === 0 ? "Questions cleared" : "Correct this round",
+                  value:
+                    quizRoundSummary.missed === 0
+                      ? `${totalQuizQuestions}/${totalQuizQuestions}`
+                      : `${quizRoundSummary.correct}/${quizRoundSummary.total}`,
+                }}
+                actions={
+                  quizRoundSummary.missed === 0 ? (
+                    <button
+                      type="button"
+                      onClick={restartQuiz}
+                      className="lecture-study-refresh lecture-study-restart"
+                    >
+                      <RefreshCcw className="h-4 w-4" />
+                      Restart quiz
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={continueQuizReview}
+                      className="lecture-study-refresh lecture-study-restart"
+                    >
+                      <RefreshCcw className="h-4 w-4" />
+                      Review {quizRoundSummary.missed}{" "}
+                      {quizRoundSummary.missed === 1 ? "missed question" : "missed questions"}
+                    </button>
+                  )
+                }
+              />
             ) : activeQuizQuestion ? (
               <div className="lecture-quiz-stage">
                 <div className="lecture-quiz-meta">
-                  <span>Question {activeQuizQuestionIndex + 1} / {totalQuizQuestions}</span>
+                  <span>Question {activeQuizQuestionIndex + 1} / {quizRoundCount}</span>
+                  {quizRound > 1 ? <span>Cycle {quizRound}</span> : null}
                 </div>
 
                 <div className="lecture-quiz-card">
@@ -1052,7 +1175,7 @@ export function LectureWorkspace({
                     disabled={activeQuizSelection === null}
                     className="lecture-study-refresh"
                   >
-                    {activeQuizQuestionIndex === totalQuizQuestions - 1 ? "Finish" : "Next"}
+                    {activeQuizQuestionIndex === quizQueue.length - 1 ? "Finish" : "Next"}
                   </button>
                 </div>
               </div>
@@ -1060,11 +1183,11 @@ export function LectureWorkspace({
               <StudyCompletionCard
                 eyebrow="Congratulations"
                 title="Quiz complete"
-                percentage={quizScorePercent}
-                percentageLabel="Score"
+                percentage={100}
+                percentageLabel="Deck cleared"
                 primaryMetric={{
-                  label: "Correct answers",
-                  value: `${correctQuizAnswers}/${totalQuizQuestions}`,
+                  label: "Questions cleared",
+                  value: `${totalQuizQuestions}/${totalQuizQuestions}`,
                 }}
                 actions={
                   <button
