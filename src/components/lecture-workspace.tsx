@@ -376,7 +376,6 @@ export function LectureWorkspace({
   const activeQuizSelection =
     activeQuizQuestion ? (quizSelections[activeQuizQuestion.id] ?? null) : null;
   const totalQuizQuestions = detail.quizQuestions.length;
-  const answeredQuizQuestions = Object.keys(quizSelections).length;
   const correctQuizAnswers = detail.quizQuestions.reduce((total, question) => {
     return quizSelections[question.id] === question.correct_option_idx ? total + 1 : total;
   }, 0);
@@ -982,7 +981,6 @@ export function LectureWorkspace({
               <div className="lecture-quiz-stage">
                 <div className="lecture-quiz-meta">
                   <span>Question {activeQuizQuestionIndex + 1} / {totalQuizQuestions}</span>
-                  <span>{answeredQuizQuestions} answered</span>
                 </div>
 
                 <div className="lecture-quiz-card">
