@@ -144,6 +144,7 @@ export function NoteSourceModal({
 
   const [selectedMode, setSelectedMode] = useState<NoteSourceMode>(mode ?? "record");
   const [audioSource, setAudioSource] = useState<AudioSource | null>(null);
+  const [pdfSource, setPdfSource] = useState<File | null>(null);
   const [textValue, setTextValue] = useState("");
   const [linkValue, setLinkValue] = useState("");
   const [languageHint, setLanguageHint] = useState("en");
@@ -158,6 +159,13 @@ export function NoteSourceModal({
       setSelectedMode(mode);
     }
   }, [mode]);
+
+  const preparedRecording = audioSource?.origin === "recording" ? audioSource : null;
+  const preparedUpload = audioSource?.origin === "upload" ? audioSource : null;
+  const trimmedTextValue = textValue.trim();
+  const trimmedLinkValue = linkValue.trim();
+  const canGenerateText = Boolean(pdfSource) || trimmedTextValue.length >= 120;
+  const canGenerateLink = trimmedLinkValue.length > 0;
 
   async function replaceAudioSource(nextSource: AudioSource) {
     try {
@@ -180,6 +188,16 @@ export function NoteSourceModal({
     }
   }
 
+  const clearAudioSource = useCallback(() => {
+    setAudioSource((current) => {
+      if (current?.previewUrl) {
+        URL.revokeObjectURL(current.previewUrl);
+      }
+
+      return null;
+    });
+  }, []);
+
   const resetState = useCallback(() => {
     if (timerRef.current) {
       window.clearInterval(timerRef.current);
@@ -194,12 +212,8 @@ export function NoteSourceModal({
     recorderRef.current = null;
     chunksRef.current = [];
     elapsedRef.current = 0;
-    setAudioSource((current) => {
-      if (current?.previewUrl) {
-        URL.revokeObjectURL(current.previewUrl);
-      }
-      return null;
-    });
+    clearAudioSource();
+    setPdfSource(null);
     setTextValue("");
     setLinkValue("");
     setLanguageHint("en");
@@ -207,7 +221,7 @@ export function NoteSourceModal({
     setElapsedSeconds(0);
     setError(null);
     setBusyLabel(null);
-  }, []);
+  }, [clearAudioSource]);
 
   const requestClose = useCallback(() => {
     if (busyLabel) {
@@ -456,7 +470,7 @@ export function NoteSourceModal({
   }
 
   async function createTextLecture() {
-    if (textValue.trim().length < 120) {
+    if (trimmedTextValue.length < 120) {
       setError("Paste at least a short text sample.");
       return;
     }
@@ -471,7 +485,7 @@ export function NoteSourceModal({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          text: textValue,
+          text: trimmedTextValue,
           languageHint,
         }),
       });
@@ -497,7 +511,7 @@ export function NoteSourceModal({
   }
 
   async function createLinkLecture() {
-    if (!linkValue.trim()) {
+    if (!trimmedLinkValue) {
       setError("Paste a link first.");
       return;
     }
@@ -512,7 +526,7 @@ export function NoteSourceModal({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          url: linkValue,
+          url: trimmedLinkValue,
           languageHint,
         }),
       });
@@ -545,11 +559,36 @@ export function NoteSourceModal({
     }
 
     try {
+      if (!file.type.includes("pdf")) {
+        throw new Error("Only PDF files are supported.");
+      }
+
+      setPdfSource(file);
+      setTextValue("");
+      setError(null);
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "The PDF could not be prepared.",
+      );
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  async function createPdfLecture() {
+    if (!pdfSource) {
+      setError("Choose a PDF first.");
+      return;
+    }
+
+    try {
       setBusyLabel("Reading PDF...");
       setError(null);
 
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", pdfSource);
       formData.append("languageHint", languageHint);
 
       const response = await fetch("/api/lectures/pdf", {
@@ -574,7 +613,6 @@ export function NoteSourceModal({
       );
     } finally {
       setBusyLabel(null);
-      event.target.value = "";
     }
   }
 
@@ -646,12 +684,12 @@ export function NoteSourceModal({
 
               {selectedMode === "record" ? (
                 <>
-                  {audioSource ? (
+                  {preparedRecording ? (
                     <div className="ios-card">
                       <p className="note-source-card-label">Prepared recording</p>
-                      <p className="ios-row-title mt-3">{audioSource.file.name}</p>
+                      <p className="ios-row-title mt-3">{preparedRecording.file.name}</p>
                       <p className="ios-row-subtitle">
-                        {formatTimestamp(audioSource.durationSeconds * 1000)}
+                        {formatTimestamp(preparedRecording.durationSeconds * 1000)}
                       </p>
                     </div>
                   ) : null}
@@ -666,51 +704,84 @@ export function NoteSourceModal({
                     </div>
                   ) : null}
 
-                  <button
-                    type="button"
-                    disabled={Boolean(busyLabel)}
-                    className="ios-primary-button"
-                    onClick={() => {
-                      if (busyLabel) {
-                        return;
-                      }
+                  {isRecording ? (
+                    <button
+                      type="button"
+                      disabled={Boolean(busyLabel)}
+                      className="ios-primary-button"
+                      onClick={() => {
+                        if (busyLabel) {
+                          return;
+                        }
 
-                      if (isRecording) {
                         stopRecording();
-                        return;
-                      }
+                      }}
+                    >
+                      {busyLabel ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Mic className="h-4 w-4" />
+                      )}
+                      {busyLabel ?? "Stop recording"}
+                    </button>
+                  ) : null}
 
-                      if (audioSource) {
-                        void createAudioLecture();
-                        return;
-                      }
+                  {!isRecording && preparedRecording ? (
+                    <>
+                      <button
+                        type="button"
+                        disabled={Boolean(busyLabel)}
+                        className="ios-primary-button"
+                        onClick={() => void createAudioLecture()}
+                      >
+                        {busyLabel ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <FileUp className="h-4 w-4" />
+                        )}
+                        {busyLabel ?? "Generate"}
+                      </button>
 
-                      void startRecording();
-                    }}
-                  >
-                    {busyLabel ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Mic className="h-4 w-4" />
-                    )}
-                    {busyLabel ??
-                      (isRecording
-                        ? "Stop recording"
-                        : audioSource
-                          ? "Create notes"
-                          : "Start recording")}
-                  </button>
+                      <button
+                        type="button"
+                        className="ios-secondary-button"
+                        disabled={Boolean(busyLabel)}
+                        onClick={() => {
+                          clearAudioSource();
+                          void startRecording();
+                        }}
+                      >
+                        Record again
+                      </button>
+                    </>
+                  ) : null}
+
+                  {!isRecording && !preparedRecording ? (
+                    <button
+                      type="button"
+                      disabled={Boolean(busyLabel)}
+                      className="ios-primary-button"
+                      onClick={() => void startRecording()}
+                    >
+                      {busyLabel ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Mic className="h-4 w-4" />
+                      )}
+                      {busyLabel ?? "Start recording"}
+                    </button>
+                  ) : null}
                 </>
               ) : null}
 
               {selectedMode === "upload" ? (
                 <>
-                  {audioSource ? (
+                  {preparedUpload ? (
                     <div className="ios-card">
                       <p className="note-source-card-label">Selected file</p>
-                      <p className="ios-row-title mt-3">{audioSource.file.name}</p>
+                      <p className="ios-row-title mt-3">{preparedUpload.file.name}</p>
                       <p className="ios-row-subtitle">
-                        {formatTimestamp(audioSource.durationSeconds * 1000)}
+                        {formatTimestamp(preparedUpload.durationSeconds * 1000)}
                       </p>
                     </div>
                   ) : null}
@@ -726,26 +797,25 @@ export function NoteSourceModal({
                   <button
                     type="button"
                     disabled={Boolean(busyLabel)}
+                    className="ios-secondary-button"
+                    onClick={() => uploadInputRef.current?.click()}
+                  >
+                    <UploadCloud className="h-4 w-4" />
+                    {preparedUpload ? "Choose another file" : "Choose file"}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={Boolean(busyLabel) || !preparedUpload}
                     className="ios-primary-button"
-                    onClick={() => {
-                      if (busyLabel) {
-                        return;
-                      }
-
-                      if (audioSource) {
-                        void createAudioLecture();
-                        return;
-                      }
-
-                      uploadInputRef.current?.click();
-                    }}
+                    onClick={() => void createAudioLecture()}
                   >
                     {busyLabel ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <UploadCloud className="h-4 w-4" />
+                      <FileUp className="h-4 w-4" />
                     )}
-                    {busyLabel ?? (audioSource ? "Create notes" : "Choose file")}
+                    {busyLabel ?? "Generate"}
                   </button>
                 </>
               ) : null}
@@ -769,7 +839,7 @@ export function NoteSourceModal({
                   <button
                     type="button"
                     className="ios-primary-button"
-                    disabled={Boolean(busyLabel)}
+                    disabled={Boolean(busyLabel) || !canGenerateLink}
                     onClick={() => void createLinkLecture()}
                   >
                     {busyLabel ? (
@@ -777,7 +847,7 @@ export function NoteSourceModal({
                     ) : (
                       <Link2 className="h-4 w-4" />
                     )}
-                    {busyLabel ?? "Create notes"}
+                    {busyLabel ?? "Generate"}
                   </button>
                 </>
               ) : null}
@@ -790,24 +860,49 @@ export function NoteSourceModal({
                     </label>
                     <textarea
                       value={textValue}
-                      onChange={(event) => setTextValue(event.target.value)}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+
+                        if (pdfSource && nextValue.trim().length > 0) {
+                          setPdfSource(null);
+                        }
+
+                        setTextValue(nextValue);
+                      }}
                       className="ios-textarea"
                       placeholder="Paste lecture or article content..."
                     />
                   </div>
 
+                  {pdfSource ? (
+                    <div className="ios-card">
+                      <p className="note-source-card-label">Selected PDF</p>
+                      <p className="ios-row-title mt-3">{pdfSource.name}</p>
+                      <p className="ios-row-subtitle">
+                        PDF will be used until you start typing text again.
+                      </p>
+                    </div>
+                  ) : null}
+
                   <button
                     type="button"
                     className="ios-primary-button"
-                    disabled={Boolean(busyLabel)}
-                    onClick={() => void createTextLecture()}
+                    disabled={Boolean(busyLabel) || !canGenerateText}
+                    onClick={() => {
+                      if (pdfSource) {
+                        void createPdfLecture();
+                        return;
+                      }
+
+                      void createTextLecture();
+                    }}
                   >
                     {busyLabel ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <FileUp className="h-4 w-4" />
                     )}
-                    {busyLabel ?? "Create notes"}
+                    {busyLabel ?? "Generate"}
                   </button>
 
                   <input
@@ -824,7 +919,7 @@ export function NoteSourceModal({
                     disabled={Boolean(busyLabel)}
                     onClick={() => pdfInputRef.current?.click()}
                   >
-                    Use PDF instead of text
+                    {pdfSource ? "Choose another PDF" : "Use PDF instead of text"}
                   </button>
                 </>
               ) : null}
