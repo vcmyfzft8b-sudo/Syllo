@@ -117,13 +117,13 @@ export function AppShell({
               return (
                 <InstantLink
                   key={item.href}
-                href={item.href}
-                className={`desktop-sidebar-link ${active ? "active" : ""}`}
-                aria-current={active ? "page" : undefined}
-              >
-                <span className="desktop-sidebar-link-icon">
-                  <item.icon className="h-4 w-4" />
-                </span>
+                  href={item.href}
+                  className={`desktop-sidebar-link ${active ? "active" : ""}`}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <span className="desktop-sidebar-link-icon">
+                    <item.icon className="h-4 w-4" />
+                  </span>
                   <span>{item.displayLabel}</span>
                 </InstantLink>
               );
