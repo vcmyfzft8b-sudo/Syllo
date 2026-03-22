@@ -199,6 +199,26 @@ function quizStageLabel(stage: unknown) {
   return "Preparing quiz";
 }
 
+function studyAssetStatusLabel(status: StudyAssetStatus | null | undefined) {
+  if (status === "queued") {
+    return "Preparing";
+  }
+
+  if (status === "generating") {
+    return "Generating";
+  }
+
+  if (status === "failed") {
+    return "Failed";
+  }
+
+  if (status === "ready") {
+    return "Ready";
+  }
+
+  return null;
+}
+
 function isLegacySectionId(value: string) {
   return value.startsWith("legacy-");
 }
@@ -469,8 +489,7 @@ export function LectureWorkspace({
       : 0;
   const activeMaterialStatus =
     activeStudyView === "flashcards" ? detail.studyAsset?.status : detail.quizAsset?.status;
-  const activeMaterialStageCopy =
-    activeStudyView === "flashcards" ? studyStageCopy : quizStageCopy;
+  const activeMaterialStatusLabel = studyAssetStatusLabel(activeMaterialStatus);
 
   async function handleRetry() {
     setIsRetrying(true);
@@ -865,13 +884,11 @@ export function LectureWorkspace({
           >
             <div className="lecture-study-header">
               <div className="lecture-study-title">
-                <p className="lecture-card-label">Study</p>
-                {activeMaterialStatus ? (
+                {activeMaterialStatus && activeMaterialStatusLabel ? (
                   <div className="lecture-study-meta">
                     <span className={`lecture-study-status ${activeMaterialStatus}`}>
-                      {activeMaterialStatus}
+                      {activeMaterialStatusLabel}
                     </span>
-                    <span className="lecture-study-meta-copy">{activeMaterialStageCopy}</span>
                   </div>
                 ) : null}
               </div>
@@ -951,9 +968,6 @@ export function LectureWorkspace({
                         <div className="lecture-flashcard-face lecture-flashcard-face-front">
                           <div className="lecture-flashcard-face-meta">
                             <span>Flashcard</span>
-                            <span className={`lecture-flashcard-difficulty ${currentFlashcard.difficulty}`}>
-                              {currentFlashcard.difficulty}
-                            </span>
                           </div>
                           <p className="lecture-flashcard-content">{currentFlashcard.front}</p>
                           <p className="lecture-flashcard-hintline">
@@ -1172,17 +1186,6 @@ export function LectureWorkspace({
                 </div>
 
                 <div className="lecture-quiz-card">
-                  <div className="lecture-quiz-card-header">
-                    <span className={`lecture-flashcard-difficulty ${activeQuizQuestion.difficulty}`}>
-                      {activeQuizQuestion.difficulty}
-                    </span>
-                    {activeQuizQuestion.source_locator ? (
-                      <span className="lecture-flashcard-citation lecture-flashcard-citation-primary">
-                        {activeQuizQuestion.source_locator}
-                      </span>
-                    ) : null}
-                  </div>
-
                   <p className="lecture-quiz-prompt">{activeQuizQuestion.prompt}</p>
 
                   <div className="lecture-quiz-options">
@@ -1404,7 +1407,7 @@ export function LectureWorkspace({
             </div>
 
             <div className="lecture-actions">
-              {detail.artifact ? (
+              {detail.artifact && activeTab === "notes" ? (
                 <button
                   type="button"
                   onClick={downloadPdf}

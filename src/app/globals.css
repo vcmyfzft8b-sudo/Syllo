@@ -2653,6 +2653,7 @@ select:disabled {
   align-items: center;
   min-height: 1.75rem;
   padding: 0 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--separator-strong) 65%, transparent);
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface-muted) 92%, transparent);
   color: var(--secondary-label);
@@ -2662,19 +2663,23 @@ select:disabled {
   text-transform: uppercase;
 }
 
+.lecture-study-status.queued,
+.lecture-study-status.generating {
+  border-color: color-mix(in srgb, var(--tint) 28%, transparent);
+  background: color-mix(in srgb, var(--tint-soft) 92%, transparent);
+  color: var(--tint);
+}
+
 .lecture-study-status.ready {
+  border-color: color-mix(in srgb, var(--green) 28%, transparent);
   background: var(--green-soft);
   color: var(--green);
 }
 
 .lecture-study-status.failed {
+  border-color: color-mix(in srgb, var(--red) 28%, transparent);
   background: var(--red-soft);
   color: var(--red);
-}
-
-.lecture-study-meta-copy {
-  color: var(--secondary-label);
-  font-size: 0.88rem;
 }
 
 .lecture-study-completion {
@@ -3002,44 +3007,6 @@ select:disabled {
   line-height: 1.5;
 }
 
-.lecture-flashcard-difficulty,
-.lecture-flashcard-progress-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.65rem;
-  padding: 0 0.55rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.lecture-flashcard-difficulty {
-  background: color-mix(in srgb, var(--surface-solid) 86%, transparent);
-  color: var(--secondary-label);
-}
-
-.lecture-flashcard-difficulty.easy,
-.lecture-flashcard-progress-pill {
-  background: var(--green-soft);
-  color: var(--green);
-}
-
-.lecture-flashcard-progress-pill.pending {
-  background: color-mix(in srgb, var(--surface-muted) 88%, transparent);
-  color: var(--secondary-label);
-}
-
-.lecture-flashcard-difficulty.medium {
-  background: color-mix(in srgb, #f59e0b 18%, var(--surface-solid));
-  color: #b66a00;
-}
-
-.lecture-flashcard-difficulty.hard {
-  background: var(--red-soft);
-  color: var(--red);
-}
-
 .lecture-flashcard-citations {
   display: flex;
   flex-wrap: wrap;
@@ -3108,14 +3075,6 @@ select:disabled {
   background:
     linear-gradient(160deg, color-mix(in srgb, var(--surface-solid) 99%, transparent), color-mix(in srgb, var(--surface-muted) 82%, transparent));
   box-shadow: var(--shadow-soft);
-}
-
-.lecture-quiz-card-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
 }
 
 .lecture-quiz-prompt {
