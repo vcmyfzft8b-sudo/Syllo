@@ -35,8 +35,8 @@ const MODES: Array<{
 }> = [
   { id: "record", label: "Record" },
   { id: "upload", label: "Upload" },
+  { id: "text", label: "PDF" },
   { id: "link", label: "Link" },
-  { id: "text", label: "Text" },
 ];
 
 function pickRecorderMimeType() {
