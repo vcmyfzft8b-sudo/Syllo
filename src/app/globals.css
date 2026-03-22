@@ -1990,8 +1990,13 @@ select:disabled {
   }
 
   .library-folder-modal-body {
-    padding-left: 0.2rem;
-    padding-right: 0.2rem;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+  }
+
+  .library-folder-modal .ios-input {
+    padding-left: 0.95rem;
+    padding-right: 0.95rem;
   }
 
   .note-source-modal-wrap {
