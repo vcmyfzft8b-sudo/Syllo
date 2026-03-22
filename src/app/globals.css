@@ -5022,6 +5022,18 @@ select:disabled {
     font-size: 0.9rem;
   }
 
+  .app-back-button {
+    gap: 0.35rem;
+    min-height: 2.1rem;
+    padding: 0 0.65rem;
+    font-size: 0.82rem;
+  }
+
+  .app-back-button .h-5 {
+    width: 1rem;
+    height: 1rem;
+  }
+
   .landing-output-grid {
     grid-template-columns: minmax(0, 1fr);
   }
