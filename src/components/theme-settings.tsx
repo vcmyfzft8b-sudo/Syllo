@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Monitor, Moon, Sun } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 
 type ThemePreference = "system" | "light" | "dark";
 const THEME_EVENT = "nota-theme-change";
@@ -78,9 +78,37 @@ export function ThemeSettings() {
     readStoredThemePreference,
     () => "system",
   );
+  const pendingCommitTimerRef = useRef<number | null>(null);
+  const queuedPreferenceRef = useRef<ThemePreference | null>(null);
+
+  function clearPendingCommit() {
+    if (pendingCommitTimerRef.current !== null) {
+      window.clearTimeout(pendingCommitTimerRef.current);
+      pendingCommitTimerRef.current = null;
+    }
+
+    queuedPreferenceRef.current = null;
+  }
+
+  useEffect(() => {
+    return () => {
+      clearPendingCommit();
+    };
+  }, []);
 
   function updatePreference(next: ThemePreference) {
-    applyTheme(next);
+    if (next === preference || queuedPreferenceRef.current === next) {
+      return;
+    }
+
+    clearPendingCommit();
+    queuedPreferenceRef.current = next;
+
+    pendingCommitTimerRef.current = window.setTimeout(() => {
+      pendingCommitTimerRef.current = null;
+      queuedPreferenceRef.current = null;
+      applyTheme(next);
+    }, 220);
   }
 
   return (
@@ -94,9 +122,7 @@ export function ThemeSettings() {
             type="button"
             onClick={() => updatePreference(option.value)}
             aria-pressed={active}
-            className={`note-action-card compact-link-card theme-choice-card ${
-              active ? "active" : ""
-            }`}
+            className={`dashboard-link-card settings-link-card theme-choice-card ${active ? "active" : ""}`}
           >
             <span className="note-action-card-icon">
               <option.icon className="h-5 w-5" />

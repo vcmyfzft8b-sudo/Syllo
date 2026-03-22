@@ -701,8 +701,7 @@ select:disabled {
 .ios-nav-ghost:active,
 .ios-primary-button:active,
 .ios-secondary-button:active,
-.ios-text-button:active,
-.note-action-card:active {
+.ios-text-button:active {
   opacity: 0.7;
 }
 
@@ -1145,6 +1144,29 @@ select:disabled {
   gap: 1.35rem;
 }
 
+.interactive-card,
+.dashboard-surface-card,
+.dashboard-link-card,
+.note-action-card {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-solid) 98%, transparent), color-mix(in srgb, var(--surface-muted) 60%, transparent));
+  border: 1px solid color-mix(in srgb, var(--separator) 65%, transparent);
+  box-shadow: var(--shadow-soft);
+  transition:
+    opacity 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.interactive-card:hover,
+.dashboard-link-card:hover,
+.dashboard-surface-card:hover,
+.note-action-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-raised);
+}
+
 .note-action-card {
   display: flex;
   align-items: center;
@@ -1152,22 +1174,8 @@ select:disabled {
   min-height: 6.75rem;
   width: 100%;
   padding: 1.3rem 1.6rem;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-solid) 98%, transparent), color-mix(in srgb, var(--surface-muted) 60%, transparent));
   border-radius: 26px;
-  border: 1px solid color-mix(in srgb, var(--separator) 65%, transparent);
   text-align: left;
-  transition:
-    opacity 0.15s ease,
-    background-color 0.15s ease,
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
-  box-shadow: var(--shadow-soft);
-}
-
-.note-action-card:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-raised);
 }
 
 .note-action-card-icon {
@@ -1277,19 +1285,6 @@ select:disabled {
   line-height: 1.02;
 }
 
-.dashboard-surface-card,
-.dashboard-link-card {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-solid) 98%, transparent), color-mix(in srgb, var(--surface-muted) 60%, transparent));
-  border: 1px solid color-mix(in srgb, var(--separator) 65%, transparent);
-  box-shadow: var(--shadow-soft);
-  transition:
-    opacity 0.15s ease,
-    background-color 0.15s ease,
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
 .dashboard-surface-card {
   display: grid;
   gap: 1rem;
@@ -1306,12 +1301,6 @@ select:disabled {
   border-radius: 22px;
 }
 
-.dashboard-link-card:hover,
-.dashboard-surface-card:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-raised);
-}
-
 .dashboard-link-card-title {
   margin: 0;
   flex: 1;
@@ -1325,6 +1314,30 @@ select:disabled {
   min-height: 5.1rem;
   padding: 1.15rem 1.35rem;
   border-radius: 22px;
+}
+
+.settings-link-card {
+  width: 100%;
+  text-align: left;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  contain: paint;
+  will-change: transform, opacity;
+  transition:
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.settings-link-card:hover {
+  transform: translate3d(0, -1px, 0);
+  box-shadow: var(--shadow-soft);
+}
+
+.settings-link-card:active {
+  opacity: 0.96;
+  transform: translate3d(0, 0, 0);
+  box-shadow: var(--shadow-soft);
 }
 
 .settings-account-card {
@@ -1355,11 +1368,22 @@ select:disabled {
   color: var(--label);
   font-size: 0.92rem;
   font-weight: 600;
-  transition: opacity 0.15s ease;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  contain: paint;
+  will-change: transform, opacity;
+  transition:
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.22s ease;
 }
 
 .settings-inline-action:hover {
-  opacity: 0.82;
+  transform: translate3d(0, -1px, 0);
+}
+
+.settings-inline-action:active {
+  opacity: 0.96;
+  transform: translate3d(0, 0, 0);
 }
 
 .theme-choice-grid {
@@ -1370,18 +1394,26 @@ select:disabled {
 
 .theme-choice-card {
   min-height: 5rem;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  contain: paint;
+  will-change: transform, opacity;
+  transition:
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.22s ease,
+    border-color 0.22s ease;
 }
 
 .theme-choice-card.active {
   border-color: color-mix(in srgb, var(--tint) 45%, var(--separator));
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--surface-solid) 98%, transparent), color-mix(in srgb, var(--surface-muted) 86%, transparent));
-  box-shadow: var(--shadow-raised);
 }
 
 .theme-choice-check {
   flex-shrink: 0;
   color: var(--tint);
+  transition: opacity 0.22s ease;
 }
 
 .help-article-card {

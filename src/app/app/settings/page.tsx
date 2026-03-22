@@ -12,7 +12,7 @@ function SettingsLinkCard(props: {
   detail?: string;
 }) {
   return (
-    <Link href={props.href} className="note-action-card compact-link-card">
+    <Link href={props.href} className="dashboard-link-card settings-link-card">
       <span className="note-action-card-icon">
         <props.icon className="h-5 w-5" />
       </span>
@@ -32,7 +32,7 @@ function SettingsExternalCard(props: {
   detail?: string;
 }) {
   return (
-    <a href={props.href} className="note-action-card compact-link-card">
+    <a href={props.href} className="dashboard-link-card settings-link-card">
       <span className="note-action-card-icon">
         <props.icon className="h-5 w-5" />
       </span>
