@@ -1404,7 +1404,7 @@ export function LectureWorkspace({
             </div>
 
             <div className="lecture-actions">
-              {detail.artifact ? (
+              {detail.artifact && activeTab === "notes" ? (
                 <button
                   type="button"
                   onClick={downloadPdf}
