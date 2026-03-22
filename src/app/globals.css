@@ -5039,10 +5039,9 @@ select:disabled {
 
   .landing-auth-wrap {
     gap: 1rem;
-    width: min(100%, 100%);
+    width: min(100%, 32rem);
     min-height: 100vh;
-    padding-top: 1.5rem;
-    padding-bottom: 1.1rem;
+    padding: 1.5rem 1.15rem 1.1rem;
     transform: translateY(-3.5vh);
   }
 
@@ -5052,6 +5051,13 @@ select:disabled {
 
   .landing-auth-stack {
     margin-top: 2rem;
+  }
+
+  .auth-panel {
+    width: min(100%, 31rem);
+    margin: 0 auto;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
   }
 
   .landing-benefit-strip {
