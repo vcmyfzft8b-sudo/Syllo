@@ -35,8 +35,8 @@ const MODES: Array<{
 }> = [
   { id: "record", label: "Record" },
   { id: "upload", label: "Upload" },
+  { id: "text", label: "PDF" },
   { id: "link", label: "Link" },
-  { id: "text", label: "Text" },
 ];
 
 function pickRecorderMimeType() {
@@ -801,7 +801,7 @@ export function NoteSourceModal({
                     onClick={() => uploadInputRef.current?.click()}
                   >
                     <UploadCloud className="h-4 w-4" />
-                    {preparedUpload ? "Choose another file" : "Choose file"}
+                    {preparedUpload ? "Choose another audio file" : "Choose audio file"}
                   </button>
 
                   <button
@@ -884,6 +884,24 @@ export function NoteSourceModal({
                     </div>
                   ) : null}
 
+                  <input
+                    ref={pdfInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handlePdfPick}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    className="ios-secondary-button"
+                    disabled={Boolean(busyLabel)}
+                    onClick={() => pdfInputRef.current?.click()}
+                  >
+                    <UploadCloud className="h-4 w-4" />
+                    {pdfSource ? "Choose another PDF file" : "Choose PDF file"}
+                  </button>
+
                   <button
                     type="button"
                     className="ios-primary-button"
@@ -903,23 +921,6 @@ export function NoteSourceModal({
                       <FileUp className="h-4 w-4" />
                     )}
                     {busyLabel ?? "Generate"}
-                  </button>
-
-                  <input
-                    ref={pdfInputRef}
-                    type="file"
-                    accept="application/pdf"
-                    onChange={handlePdfPick}
-                    className="hidden"
-                  />
-
-                  <button
-                    type="button"
-                    className="ios-secondary-button"
-                    disabled={Boolean(busyLabel)}
-                    onClick={() => pdfInputRef.current?.click()}
-                  >
-                    {pdfSource ? "Choose another PDF" : "Use PDF instead of text"}
                   </button>
                 </>
               ) : null}

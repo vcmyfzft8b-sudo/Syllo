@@ -41,17 +41,17 @@ const QUICK_ACTIONS = [
     accent: "default",
   },
   {
-    id: "link" as const,
-    label: "Add link",
-    detail: "Web article or source",
-    icon: Link2,
-    accent: "default",
-  },
-  {
     id: "text" as const,
     label: "Paste text or PDF",
     detail: "Turn source material into structured notes",
     icon: FileUp,
+    accent: "default",
+  },
+  {
+    id: "link" as const,
+    label: "Add link",
+    detail: "Web article or source",
+    icon: Link2,
     accent: "default",
   },
 ] as const;
@@ -288,7 +288,7 @@ export function HomeDashboard({
             <h2 className="dashboard-section-title">New note</h2>
           </div>
           <p className="dashboard-section-lead">
-            Record audio, upload audio, add a link, or paste text.
+            Record audio, upload audio, paste text or PDF, or add a link.
           </p>
 
           <div className="note-action-grid">
