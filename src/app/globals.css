@@ -2160,7 +2160,8 @@ select:disabled {
 }
 
 .ios-row-note-card.menu-open {
-  z-index: 30;
+  z-index: 80;
+  contain: layout style;
 }
 
 .ios-row-note-card:hover {
@@ -2181,7 +2182,7 @@ select:disabled {
 .dashboard-note-actions {
   position: relative;
   flex-shrink: 0;
-  z-index: 2;
+  z-index: 5;
 }
 
 .ios-row-note-card .ios-row-icon {
@@ -2238,7 +2239,7 @@ select:disabled {
   position: absolute;
   top: calc(100% + 0.45rem);
   right: 0;
-  z-index: 40;
+  z-index: 90;
   display: grid;
   width: max-content;
   padding: 0.4rem;
