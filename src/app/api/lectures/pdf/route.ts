@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
+import { MAX_PDF_BYTES } from "@/lib/constants";
 import { createLectureFromTextSource, extractTextFromPdf } from "@/lib/manual-lectures";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
@@ -26,6 +29,13 @@ export async function POST(request: Request) {
 
   if (!inputFile.type.includes("pdf")) {
     return NextResponse.json({ error: "Only PDF files are supported." }, { status: 400 });
+  }
+
+  if (inputFile.size > MAX_PDF_BYTES) {
+    return NextResponse.json(
+      { error: "The PDF file is too large. The current limit is 4 MB." },
+      { status: 400 },
+    );
   }
 
   try {

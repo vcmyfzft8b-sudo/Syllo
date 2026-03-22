@@ -9,6 +9,8 @@ const chatSchema = z.object({
   question: z.string().trim().min(3).max(1000),
 });
 
+export const maxDuration = 300;
+
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },

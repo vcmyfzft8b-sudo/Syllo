@@ -9,6 +9,8 @@ const createTextLectureSchema = z.object({
   languageHint: z.string().trim().min(2).max(10).default("en"),
 });
 
+export const maxDuration = 300;
+
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
   const {

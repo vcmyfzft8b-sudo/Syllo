@@ -14,7 +14,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { BRAND_NAME } from "@/lib/brand";
-import { MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS, STORAGE_BUCKET } from "@/lib/constants";
+import {
+  MAX_AUDIO_BYTES,
+  MAX_AUDIO_SECONDS,
+  MAX_PDF_BYTES,
+  STORAGE_BUCKET,
+} from "@/lib/constants";
 import { NOTE_LANGUAGE_OPTIONS } from "@/lib/languages";
 import { getExtensionForMimeType, normalizeMimeType } from "@/lib/storage";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
@@ -563,6 +568,10 @@ export function NoteSourceModal({
         throw new Error("Only PDF files are supported.");
       }
 
+      if (file.size > MAX_PDF_BYTES) {
+        throw new Error("The PDF file is too large. The current limit is 4 MB.");
+      }
+
       setPdfSource(file);
       setTextValue("");
       setError(null);
@@ -901,6 +910,10 @@ export function NoteSourceModal({
                     <UploadCloud className="h-4 w-4" />
                     {pdfSource ? "Choose another PDF file" : "Choose PDF file"}
                   </button>
+
+                  <p className="ios-row-subtitle">
+                    PDF uploads are currently limited to 4 MB.
+                  </p>
 
                   <button
                     type="button"

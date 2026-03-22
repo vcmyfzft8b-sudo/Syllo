@@ -1,0 +1,13 @@
+.git
+.gitignore
+.next
+.next_*
+node_modules
+npm-debug.log
+README.md
+docs
+supabase
+.env.local
+.env.production
+tsconfig.tsbuildinfo
+F79E79FB-D598-447B-B7DE-00DA9195851B.PNG

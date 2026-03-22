@@ -1,9 +1,11 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
 import { enqueueLectureQuizGeneration } from "@/lib/jobs";
 import { queueLectureQuizGeneration } from "@/lib/quiz";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export const maxDuration = 300;
 
 export async function GET(
   _request: Request,
@@ -77,7 +79,9 @@ export async function POST(
     );
   }
 
-  await enqueueLectureQuizGeneration(id);
+  after(async () => {
+    await enqueueLectureQuizGeneration(id);
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -4,6 +4,8 @@ import { enqueueLectureProcessing } from "@/lib/jobs";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+export const maxDuration = 300;
+
 export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> },

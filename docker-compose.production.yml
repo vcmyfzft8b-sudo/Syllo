@@ -1,0 +1,11 @@
+services:
+  memo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: memo-app:latest
+    env_file:
+      - .env.production
+    ports:
+      - "3000:3000"
+    restart: unless-stopped

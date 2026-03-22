@@ -9,6 +9,8 @@ const finalizeSchema = z.object({
   path: z.string().min(3),
 });
 
+export const maxDuration = 300;
+
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> },

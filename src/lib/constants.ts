@@ -2,6 +2,7 @@ export const STORAGE_BUCKET = "lecture-audio";
 
 export const MAX_AUDIO_BYTES = 150 * 1024 * 1024;
 export const MAX_AUDIO_SECONDS = 2 * 60 * 60;
+export const MAX_PDF_BYTES = 4 * 1024 * 1024;
 
 export const SUPPORTED_AUDIO_MIME_TYPES = [
   "audio/mpeg",

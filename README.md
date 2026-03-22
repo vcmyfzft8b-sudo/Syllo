@@ -123,6 +123,19 @@ npx eslint src
 npm run build
 ```
 
+## Deployment
+
+The repo includes two deployment paths:
+
+- Vercel deployment guide in [`docs/deploy-vercel.md`](./docs/deploy-vercel.md)
+- single-server Docker deployment guide in [`docs/deploy.md`](./docs/deploy.md)
+
+Shared production pieces:
+
+- standalone Next.js output in [`next.config.ts`](./next.config.ts)
+- health check route at `/api/health`
+- container build in [`Dockerfile`](./Dockerfile) for non-Vercel hosting
+
 ## Notes
 
 - The repo currently contains generated Next output directories such as `.next` and `.next_old_1773694499528`. If global linting picks those up in your environment, lint the source tree directly with `npx eslint src`.

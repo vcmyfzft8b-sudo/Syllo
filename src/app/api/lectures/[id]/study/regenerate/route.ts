@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 import { ensureUserOwnsLecture } from "@/lib/lectures";
 import { enqueueLectureStudyGeneration } from "@/lib/jobs";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+
+export const maxDuration = 300;
 
 export async function POST(
   _request: Request,
@@ -53,7 +55,9 @@ export async function POST(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  await enqueueLectureStudyGeneration(id);
+  after(async () => {
+    await enqueueLectureStudyGeneration(id);
+  });
 
   return NextResponse.json({ ok: true });
 }
