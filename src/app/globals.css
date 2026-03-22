@@ -1925,14 +1925,24 @@ select:disabled {
   }
 
   .library-folder-menu {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
     display: grid;
-    width: min(100%, calc(100vw - 2rem));
-    max-height: calc(100dvh - env(safe-area-inset-bottom) - 10.75rem);
+    width: 100%;
+    margin-top: 0.85rem;
+    padding: 1rem;
+    border-radius: 28px;
+    box-shadow: var(--shadow-soft);
+    overflow: visible;
+    max-height: none;
   }
 
   .library-folder-menu-primary,
   .library-folder-menu-secondary {
-    width: min(100%, calc(100vw - 2rem));
+    width: 100%;
+    overflow: visible;
   }
 
   .library-folder-menu-secondary {
