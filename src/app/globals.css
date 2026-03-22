@@ -5166,12 +5166,13 @@ select:disabled {
   }
 
   .lecture-study-shell {
-    height: min(61vh, 36rem);
+    height: auto;
+    min-height: 0;
   }
 
   .lecture-study-shell.auto-height {
     height: auto;
-    min-height: min(61vh, 36rem);
+    min-height: 0;
   }
 
   .lecture-study-header {
