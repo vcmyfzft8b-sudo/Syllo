@@ -8,7 +8,8 @@ import {
   House,
   Settings2,
 } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { BRAND_NAME } from "@/lib/brand";
@@ -69,7 +70,14 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const chrome = getChrome(pathname);
+
+  useEffect(() => {
+    for (const item of TAB_ITEMS) {
+      router.prefetch(item.href);
+    }
+  }, [router]);
 
   return (
     <div className="ios-app-shell desktop-shell">
@@ -107,14 +115,15 @@ export function AppShell({
                   : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`desktop-sidebar-link ${active ? "active" : ""}`}
-                >
-                  <span className="desktop-sidebar-link-icon">
-                    <item.icon className="h-4 w-4" />
-                  </span>
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`desktop-sidebar-link ${active ? "active" : ""}`}
+                aria-current={active ? "page" : undefined}
+              >
+                <span className="desktop-sidebar-link-icon">
+                  <item.icon className="h-4 w-4" />
+                </span>
                   <span>{item.displayLabel}</span>
                 </Link>
               );
@@ -169,6 +178,7 @@ export function AppShell({
                 key={item.href}
                 href={item.href}
                 className={`ios-tab-item ${active ? "active" : ""}`}
+                aria-current={active ? "page" : undefined}
               >
                 <item.icon className="h-5 w-5" />
                 <span>{item.displayLabel}</span>

@@ -16,7 +16,15 @@ import {
   Type,
   X,
 } from "lucide-react";
-import { startTransition, useDeferredValue, useEffect, useRef, useState } from "react";
+import {
+  memo,
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { NoteSourceModal, type NoteSourceMode } from "@/components/note-source-modal";
@@ -84,6 +92,94 @@ function SourceIcon({ sourceType }: { sourceType: string }) {
   return <Mic className="h-4 w-4" />;
 }
 
+type NoteRowProps = {
+  lecture: AppLectureListItem;
+  isMenuOpen: boolean;
+  isBusy: boolean;
+  onToggleMenu: (lectureId: string) => void;
+  onOpenRename: (lecture: AppLectureListItem) => void;
+  onOpenDelete: (lecture: AppLectureListItem) => void;
+  attachMenuRef: (node: HTMLDivElement | null) => void;
+};
+
+const NoteRow = memo(function NoteRow({
+  lecture,
+  isMenuOpen,
+  isBusy,
+  onToggleMenu,
+  onOpenRename,
+  onOpenDelete,
+  attachMenuRef,
+}: NoteRowProps) {
+  return (
+    <div className={`ios-row-note-card ${isMenuOpen ? "menu-open" : ""}`}>
+      <Link href={`/app/lectures/${lecture.id}`} className="ios-row-note-card-link">
+        <div className="ios-row-icon" style={{ backgroundColor: "var(--surface-muted)" }}>
+          <SourceIcon sourceType={lecture.source_type} />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="ios-row-title truncate font-medium">{lecture.title ?? "Untitled note"}</p>
+          <p className="ios-row-subtitle mt-1">
+            {sourceLabel(lecture.source_type)} • {formatCalendarDate(lecture.created_at)}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {lecture.status !== "ready" && <StatusBadge status={lecture.status} />}
+        </div>
+      </Link>
+
+      <div ref={isMenuOpen ? attachMenuRef : undefined} className="dashboard-note-actions">
+        <button
+          type="button"
+          aria-label={`Open actions for ${lecture.title ?? "note"}`}
+          disabled={isBusy}
+          onClick={() => onToggleMenu(lecture.id)}
+          className="dashboard-note-menu-button"
+        >
+          {isBusy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <MoreVertical className="h-4 w-4" />
+          )}
+        </button>
+
+        {isMenuOpen ? (
+          <div className="dashboard-note-menu">
+            <button
+              type="button"
+              onClick={() => onOpenRename(lecture)}
+              className="dashboard-note-menu-item"
+              aria-label="Rename note"
+              title="Rename note"
+            >
+              <Pencil className="h-4 w-4" />
+              <span>Rename</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenDelete(lecture)}
+              className="dashboard-note-menu-item danger"
+              aria-label="Delete note"
+              title="Delete note"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Delete</span>
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}, (previousProps, nextProps) => {
+  return (
+    previousProps.lecture === nextProps.lecture &&
+    previousProps.isMenuOpen === nextProps.isMenuOpen &&
+    previousProps.isBusy === nextProps.isBusy
+  );
+});
+
 export function HomeDashboard({
   lectures,
 }: {
@@ -103,6 +199,10 @@ export function HomeDashboard({
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<AppLectureListItem | null>(null);
   const deferredQuery = useDeferredValue(query);
+  const selectedFolderLectureIdSet = useMemo(
+    () => (selectedFolderLectureIds ? new Set(selectedFolderLectureIds) : null),
+    [selectedFolderLectureIds],
+  );
 
   const searchModal = (() => {
     const mode = searchParams.get("mode");
@@ -122,15 +222,21 @@ export function HomeDashboard({
       return;
     }
 
-    function handlePointerDown(event: MouseEvent) {
+    function handlePointerDown(event: PointerEvent) {
       if (!menuRef.current?.contains(event.target as Node)) {
         setOpenMenuLectureId(null);
       }
     }
 
-    window.addEventListener("mousedown", handlePointerDown);
-    return () => window.removeEventListener("mousedown", handlePointerDown);
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
   }, [openMenuLectureId]);
+
+  useEffect(() => {
+    for (const item of libraryLectures.slice(0, 24)) {
+      router.prefetch(`/app/lectures/${item.id}`);
+    }
+  }, [libraryLectures, router]);
 
   useEffect(() => {
     if (!renameTarget && !deleteTarget) {
@@ -262,8 +368,8 @@ export function HomeDashboard({
     startTransition(() => router.refresh());
   }
 
-  const visibleLectures = selectedFolderLectureIds
-    ? libraryLectures.filter((lecture) => selectedFolderLectureIds.includes(lecture.id))
+  const visibleLectures = selectedFolderLectureIdSet
+    ? libraryLectures.filter((lecture) => selectedFolderLectureIdSet.has(lecture.id))
     : libraryLectures;
   const search = deferredQuery.trim().toLowerCase();
   const filteredLectures = visibleLectures.filter((lecture) => {
@@ -280,6 +386,13 @@ export function HomeDashboard({
 
   const failedLectures = filteredLectures.filter((lecture) => lecture.status === "failed");
   const regularLectures = filteredLectures.filter((lecture) => lecture.status !== "failed");
+  const attachMenuRef = (node: HTMLDivElement | null) => {
+    menuRef.current = node;
+  };
+  const toggleLectureMenu = (lectureId: string) => {
+    setOpenMenuLectureId((current) => (current === lectureId ? null : lectureId));
+  };
+
   return (
     <>
       <div className="home-dashboard pb-8">
@@ -397,80 +510,16 @@ export function HomeDashboard({
           {regularLectures.length > 0 ? (
             <div className="dashboard-note-list">
               {regularLectures.map((lecture) => (
-                <div
+                <NoteRow
                   key={lecture.id}
-                  className={`ios-row-note-card ${openMenuLectureId === lecture.id ? "menu-open" : ""}`}
-                >
-                  <Link
-                    href={`/app/lectures/${lecture.id}`}
-                    className="ios-row-note-card-link"
-                  >
-                    <div className="ios-row-icon" style={{ backgroundColor: "var(--surface-muted)" }}>
-                      <SourceIcon sourceType={lecture.source_type} />
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <p className="ios-row-title truncate font-medium">
-                        {lecture.title ?? "Untitled note"}
-                      </p>
-                      <p className="ios-row-subtitle mt-1">
-                        {sourceLabel(lecture.source_type)} • {formatCalendarDate(lecture.created_at)}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      {lecture.status !== "ready" && <StatusBadge status={lecture.status} />}
-                    </div>
-                  </Link>
-
-                  <div
-                    ref={openMenuLectureId === lecture.id ? menuRef : null}
-                    className="dashboard-note-actions"
-                  >
-                    <button
-                      type="button"
-                      aria-label={`Open actions for ${lecture.title ?? "note"}`}
-                      disabled={busyLectureId === lecture.id}
-                      onClick={() =>
-                        setOpenMenuLectureId((current) =>
-                          current === lecture.id ? null : lecture.id,
-                        )
-                      }
-                      className="dashboard-note-menu-button"
-                    >
-                      {busyLectureId === lecture.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <MoreVertical className="h-4 w-4" />
-                      )}
-                    </button>
-
-                    {openMenuLectureId === lecture.id ? (
-                      <div className="dashboard-note-menu">
-                        <button
-                          type="button"
-                          onClick={() => openRenameModal(lecture)}
-                          className="dashboard-note-menu-item"
-                          aria-label="Rename note"
-                          title="Rename note"
-                        >
-                          <Pencil className="h-4 w-4" />
-                          <span>Rename</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openDeleteModal(lecture)}
-                          className="dashboard-note-menu-item danger"
-                          aria-label="Delete note"
-                          title="Delete note"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span>Delete</span>
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
+                  lecture={lecture}
+                  isMenuOpen={openMenuLectureId === lecture.id}
+                  isBusy={busyLectureId === lecture.id}
+                  onToggleMenu={toggleLectureMenu}
+                  onOpenRename={openRenameModal}
+                  onOpenDelete={openDeleteModal}
+                  attachMenuRef={attachMenuRef}
+                />
               ))}
             </div>
           ) : (

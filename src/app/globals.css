@@ -375,6 +375,7 @@ select:disabled {
   align-items: center;
   gap: 0.75rem;
   min-height: 3rem;
+  position: relative;
   border-radius: 16px;
   padding: 0.75rem 0.9rem;
   color: var(--label);
@@ -384,6 +385,7 @@ select:disabled {
     background-color 0.15s ease,
     color 0.15s ease,
     transform 0.15s ease;
+  touch-action: manipulation;
 }
 
 .desktop-sidebar-link:hover {
@@ -596,16 +598,28 @@ select:disabled {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  position: relative;
+  flex: 1 1 0;
   gap: 0.14rem;
   min-width: 3.8rem;
-  min-height: 3.5rem;
+  min-height: 3.9rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 1.1rem;
   color: var(--secondary-label);
   font-size: 0.64rem;
   font-weight: 500;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .ios-tab-item.active {
   color: var(--tint);
+}
+
+.ios-tab-item::before {
+  content: "";
+  position: absolute;
+  inset: -0.3rem -0.15rem;
 }
 
 .ios-title-block {
@@ -2189,6 +2203,10 @@ select:disabled {
   min-width: 0;
   max-width: 100%;
   flex: 1;
+  min-height: 3.5rem;
+  padding: 0.2rem 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .dashboard-note-actions {
@@ -2223,6 +2241,7 @@ select:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--separator) 70%, transparent);
   background: color-mix(in srgb, var(--surface-muted) 88%, transparent);
@@ -2245,6 +2264,14 @@ select:disabled {
 .dashboard-note-menu-button {
   width: 2.7rem;
   height: 2.7rem;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dashboard-note-menu-button::before {
+  content: "";
+  position: absolute;
+  inset: -0.35rem;
 }
 
 .dashboard-note-menu {
@@ -4989,8 +5016,8 @@ select:disabled {
   }
 
   .dashboard-note-menu-button {
-    width: 2.4rem;
-    height: 2.4rem;
+    width: 2.75rem;
+    height: 2.75rem;
   }
   
   .ios-nav-inner {
