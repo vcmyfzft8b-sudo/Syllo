@@ -2,6 +2,9 @@
 
 import type { CSSProperties } from "react";
 
+const FOLDER_WIDTH = 38;
+const FOLDER_HEIGHT = 30;
+
 export function Folder({
   color = "#8294DA",
   size = 1,
@@ -22,7 +25,15 @@ export function Folder({
   } as CSSProperties;
 
   return (
-    <div style={{ transform: `scale(${size})` }} className={className}>
+    <div
+      className={className}
+      style={{
+        width: `${FOLDER_WIDTH * size}px`,
+        height: `${FOLDER_HEIGHT * size}px`,
+        transform: `scale(${size})`,
+        transformOrigin: "top left",
+      }}
+    >
       <div className={`folder ${open ? "open" : ""}`.trim()} style={folderStyle}>
         <div className="folder__back">
           <div className="paper paper-1" />
