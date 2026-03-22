@@ -1102,7 +1102,7 @@ select:disabled {
 
 .note-source-modal-body {
   min-height: 0;
-  padding-right: 0.35rem;
+  padding-inline: 0.35rem;
   overflow-y: auto;
   scrollbar-width: thin;
 }
