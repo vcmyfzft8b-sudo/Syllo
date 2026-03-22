@@ -1142,6 +1142,7 @@ select:disabled {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.35rem;
+  isolation: isolate;
 }
 
 .interactive-card,
@@ -1176,6 +1177,14 @@ select:disabled {
   padding: 1.3rem 1.6rem;
   border-radius: 26px;
   text-align: left;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  contain: paint;
+  will-change: transform, opacity;
+}
+
+.note-action-card:hover {
+  transform: translate3d(0, -1px, 0);
 }
 
 .note-action-card-icon {
@@ -2130,6 +2139,10 @@ select:disabled {
   position: relative;
   justify-content: space-between;
   isolation: isolate;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  contain: paint;
+  will-change: transform, opacity;
 }
 
 .ios-row-note-card.menu-open {
@@ -2138,7 +2151,7 @@ select:disabled {
 
 .ios-row-note-card:hover {
   background-color: color-mix(in srgb, var(--surface-solid) 96%, var(--pressed));
-  transform: translateY(-1px);
+  transform: translate3d(0, -1px, 0);
   box-shadow: var(--shadow-raised);
 }
 
@@ -2176,6 +2189,7 @@ select:disabled {
   display: grid;
   gap: 0.7rem;
   min-width: 0;
+  isolation: isolate;
 }
 
 .dashboard-note-menu-button {
