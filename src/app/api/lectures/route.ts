@@ -9,7 +9,7 @@ const createLectureSchema = z.object({
   mimeType: z.string().min(1),
   size: z.number().int().positive().max(MAX_AUDIO_BYTES),
   durationSeconds: z.number().positive().max(MAX_AUDIO_SECONDS),
-  languageHint: z.string().trim().min(2).max(10).default("en"),
+  languageHint: z.string().trim().min(2).max(10).default("sl"),
 });
 
 const deleteLecturesSchema = z.object({

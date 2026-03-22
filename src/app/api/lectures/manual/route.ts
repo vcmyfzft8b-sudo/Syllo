@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const createManualLectureSchema = z.object({
   sourceType: z.enum(["text", "pdf", "link"]),
-  languageHint: z.string().trim().min(2).max(10).default("en"),
+  languageHint: z.string().trim().min(2).max(10).default("sl"),
 });
 
 export async function POST(request: Request) {

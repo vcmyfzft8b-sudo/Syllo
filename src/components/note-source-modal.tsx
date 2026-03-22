@@ -155,7 +155,7 @@ export function NoteSourceModal({
   const [pdfSource, setPdfSource] = useState<File | null>(null);
   const [textValue, setTextValue] = useState("");
   const [linkValue, setLinkValue] = useState("");
-  const [languageHint, setLanguageHint] = useState("en");
+  const [languageHint, setLanguageHint] = useState("sl");
   const [isRecording, setIsRecording] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [recordingSupported, setRecordingSupported] = useState<boolean | null>(null);
@@ -225,7 +225,7 @@ export function NoteSourceModal({
     setPdfSource(null);
     setTextValue("");
     setLinkValue("");
-    setLanguageHint("en");
+    setLanguageHint("sl");
     setIsRecording(false);
     setElapsedSeconds(0);
     setError(null);

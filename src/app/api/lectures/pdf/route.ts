@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const languageHint =
     typeof formData.get("languageHint") === "string"
       ? String(formData.get("languageHint"))
-      : "en";
+      : "sl";
 
   if (!(inputFile instanceof File)) {
     return NextResponse.json({ error: "Missing PDF file." }, { status: 400 });

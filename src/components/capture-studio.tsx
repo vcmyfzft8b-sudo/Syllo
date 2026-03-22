@@ -292,7 +292,7 @@ export function CaptureStudio({
           mimeType: normalizedMimeType,
           size: source.file.size,
           durationSeconds: Math.max(source.durationSeconds, 1),
-          languageHint: "en",
+          languageHint: "sl",
         }),
       });
 

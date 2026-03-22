@@ -7,7 +7,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 const createLinkLectureSchema = z.object({
   lectureId: z.string().uuid().optional(),
   url: z.string().trim().url(),
-  languageHint: z.string().trim().min(2).max(10).default("en"),
+  languageHint: z.string().trim().min(2).max(10).default("sl"),
 });
 
 export const maxDuration = 300;
