@@ -2904,7 +2904,7 @@ select:disabled {
   min-height: 22rem;
   padding: 1.45rem 1.55rem;
   border-radius: 24px;
-  border: 1px solid color-mix(in srgb, var(--separator) 55%, transparent);
+  border: 0;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   background:
@@ -3161,6 +3161,14 @@ select:disabled {
   font-weight: 700;
 }
 
+.lecture-quiz-feedback-title.correct {
+  color: var(--green);
+}
+
+.lecture-quiz-feedback-title.incorrect {
+  color: var(--red);
+}
+
 .lecture-quiz-feedback-copy {
   color: var(--secondary-label);
   font-size: 0.92rem;
@@ -3171,6 +3179,384 @@ select:disabled {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.7rem;
+}
+
+:root[data-theme="light"] .lecture-flashcard-stage-meta span,
+:root[data-theme="light"] .lecture-quiz-meta span {
+  border: 1px solid color-mix(in srgb, var(--separator-strong) 75%, transparent);
+  background: color-mix(in srgb, var(--surface-solid) 96%, var(--surface-muted));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+:root[data-theme="light"] .lecture-flashcard {
+  border-color: color-mix(in srgb, var(--separator-strong) 82%, transparent);
+  background: color-mix(in srgb, var(--surface-solid) 98%, var(--surface-muted));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="light"] .lecture-flashcard-face {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-solid) 100%, transparent),
+      color-mix(in srgb, #f2f4f8 72%, var(--surface-solid))
+    );
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.95) inset;
+}
+
+:root[data-theme="light"] .lecture-flashcard-face-answer {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, #f8fafc 78%, var(--surface-solid)),
+      color-mix(in srgb, #eef2f7 88%, var(--surface-solid))
+    );
+}
+
+:root[data-theme="light"] .lecture-quiz-card {
+  border-color: color-mix(in srgb, var(--separator-strong) 82%, transparent);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-solid) 100%, transparent),
+      color-mix(in srgb, #f3f5f8 78%, var(--surface-solid))
+    );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="light"] .lecture-quiz-option {
+  border-color: color-mix(in srgb, var(--separator-strong) 82%, transparent);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-solid) 100%, transparent),
+      color-mix(in srgb, #f5f6f9 72%, var(--surface-solid))
+    );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.92) inset,
+    0 8px 20px rgba(15, 23, 42, 0.05);
+}
+
+:root[data-theme="light"] .lecture-quiz-option:hover {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.92) inset,
+    0 14px 26px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="light"] .lecture-quiz-option.selected {
+  border-color: color-mix(in srgb, var(--blue) 55%, var(--separator-strong));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--blue) 8%, var(--surface-solid)),
+      color-mix(in srgb, var(--blue) 4%, #f3f7fd)
+    );
+}
+
+:root[data-theme="light"] .lecture-quiz-option-label {
+  border: 1px solid color-mix(in srgb, var(--separator-strong) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-solid) 98%, #eef1f5);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.92) inset;
+}
+
+:root[data-theme="light"] .lecture-quiz-option.correct {
+  border-color: color-mix(in srgb, var(--green) 70%, var(--separator-strong));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--green) 12%, var(--surface-solid)),
+      color-mix(in srgb, var(--green-soft) 95%, #edf9f0)
+    );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.92) inset,
+    0 12px 24px rgba(52, 199, 89, 0.12);
+}
+
+:root[data-theme="light"] .lecture-quiz-option.correct .lecture-quiz-option-label {
+  border-color: color-mix(in srgb, var(--green) 42%, var(--separator-strong));
+  background: color-mix(in srgb, var(--green-soft) 95%, #f3fbf5);
+  color: color-mix(in srgb, var(--green) 92%, #1d7f39);
+}
+
+:root[data-theme="light"] .lecture-quiz-option.incorrect {
+  border-color: color-mix(in srgb, var(--red) 72%, var(--separator-strong));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--red) 10%, var(--surface-solid)),
+      color-mix(in srgb, var(--red-soft) 95%, #fdf0ef)
+    );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.92) inset,
+    0 12px 24px rgba(255, 59, 48, 0.12);
+}
+
+:root[data-theme="light"] .lecture-quiz-option.incorrect .lecture-quiz-option-label {
+  border-color: color-mix(in srgb, var(--red) 42%, var(--separator-strong));
+  background: color-mix(in srgb, var(--red-soft) 95%, #fff3f2);
+  color: color-mix(in srgb, var(--red) 92%, #c53128);
+}
+
+:root[data-theme="light"] .lecture-study-mode-switch {
+  border: 1px solid color-mix(in srgb, var(--separator) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-muted) 88%, var(--surface-solid));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.82) inset,
+    0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+:root[data-theme="light"] .lecture-study-mode-switch .ios-segment {
+  color: color-mix(in srgb, var(--label) 78%, #515866);
+}
+
+:root[data-theme="light"] .lecture-study-mode-switch .ios-segment.active {
+  background: var(--surface-solid);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.92) inset,
+    0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+:root[data-theme="light"] .lecture-study-refresh,
+:root[data-theme="light"] .lecture-study-action {
+  border-color: color-mix(in srgb, var(--separator-strong) 88%, transparent);
+  background: linear-gradient(180deg, #ffffff, #f1f3f7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.96) inset,
+    0 10px 20px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="light"] .lecture-study-refresh:hover,
+:root[data-theme="light"] .lecture-study-action:hover {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.96) inset,
+    0 14px 24px rgba(15, 23, 42, 0.1);
+}
+
+:root[data-theme="light"] .lecture-flashcard-review-button {
+  border: 1px solid color-mix(in srgb, var(--separator-strong) 82%, transparent);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.94) inset,
+    0 10px 20px rgba(15, 23, 42, 0.07);
+}
+
+:root[data-theme="light"] .lecture-flashcard-review-button.again {
+  border-color: color-mix(in srgb, var(--red) 45%, var(--separator-strong));
+  background: linear-gradient(180deg, #fff5f4, #fde4e1);
+  color: color-mix(in srgb, var(--red) 92%, #c53128);
+}
+
+:root[data-theme="light"] .lecture-flashcard-review-button.easy {
+  border-color: color-mix(in srgb, var(--green) 45%, var(--separator-strong));
+  background: linear-gradient(180deg, #f4fcf6, #e1f5e5);
+  color: color-mix(in srgb, var(--green) 92%, #208442);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .lecture-flashcard-stage-meta span,
+  :root:not([data-theme]) .lecture-quiz-meta span,
+  :root[data-theme="system"] .lecture-flashcard-stage-meta span,
+  :root[data-theme="system"] .lecture-quiz-meta span {
+    border: 1px solid color-mix(in srgb, var(--separator-strong) 75%, transparent);
+    background: color-mix(in srgb, var(--surface-solid) 96%, var(--surface-muted));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 8px 18px rgba(15, 23, 42, 0.06);
+  }
+
+  :root:not([data-theme]) .lecture-flashcard,
+  :root[data-theme="system"] .lecture-flashcard {
+    border-color: color-mix(in srgb, var(--separator-strong) 82%, transparent);
+    background: color-mix(in srgb, var(--surface-solid) 98%, var(--surface-muted));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 18px 40px rgba(15, 23, 42, 0.08);
+  }
+
+  :root:not([data-theme]) .lecture-flashcard-face,
+  :root[data-theme="system"] .lecture-flashcard-face {
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--surface-solid) 100%, transparent),
+        color-mix(in srgb, #f2f4f8 72%, var(--surface-solid))
+      );
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.95) inset;
+  }
+
+  :root:not([data-theme]) .lecture-flashcard-face-answer,
+  :root[data-theme="system"] .lecture-flashcard-face-answer {
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, #f8fafc 78%, var(--surface-solid)),
+        color-mix(in srgb, #eef2f7 88%, var(--surface-solid))
+      );
+  }
+
+  :root:not([data-theme]) .lecture-quiz-card,
+  :root[data-theme="system"] .lecture-quiz-card {
+    border-color: color-mix(in srgb, var(--separator-strong) 82%, transparent);
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--surface-solid) 100%, transparent),
+        color-mix(in srgb, #f3f5f8 78%, var(--surface-solid))
+      );
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 18px 40px rgba(15, 23, 42, 0.08);
+  }
+
+  :root:not([data-theme]) .lecture-quiz-option,
+  :root[data-theme="system"] .lecture-quiz-option {
+    border-color: color-mix(in srgb, var(--separator-strong) 82%, transparent);
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--surface-solid) 100%, transparent),
+        color-mix(in srgb, #f5f6f9 72%, var(--surface-solid))
+      );
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.92) inset,
+      0 8px 20px rgba(15, 23, 42, 0.05);
+  }
+
+  :root:not([data-theme]) .lecture-quiz-option:hover,
+  :root[data-theme="system"] .lecture-quiz-option:hover {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.92) inset,
+      0 14px 26px rgba(15, 23, 42, 0.08);
+  }
+
+  :root:not([data-theme]) .lecture-quiz-option.selected,
+  :root[data-theme="system"] .lecture-quiz-option.selected {
+    border-color: color-mix(in srgb, var(--blue) 55%, var(--separator-strong));
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--blue) 8%, var(--surface-solid)),
+        color-mix(in srgb, var(--blue) 4%, #f3f7fd)
+      );
+  }
+
+  :root:not([data-theme]) .lecture-quiz-option-label,
+  :root[data-theme="system"] .lecture-quiz-option-label {
+    border: 1px solid color-mix(in srgb, var(--separator-strong) 78%, transparent);
+    background: color-mix(in srgb, var(--surface-solid) 98%, #eef1f5);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.92) inset;
+  }
+
+  :root:not([data-theme]) .lecture-quiz-option.correct,
+  :root[data-theme="system"] .lecture-quiz-option.correct {
+    border-color: color-mix(in srgb, var(--green) 70%, var(--separator-strong));
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--green) 12%, var(--surface-solid)),
+        color-mix(in srgb, var(--green-soft) 95%, #edf9f0)
+      );
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.92) inset,
+      0 12px 24px rgba(52, 199, 89, 0.12);
+  }
+
+  :root:not([data-theme]) .lecture-quiz-option.correct .lecture-quiz-option-label,
+  :root[data-theme="system"] .lecture-quiz-option.correct .lecture-quiz-option-label {
+    border-color: color-mix(in srgb, var(--green) 42%, var(--separator-strong));
+    background: color-mix(in srgb, var(--green-soft) 95%, #f3fbf5);
+    color: color-mix(in srgb, var(--green) 92%, #1d7f39);
+  }
+
+  :root:not([data-theme]) .lecture-quiz-option.incorrect,
+  :root[data-theme="system"] .lecture-quiz-option.incorrect {
+    border-color: color-mix(in srgb, var(--red) 72%, var(--separator-strong));
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--red) 10%, var(--surface-solid)),
+        color-mix(in srgb, var(--red-soft) 95%, #fdf0ef)
+      );
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.92) inset,
+      0 12px 24px rgba(255, 59, 48, 0.12);
+  }
+
+  :root:not([data-theme]) .lecture-quiz-option.incorrect .lecture-quiz-option-label,
+  :root[data-theme="system"] .lecture-quiz-option.incorrect .lecture-quiz-option-label {
+    border-color: color-mix(in srgb, var(--red) 42%, var(--separator-strong));
+    background: color-mix(in srgb, var(--red-soft) 95%, #fff3f2);
+    color: color-mix(in srgb, var(--red) 92%, #c53128);
+  }
+
+  :root:not([data-theme]) .lecture-study-mode-switch,
+  :root[data-theme="system"] .lecture-study-mode-switch {
+    border: 1px solid color-mix(in srgb, var(--separator) 78%, transparent);
+    background: color-mix(in srgb, var(--surface-muted) 88%, var(--surface-solid));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.82) inset,
+      0 4px 12px rgba(15, 23, 42, 0.04);
+  }
+
+  :root:not([data-theme]) .lecture-study-mode-switch .ios-segment,
+  :root[data-theme="system"] .lecture-study-mode-switch .ios-segment {
+    color: color-mix(in srgb, var(--label) 78%, #515866);
+  }
+
+  :root:not([data-theme]) .lecture-study-mode-switch .ios-segment.active,
+  :root[data-theme="system"] .lecture-study-mode-switch .ios-segment.active {
+    background: var(--surface-solid);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.92) inset,
+      0 2px 8px rgba(15, 23, 42, 0.06);
+  }
+
+  :root:not([data-theme]) .lecture-study-refresh,
+  :root[data-theme="system"] .lecture-study-refresh,
+  :root:not([data-theme]) .lecture-study-action,
+  :root[data-theme="system"] .lecture-study-action {
+    border-color: color-mix(in srgb, var(--separator-strong) 88%, transparent);
+    background: linear-gradient(180deg, #ffffff, #f1f3f7);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.96) inset,
+      0 10px 20px rgba(15, 23, 42, 0.08);
+  }
+
+  :root:not([data-theme]) .lecture-study-refresh:hover,
+  :root[data-theme="system"] .lecture-study-refresh:hover,
+  :root:not([data-theme]) .lecture-study-action:hover,
+  :root[data-theme="system"] .lecture-study-action:hover {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.96) inset,
+      0 14px 24px rgba(15, 23, 42, 0.1);
+  }
+
+  :root:not([data-theme]) .lecture-flashcard-review-button,
+  :root[data-theme="system"] .lecture-flashcard-review-button {
+    border: 1px solid color-mix(in srgb, var(--separator-strong) 82%, transparent);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.94) inset,
+      0 10px 20px rgba(15, 23, 42, 0.07);
+  }
+
+  :root:not([data-theme]) .lecture-flashcard-review-button.again,
+  :root[data-theme="system"] .lecture-flashcard-review-button.again {
+    border-color: color-mix(in srgb, var(--red) 45%, var(--separator-strong));
+    background: linear-gradient(180deg, #fff5f4, #fde4e1);
+    color: color-mix(in srgb, var(--red) 92%, #c53128);
+  }
+
+  :root:not([data-theme]) .lecture-flashcard-review-button.easy,
+  :root[data-theme="system"] .lecture-flashcard-review-button.easy {
+    border-color: color-mix(in srgb, var(--green) 45%, var(--separator-strong));
+    background: linear-gradient(180deg, #f4fcf6, #e1f5e5);
+    color: color-mix(in srgb, var(--green) 92%, #208442);
+  }
 }
 
 .lecture-flashcard-review {
@@ -3211,6 +3597,37 @@ select:disabled {
 .lecture-flashcard-review-button.easy {
   background: var(--green-soft);
   color: var(--green);
+}
+
+:root[data-theme="dark"] .lecture-flashcard-review-button {
+  border: 1px solid color-mix(in srgb, var(--separator-strong) 72%, transparent);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+:root[data-theme="dark"] .lecture-flashcard-review-button.again {
+  border-color: color-mix(in srgb, var(--red) 34%, var(--separator-strong));
+}
+
+:root[data-theme="dark"] .lecture-flashcard-review-button.easy {
+  border-color: color-mix(in srgb, var(--green) 34%, var(--separator-strong));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .lecture-flashcard-review-button,
+  :root[data-theme="system"] .lecture-flashcard-review-button {
+    border: 1px solid color-mix(in srgb, var(--separator-strong) 72%, transparent);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  }
+
+  :root:not([data-theme]) .lecture-flashcard-review-button.again,
+  :root[data-theme="system"] .lecture-flashcard-review-button.again {
+    border-color: color-mix(in srgb, var(--red) 34%, var(--separator-strong));
+  }
+
+  :root:not([data-theme]) .lecture-flashcard-review-button.easy,
+  :root[data-theme="system"] .lecture-flashcard-review-button.easy {
+    border-color: color-mix(in srgb, var(--green) 34%, var(--separator-strong));
+  }
 }
 
 .lecture-study-empty {

@@ -1216,8 +1216,16 @@ export function LectureWorkspace({
 
                   {activeQuizSelection !== null ? (
                     <div className="lecture-quiz-feedback">
-                      <p className="lecture-quiz-feedback-title">
-                        {activeQuizSelection === activeQuizQuestion.correct_option_idx ? "Correct" : "Review this one"}
+                      <p
+                        className={`lecture-quiz-feedback-title ${
+                          activeQuizSelection === activeQuizQuestion.correct_option_idx
+                            ? "correct"
+                            : "incorrect"
+                        }`}
+                      >
+                        {activeQuizSelection === activeQuizQuestion.correct_option_idx
+                          ? "Correct"
+                          : "Incorrect"}
                       </p>
                       <p className="lecture-quiz-feedback-copy">{activeQuizQuestion.explanation}</p>
                     </div>
