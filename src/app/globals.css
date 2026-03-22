@@ -1973,6 +1973,7 @@ select:disabled {
   .library-folder-modal {
     padding: 1.2rem;
     border-radius: 24px;
+    overflow: visible;
   }
 
   .lecture-tab-button-content {
@@ -1986,6 +1987,11 @@ select:disabled {
   .library-folder-modal-icon {
     width: 5.5rem;
     height: 5.5rem;
+  }
+
+  .library-folder-modal-body {
+    padding-left: 0.2rem;
+    padding-right: 0.2rem;
   }
 
   .note-source-modal-wrap {
