@@ -1462,11 +1462,13 @@ export function LectureWorkspace({
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`ios-segment ${activeTab === tab.id ? "active" : ""}`}
+              className={`ios-segment lecture-tab-button ${activeTab === tab.id ? "active" : ""}`}
+              aria-label={tab.label}
+              title={tab.label}
             >
-              <span className="inline-flex items-center gap-2">
+              <span className="lecture-tab-button-content">
                 <tab.icon className="h-4 w-4" />
-                {tab.label}
+                <span className="lecture-tab-button-label">{tab.label}</span>
               </span>
             </button>
           ))}

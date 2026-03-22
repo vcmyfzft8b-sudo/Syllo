@@ -1496,7 +1496,7 @@ select:disabled {
   position: absolute;
   top: calc(100% + 0.75rem);
   left: 0;
-  z-index: 30;
+  z-index: 70;
   display: flex;
   align-items: stretch;
   gap: 0.75rem;
@@ -1505,8 +1505,9 @@ select:disabled {
   border-radius: 20px;
   background: color-mix(in srgb, var(--surface-solid) 98%, black 2%);
   box-shadow: 0 22px 50px rgba(0, 0, 0, 0.3);
-  overflow: hidden;
-  max-height: min(32rem, calc(100vh - 8rem));
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: min(32rem, calc(100dvh - env(safe-area-inset-bottom) - 9.5rem));
 }
 
 .library-folder-menu-primary,
@@ -1514,6 +1515,7 @@ select:disabled {
   display: grid;
   gap: 0.8rem;
   width: min(22rem, calc(100vw - 2rem));
+  min-height: 0;
   min-width: 0;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -1925,6 +1927,7 @@ select:disabled {
   .library-folder-menu {
     display: grid;
     width: min(100%, calc(100vw - 2rem));
+    max-height: calc(100dvh - env(safe-area-inset-bottom) - 10.75rem);
   }
 
   .library-folder-menu-primary,
@@ -1944,6 +1947,14 @@ select:disabled {
   .library-folder-modal {
     padding: 1.2rem;
     border-radius: 24px;
+  }
+
+  .lecture-tab-button-content {
+    gap: 0;
+  }
+
+  .lecture-tab-button-label {
+    display: none;
   }
 
   .library-folder-modal-icon {
@@ -2439,6 +2450,23 @@ select:disabled {
 
 .lecture-segmented {
   margin-bottom: 0.15rem;
+}
+
+.lecture-tab-button {
+  min-width: 0;
+}
+
+.lecture-tab-button-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.lecture-tab-button-label {
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .lecture-main-column {
