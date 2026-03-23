@@ -9,17 +9,17 @@ export const citationSchema = z.object({
 
 export const chunkSummarySchema = z.object({
   heading: z.string().min(3),
-  summary: z.string().min(60).max(700),
-  bulletPoints: z.array(z.string().min(12)).min(5).max(12),
-  supportingDetails: z.array(z.string().min(12)).min(2).max(8),
-  examples: z.array(z.string().min(12)).max(4),
-  terminology: z.array(z.string().min(2)).min(3).max(10),
+  summary: z.string().min(60),
+  bulletPoints: z.array(z.string().min(12)).min(5),
+  supportingDetails: z.array(z.string().min(12)).min(2),
+  examples: z.array(z.string().min(12)),
+  terminology: z.array(z.string().min(2)).min(3),
 });
 
 export const noteArtifactSchema = z.object({
   title: z.string().min(3),
-  summary: z.string().min(40).max(1200),
-  keyTopics: z.array(z.string().min(2)).min(6).max(14),
+  summary: z.string().min(40),
+  keyTopics: z.array(z.string().min(2)).min(6),
   structuredNotesMd: z.string().min(300),
 });
 
