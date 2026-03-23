@@ -2383,6 +2383,37 @@ select:disabled {
   gap: 1rem;
 }
 
+.app-loading-brand {
+  display: grid;
+  justify-items: center;
+  padding: 1.2rem 0 0.2rem;
+}
+
+.app-loading-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 6.5rem;
+  height: 6.5rem;
+  border-radius: 1.75rem;
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--blue) 14%, transparent), transparent 62%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-solid) 98%, transparent),
+      color-mix(in srgb, var(--surface-muted) 88%, transparent)
+    );
+  border: 1px solid color-mix(in srgb, var(--separator) 52%, transparent);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 18px 34px rgba(15, 23, 42, 0.08);
+}
+
+.app-loading-brand-image {
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: contain;
+}
+
 .app-loading-header,
 .app-loading-card {
   overflow: hidden;
