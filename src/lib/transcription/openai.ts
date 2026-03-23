@@ -41,6 +41,7 @@ const SECONDARY_FALLBACK_MODEL = "gpt-4o-mini-transcribe";
 const LAST_RESORT_MODEL = "whisper-1";
 const LONG_AUDIO_FAST_MODEL_THRESHOLD_SECONDS = 10 * 60;
 const OPENAI_TRANSCRIPTION_TIMEOUT_MS = 240_000;
+const TIMESTAMP_REQUIRED_DURATION_SECONDS = 60;
 
 function resolveTranscriptionModel(configuredModel: string) {
   const normalized = configuredModel.trim();
@@ -80,17 +81,22 @@ function buildAttemptList(params: {
   const prefersFastLongAudioPath =
     resolvedModel.includes("diarize") &&
     (params.durationSeconds ?? 0) >= LONG_AUDIO_FAST_MODEL_THRESHOLD_SECONDS;
+  const requiresPreciseTimestamps =
+    (params.durationSeconds ?? 0) >= TIMESTAMP_REQUIRED_DURATION_SECONDS;
 
   if (prefersFastLongAudioPath) {
+    addAttempt(LAST_RESORT_MODEL, "verbose_json");
     addAttempt(PRIMARY_FALLBACK_MODEL, "json");
     addAttempt(SECONDARY_FALLBACK_MODEL, "json");
     addAttempt(resolvedModel, "diarized_json");
-    addAttempt(LAST_RESORT_MODEL, "verbose_json");
     return attempts;
   }
 
   if (resolvedModel.includes("diarize")) {
     addAttempt(resolvedModel, "diarized_json");
+    if (requiresPreciseTimestamps) {
+      addAttempt(LAST_RESORT_MODEL, "verbose_json");
+    }
     addAttempt(PRIMARY_FALLBACK_MODEL, "json");
     addAttempt(SECONDARY_FALLBACK_MODEL, "json");
     addAttempt(LAST_RESORT_MODEL, "verbose_json");
@@ -199,6 +205,8 @@ async function transcribeSingleFile(
 ) {
   const fileBytes = await input.file.arrayBuffer();
   const errors: string[] = [];
+  const requiresPreciseTimestamps =
+    (input.durationSeconds ?? 0) >= TIMESTAMP_REQUIRED_DURATION_SECONDS;
 
   for (const attempt of attempts) {
     try {
@@ -229,6 +237,12 @@ async function transcribeSingleFile(
         return mapVerboseTranscript(
           transcription as TranscriptionVerbose,
           input.durationSeconds,
+        );
+      }
+
+      if (requiresPreciseTimestamps) {
+        throw new Error(
+          `Model ${attempt.model} returned plain text without timestamps for long audio.`,
         );
       }
 
