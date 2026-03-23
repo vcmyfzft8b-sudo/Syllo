@@ -4,6 +4,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
 
 import { chatAnswerSchema } from "@/lib/ai/schemas";
 import { generateStructuredObject } from "@/lib/ai/json";
+import { parseAudioChunkManifest } from "@/lib/audio-processing";
 import { CHAT_MATCH_COUNT } from "@/lib/constants";
 import { buildGeneratedContentLanguageInstruction } from "@/lib/languages";
 import type { ChatMessageWithCitations } from "@/lib/types";
@@ -103,6 +104,7 @@ export async function runLecturePipeline(params: { lectureId: string }) {
       storage_path: string | null;
       language_hint: string | null;
       duration_seconds: number | null;
+      processing_metadata: unknown;
     };
 
     if (!lectureRow.storage_path) {
@@ -119,27 +121,66 @@ export async function runLecturePipeline(params: { lectureId: string }) {
       )
       .eq("id", lectureRow.id);
 
-    const { data: audioBlob, error: downloadError } = await supabase.storage
-      .from("lecture-audio")
-      .download(lectureRow.storage_path);
+    const audioChunks = parseAudioChunkManifest(
+      lectureRow.processing_metadata && typeof lectureRow.processing_metadata === "object"
+        ? (lectureRow.processing_metadata as Record<string, unknown>).audioChunks
+        : null,
+    ).sort((left, right) => left.index - right.index);
 
-    if (downloadError) {
-      throw downloadError;
-    }
+    const transcript =
+      audioChunks.length > 0 && transcriptionProvider.transcribeChunks
+        ? await transcriptionProvider.transcribeChunks({
+            chunks: await Promise.all(
+              audioChunks.map(async (chunk) => {
+                const { data: chunkBlob, error: chunkDownloadError } = await supabase.storage
+                  .from("lecture-audio")
+                  .download(chunk.path);
 
-    const file = new File(
-      [audioBlob],
-      lectureRow.storage_path.split("/").pop() ?? "lecture.webm",
-      {
-        type: normalizeMimeType(audioBlob.type || "audio/webm"),
-      },
-    );
+                if (chunkDownloadError) {
+                  throw chunkDownloadError;
+                }
 
-    const transcript = await transcriptionProvider.transcribe({
-      file,
-      languageHint: lectureRow.language_hint,
-      durationSeconds: lectureRow.duration_seconds,
-    });
+                return {
+                  file: new File([chunkBlob], chunk.path.split("/").pop() ?? `chunk-${chunk.index}.wav`, {
+                    type: normalizeMimeType(chunkBlob.type || chunk.mimeType),
+                  }),
+                  startMs: chunk.startMs,
+                  endMs: chunk.endMs,
+                };
+              }),
+            ),
+            languageHint: lectureRow.language_hint,
+            durationSeconds: lectureRow.duration_seconds,
+          })
+        : await (async () => {
+            const storagePath = lectureRow.storage_path;
+
+            if (!storagePath) {
+              throw new Error("Lecture has no storage path.");
+            }
+
+            const { data: audioBlob, error: downloadError } = await supabase.storage
+              .from("lecture-audio")
+              .download(storagePath);
+
+            if (downloadError) {
+              throw downloadError;
+            }
+
+            const file = new File(
+              [audioBlob],
+              storagePath.split("/").pop() ?? "lecture.webm",
+              {
+                type: normalizeMimeType(audioBlob.type || "audio/webm"),
+              },
+            );
+
+            return transcriptionProvider.transcribe({
+              file,
+              languageHint: lectureRow.language_hint,
+              durationSeconds: lectureRow.duration_seconds,
+            });
+          })();
 
     assertTranscriptCoverage({
       transcript,

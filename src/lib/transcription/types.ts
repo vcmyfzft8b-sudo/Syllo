@@ -6,4 +6,13 @@ export interface TranscriptionProvider {
     languageHint: string | null;
     durationSeconds?: number | null;
   }): Promise<TranscriptResult>;
+  transcribeChunks?(input: {
+    chunks: Array<{
+      file: File;
+      startMs: number;
+      endMs: number;
+    }>;
+    languageHint: string | null;
+    durationSeconds?: number | null;
+  }): Promise<TranscriptResult>;
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { parseAudioChunkManifest } from "@/lib/audio-processing";
 import { MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS } from "@/lib/constants";
 import { buildLectureStoragePath, isSupportedAudioMimeType, normalizeMimeType } from "@/lib/storage";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -115,7 +116,7 @@ export async function DELETE(request: Request) {
 
   const { data: ownedLectures, error: ownedLecturesError } = await supabase
     .from("lectures")
-    .select("id, storage_path")
+    .select("id, storage_path, processing_metadata")
     .eq("user_id", user.id)
     .in("id", parsed.data.ids);
 
@@ -126,6 +127,7 @@ export async function DELETE(request: Request) {
   const ownedLectureRows = (ownedLectures ?? []) as Array<{
     id: string;
     storage_path: string | null;
+    processing_metadata: unknown;
   }>;
   const lectureIds = ownedLectureRows.map((lecture) => lecture.id);
 
@@ -146,12 +148,19 @@ export async function DELETE(request: Request) {
   const storagePaths = ownedLectureRows
     .map((lecture) => lecture.storage_path)
     .filter((path): path is string => Boolean(path));
+  const chunkPaths = ownedLectureRows.flatMap((lecture) =>
+    parseAudioChunkManifest(
+      lecture.processing_metadata && typeof lecture.processing_metadata === "object"
+        ? (lecture.processing_metadata as Record<string, unknown>).audioChunks
+        : null,
+    ).map((chunk) => chunk.path),
+  );
 
-  if (storagePaths.length > 0) {
+  if (storagePaths.length > 0 || chunkPaths.length > 0) {
     await createSupabaseServiceRoleClient()
       .storage
       .from("lecture-audio")
-      .remove(storagePaths);
+      .remove([...storagePaths, ...chunkPaths]);
   }
 
   return NextResponse.json({ ok: true, deletedCount: lectureIds.length });

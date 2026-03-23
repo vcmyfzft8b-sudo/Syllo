@@ -275,6 +275,37 @@ function mergeChunkedTranscripts(
 }
 
 export class OpenAiTranscriptionProvider implements TranscriptionProvider {
+  private async transcribeChunkCollection(input: {
+    chunks: Array<{
+      file: File;
+      startMs: number;
+      endMs: number;
+    }>;
+    languageHint: string | null;
+    durationSeconds?: number | null;
+  }) {
+    const openai = getOpenAiClient();
+    const env = getServerEnv();
+    const attempts = buildAttemptList(env.OPENAI_TRANSCRIPTION_MODEL);
+    const transcripts = [];
+
+    for (const chunk of input.chunks) {
+      const transcript = await transcribeSingleFile(openai, attempts, {
+        file: chunk.file,
+        languageHint: input.languageHint,
+        durationSeconds: Math.max((chunk.endMs - chunk.startMs) / 1000, 1),
+      });
+
+      transcripts.push({
+        startMs: chunk.startMs,
+        endMs: chunk.endMs,
+        transcript,
+      });
+    }
+
+    return mergeChunkedTranscripts(transcripts, input.durationSeconds);
+  }
+
   async transcribe(input: {
     file: File;
     languageHint: string | null;
@@ -295,22 +326,22 @@ export class OpenAiTranscriptionProvider implements TranscriptionProvider {
       durationSeconds: input.durationSeconds,
     });
 
-    const transcripts = [];
+    return this.transcribeChunkCollection({
+      chunks: chunkFiles,
+      languageHint: input.languageHint,
+      durationSeconds: input.durationSeconds,
+    });
+  }
 
-    for (const chunk of chunkFiles) {
-      const transcript = await transcribeSingleFile(openai, attempts, {
-        file: chunk.file,
-        languageHint: input.languageHint,
-        durationSeconds: Math.max((chunk.endMs - chunk.startMs) / 1000, 1),
-      });
-
-      transcripts.push({
-        startMs: chunk.startMs,
-        endMs: chunk.endMs,
-        transcript,
-      });
-    }
-
-    return mergeChunkedTranscripts(transcripts, input.durationSeconds);
+  async transcribeChunks(input: {
+    chunks: Array<{
+      file: File;
+      startMs: number;
+      endMs: number;
+    }>;
+    languageHint: string | null;
+    durationSeconds?: number | null;
+  }): Promise<TranscriptResult> {
+    return this.transcribeChunkCollection(input);
   }
 }

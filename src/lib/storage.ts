@@ -45,6 +45,16 @@ export function buildLectureStoragePath(params: {
   return `${params.userId}/${params.lectureId}.${ext}`;
 }
 
+export function buildLectureChunkStoragePath(params: {
+  userId: string;
+  lectureId: string;
+  index: number;
+  mimeType: string;
+}) {
+  const ext = getExtensionForMimeType(params.mimeType);
+  return `${params.userId}/${params.lectureId}/chunks/chunk-${String(params.index).padStart(3, "0")}.${ext}`;
+}
+
 export function buildStorageObjectUrl(path: string) {
   return `${STORAGE_BUCKET}/${path}`;
 }

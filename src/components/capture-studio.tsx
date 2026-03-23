@@ -4,9 +4,9 @@ import { Loader2, Mic, PauseCircle, UploadCloud, Waves } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS, STORAGE_BUCKET } from "@/lib/constants";
+import { createAudioLectureWithProcessingChunks } from "@/lib/audio-lecture-upload";
+import { MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS } from "@/lib/constants";
 import { getExtensionForMimeType, normalizeMimeType } from "@/lib/storage";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { cn, formatTimestamp } from "@/lib/utils";
 
 type CaptureSource = {
@@ -273,94 +273,35 @@ export function CaptureStudio({
     let processingStarted = false;
 
     try {
-      const normalizedMimeType = normalizeMimeType(source.file.type || "audio/webm");
       const createController = new AbortController();
       activeRequestControllerRef.current = createController;
 
       setIsUploading(true);
-      setStage("creating");
       setError(null);
       cancelRequestedRef.current = false;
-
-      const createResponse = await fetch("/api/lectures", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const result = await createAudioLectureWithProcessingChunks({
+        file: source.file,
+        durationSeconds: Math.max(source.durationSeconds, 1),
+        languageHint: "sl",
         signal: createController.signal,
-        body: JSON.stringify({
-          mimeType: normalizedMimeType,
-          size: source.file.size,
-          durationSeconds: Math.max(source.durationSeconds, 1),
-          languageHint: "sl",
-        }),
-      });
-
-      const createData = await createResponse.json();
-
-      if (!createResponse.ok) {
-        throw new Error(createData.error ?? "The lecture could not be created.");
-      }
-
-      createdLectureIdRef.current = createData.lectureId;
-
-      if (cancelRequestedRef.current) {
-        await fetch(`/api/lectures/${createData.lectureId}`, {
-          method: "DELETE",
-        }).catch(() => null);
-        createdLectureIdRef.current = null;
-        return;
-      }
-
-      setStage("uploading");
-      const supabase = createSupabaseBrowserClient();
-      const uploadResult = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .uploadToSignedUrl(createData.path, createData.token, source.file, {
-          contentType: normalizedMimeType,
-          upsert: true,
-        });
-
-      if (uploadResult.error) {
-        throw new Error(uploadResult.error.message);
-      }
-
-      if (cancelRequestedRef.current) {
-        await fetch(`/api/lectures/${createData.lectureId}`, {
-          method: "DELETE",
-        }).catch(() => null);
-        createdLectureIdRef.current = null;
-        return;
-      }
-
-      const finalizeController = new AbortController();
-      activeRequestControllerRef.current = finalizeController;
-      setStage("finalizing");
-      const finalizeResponse = await fetch(
-        `/api/lectures/${createData.lectureId}/finalize`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          signal: finalizeController.signal,
-          body: JSON.stringify({
-            path: createData.path,
-          }),
+        onLectureCreated: (lectureId) => {
+          createdLectureIdRef.current = lectureId;
         },
-      );
-
-      const finalizeData = await finalizeResponse.json();
-
-      if (!finalizeResponse.ok) {
-        throw new Error(
-          finalizeData.error ?? "The recording could not be sent for processing.",
-        );
-      }
+        onStageChange: (nextStage) => {
+          setStage(
+            nextStage === "creating"
+              ? "creating"
+              : nextStage === "finalizing"
+                ? "finalizing"
+                : "uploading",
+          );
+          setError(null);
+        },
+      });
 
       processingStarted = true;
       createdLectureIdRef.current = null;
-      router.push(`/app/lectures/${createData.lectureId}`);
+      router.push(`/app/lectures/${result.lectureId}`);
       router.refresh();
     } catch (submitError) {
       if (createdLectureIdRef.current && !processingStarted) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { parseAudioChunkManifest } from "@/lib/audio-processing";
 import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 
@@ -67,11 +68,18 @@ export async function DELETE(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  if (lecture.storage_path) {
+  const chunkPaths = parseAudioChunkManifest(
+    lecture.processing_metadata && typeof lecture.processing_metadata === "object"
+      ? (lecture.processing_metadata as Record<string, unknown>).audioChunks
+      : null,
+  ).map((chunk) => chunk.path);
+  const storagePaths = lecture.storage_path ? [lecture.storage_path, ...chunkPaths] : chunkPaths;
+
+  if (storagePaths.length > 0) {
     await createSupabaseServiceRoleClient()
       .storage
       .from("lecture-audio")
-      .remove([lecture.storage_path]);
+      .remove(storagePaths);
   }
 
   return NextResponse.json({ ok: true });

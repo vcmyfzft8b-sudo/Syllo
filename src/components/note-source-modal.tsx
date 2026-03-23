@@ -13,16 +13,15 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { createAudioLectureWithProcessingChunks } from "@/lib/audio-lecture-upload";
 import { BRAND_NAME } from "@/lib/brand";
 import {
   MAX_AUDIO_BYTES,
   MAX_AUDIO_SECONDS,
   MAX_PDF_BYTES,
-  STORAGE_BUCKET,
 } from "@/lib/constants";
 import { NOTE_LANGUAGE_OPTIONS } from "@/lib/languages";
 import { getExtensionForMimeType, normalizeMimeType } from "@/lib/storage";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { formatTimestamp } from "@/lib/utils";
 
 export type NoteSourceMode = "record" | "link" | "text" | "upload";
@@ -469,83 +468,28 @@ export function NoteSourceModal({
     let processingStarted = false;
 
     try {
-      const normalizedMimeType = normalizeMimeType(audioSource.file.type || "audio/webm");
       const createController = new AbortController();
       activeRequestControllerRef.current = createController;
 
-      setBusyLabel("Preparing...");
       setError(null);
       cancelRequestedRef.current = false;
-
-      const createResponse = await fetch("/api/lectures", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const result = await createAudioLectureWithProcessingChunks({
+        file: audioSource.file,
+        durationSeconds: Math.max(audioSource.durationSeconds, 1),
+        languageHint,
         signal: createController.signal,
-        body: JSON.stringify({
-          mimeType: normalizedMimeType,
-          size: audioSource.file.size,
-          durationSeconds: Math.max(audioSource.durationSeconds, 1),
-          languageHint,
-        }),
-      });
-
-      const createData = await createResponse.json();
-
-      if (!createResponse.ok) {
-        throw new Error(createData.error ?? "The lecture could not be created.");
-      }
-
-      createdLectureIdRef.current = createData.lectureId;
-
-      if (cancelRequestedRef.current) {
-        await deleteCreatedLecture();
-        return;
-      }
-
-      setBusyLabel("Uploading audio...");
-      const supabase = createSupabaseBrowserClient();
-      const uploadResult = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .uploadToSignedUrl(createData.path, createData.token, audioSource.file, {
-          contentType: normalizedMimeType,
-          upsert: true,
-        });
-
-      if (uploadResult.error) {
-        throw new Error(uploadResult.error.message);
-      }
-
-      if (cancelRequestedRef.current) {
-        await deleteCreatedLecture();
-        return;
-      }
-
-      const finalizeController = new AbortController();
-      activeRequestControllerRef.current = finalizeController;
-      setBusyLabel("Starting processing...");
-      const finalizeResponse = await fetch(`/api/lectures/${createData.lectureId}/finalize`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+        onLectureCreated: (lectureId) => {
+          createdLectureIdRef.current = lectureId;
         },
-        signal: finalizeController.signal,
-        body: JSON.stringify({
-          path: createData.path,
-        }),
+        onStageChange: (_stage, message) => {
+          setBusyLabel(message);
+        },
       });
-
-      const finalizeData = await finalizeResponse.json();
-
-      if (!finalizeResponse.ok) {
-        throw new Error(finalizeData.error ?? "The audio could not be sent for processing.");
-      }
 
       processingStarted = true;
       createdLectureIdRef.current = null;
       onClose();
-      router.push(`/app/lectures/${createData.lectureId}`);
+      router.push(`/app/lectures/${result.lectureId}`);
       router.refresh();
     } catch (submitError) {
       if (!processingStarted) {

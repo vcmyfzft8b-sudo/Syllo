@@ -59,6 +59,7 @@ export type Database = {
           title: string | null;
           source_type: string;
           storage_path: string | null;
+          processing_metadata: Json;
           duration_seconds: number | null;
           status: LectureStatus;
           language_hint: string | null;
@@ -72,6 +73,7 @@ export type Database = {
           title?: string | null;
           source_type: string;
           storage_path?: string | null;
+          processing_metadata?: Json;
           duration_seconds?: number | null;
           status?: LectureStatus;
           language_hint?: string | null;
@@ -83,6 +85,7 @@ export type Database = {
           title?: string | null;
           source_type?: string;
           storage_path?: string | null;
+          processing_metadata?: Json;
           duration_seconds?: number | null;
           status?: LectureStatus;
           language_hint?: string | null;
