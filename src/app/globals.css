@@ -3746,6 +3746,55 @@ select:disabled {
   gap: 0.7rem;
 }
 
+@keyframes lecture-flashcard-feedback-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.86);
+  }
+
+  22% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  78% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -8px) scale(0.96);
+  }
+}
+
+.lecture-flashcard-feedback {
+  position: absolute;
+  left: 50%;
+  bottom: 1.15rem;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.9rem;
+  height: 2.9rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--separator) 44%, transparent);
+  background: color-mix(in srgb, var(--surface-solid) 88%, transparent);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(14px);
+  pointer-events: none;
+  animation: lecture-flashcard-feedback-pop 0.42s ease forwards;
+}
+
+.lecture-flashcard-feedback.again {
+  color: var(--red);
+}
+
+.lecture-flashcard-feedback.easy {
+  color: var(--green);
+}
+
 .lecture-flashcard-review-button {
   display: inline-flex;
   align-items: center;

@@ -45,6 +45,11 @@ type FlashcardRoundSummary = {
   missed: number;
 };
 
+type FlashcardFeedback = {
+  bucket: FlashcardConfidenceBucket;
+  token: number;
+};
+
 type QuizRoundSummary = {
   cycle: number;
   total: number;
@@ -328,6 +333,7 @@ export function LectureWorkspace({
   const [cycleCardCount, setCycleCardCount] = useState(0);
   const [activeProgressFlashcardId, setActiveProgressFlashcardId] = useState<string | null>(null);
   const [flashcardRoundSummary, setFlashcardRoundSummary] = useState<FlashcardRoundSummary | null>(null);
+  const [flashcardFeedback, setFlashcardFeedback] = useState<FlashcardFeedback | null>(null);
   const [flashcardSessionResults, setFlashcardSessionResults] = useState<
     Record<string, FlashcardSessionResult>
   >({});
@@ -339,6 +345,8 @@ export function LectureWorkspace({
   const [quizSelections, setQuizSelections] = useState<Record<string, number>>({});
   const [quizOptionOrders, setQuizOptionOrders] = useState<Map<string, number[]>>(new Map());
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const flashcardFeedbackTimerRef = useRef<number | null>(null);
+  const flashcardFeedbackTokenRef = useRef(0);
   const studyDeck = detail.flashcards;
   const flashcardDeckKey = studyDeck.map((flashcard) => flashcard.id).join("|");
   const quizDeckKey = detail.quizQuestions.map((question) => question.id).join("|");
@@ -413,6 +421,14 @@ export function LectureWorkspace({
     setQuizSelections({});
     setQuizOptionOrders(buildQuizOptionOrders(initialQueue, quizQuestionsById));
   }, [quizDeckKey, quizQuestionsById]);
+
+  useEffect(() => {
+    return () => {
+      if (flashcardFeedbackTimerRef.current) {
+        window.clearTimeout(flashcardFeedbackTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (activeTab !== "chat") {
@@ -566,6 +582,8 @@ export function LectureWorkspace({
     const previousRoundSummary = flashcardRoundSummary;
     const previousResults = flashcardSessionResults[flashcard.id];
     const previousProgress = flashcard.progress;
+    flashcardFeedbackTokenRef.current += 1;
+    const feedbackToken = flashcardFeedbackTokenRef.current;
     const nextProgress = {
       ...(previousProgress ?? {
         user_id: detail.lecture.user_id,
@@ -578,6 +596,19 @@ export function LectureWorkspace({
       review_count: (previousProgress?.review_count ?? 0) + 1,
       last_reviewed_at: new Date().toISOString(),
     };
+
+    if (flashcardFeedbackTimerRef.current) {
+      window.clearTimeout(flashcardFeedbackTimerRef.current);
+    }
+
+    setFlashcardFeedback({
+      bucket: confidenceBucket,
+      token: feedbackToken,
+    });
+    flashcardFeedbackTimerRef.current = window.setTimeout(() => {
+      setFlashcardFeedback((current) => (current?.token === feedbackToken ? null : current));
+      flashcardFeedbackTimerRef.current = null;
+    }, 420);
 
     setDetail((current) => ({
       ...current,
@@ -1049,6 +1080,19 @@ export function LectureWorkspace({
                         </div>
                       </div>
                     </button>
+                    {flashcardFeedback ? (
+                      <div
+                        key={flashcardFeedback.token}
+                        className={`lecture-flashcard-feedback ${flashcardFeedback.bucket}`}
+                        aria-hidden="true"
+                      >
+                        {flashcardFeedback.bucket === "again" ? (
+                          <X className="h-5 w-5" />
+                        ) : (
+                          <Check className="h-5 w-5" />
+                        )}
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="lecture-flashcard-toolbar">
