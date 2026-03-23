@@ -1476,6 +1476,9 @@ export function LectureWorkspace({
             <div key={segment.id} className="timeline-row">
               <p className="timeline-time">
                 {formatTimestamp(segment.start_ms)}
+                {segment.end_ms > segment.start_ms
+                  ? ` - ${formatTimestamp(segment.end_ms)}`
+                  : ""}
                 {segment.speaker_label ? ` · ${segment.speaker_label}` : ""}
               </p>
               <p className="m-0 text-[0.98rem] leading-8 text-[var(--label)]">
