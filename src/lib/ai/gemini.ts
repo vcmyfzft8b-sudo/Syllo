@@ -8,6 +8,7 @@ import type { TranscriptResult } from "@/lib/types";
 
 const GEMINI_GENERATION_MAX_ATTEMPTS = 4;
 const GEMINI_EMBEDDING_DIMENSION = 1536;
+const GEMINI_GENERATION_TIMEOUT_MS = 90_000;
 
 let geminiClient: GoogleGenAI | undefined;
 
@@ -25,6 +26,24 @@ function toErrorMessage(error: unknown) {
   }
 
   return String(error);
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms.`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 export function getGeminiClient() {
@@ -60,15 +79,24 @@ export async function generateStructuredObjectWithGemini<TSchema extends z.ZodTy
       const maxOutputTokens = params.maxOutputTokens
         ? Math.round(params.maxOutputTokens * (attempt === 0 ? 1 : 1 + attempt * 0.4))
         : undefined;
-      const response = await ai.models.generateContent({
-        model: params.model,
-        contents: `${params.instructions}${retryInstruction}\n\n${params.input}`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: z.toJSONSchema(params.schema),
-          maxOutputTokens,
-        },
-      });
+      const response = await withTimeout(
+        ai.models.generateContent({
+          model: params.model,
+          contents: `${params.instructions}${retryInstruction}
+
+Return exactly one JSON object that matches this JSON schema:
+${JSON.stringify(z.toJSONSchema(params.schema))}
+
+Source input:
+${params.input}`,
+          config: {
+            responseMimeType: "application/json",
+            maxOutputTokens,
+          },
+        }),
+        GEMINI_GENERATION_TIMEOUT_MS,
+        "Gemini structured generation",
+      );
 
       const outputText = stripCodeFences(response.text ?? "");
 

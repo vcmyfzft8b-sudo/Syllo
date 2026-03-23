@@ -16,7 +16,7 @@ import { createCoveragePlan } from "@/lib/study-coverage";
 import type { CoverageConcept, CoverageUnitPlan, SourceUnit } from "@/lib/study-models";
 import { buildSourceUnits } from "@/lib/study-source-units";
 
-const QUIZ_CONCURRENCY = 4;
+const QUIZ_CONCURRENCY = 2;
 
 type PostgrestLikeError = {
   code?: string;

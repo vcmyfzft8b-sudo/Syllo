@@ -6,7 +6,7 @@ import { generateStructuredObject } from "@/lib/ai/json";
 import type { CoverageCardKind, CoverageConcept, CoverageConceptType, CoverageUnitPlan, SourceUnit } from "@/lib/study-models";
 
 const UNIT_BATCH_SIZE = 5;
-const UNIT_PLAN_CONCURRENCY = 4;
+const UNIT_PLAN_CONCURRENCY = 2;
 
 const plannerConceptSchema = z.object({
   conceptKey: z.string().min(3).max(80),

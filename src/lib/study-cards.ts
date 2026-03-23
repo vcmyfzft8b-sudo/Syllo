@@ -7,7 +7,7 @@ import { generateStructuredObject } from "@/lib/ai/json";
 import { buildGeneratedContentLanguageInstruction } from "@/lib/languages";
 import type { CoverageCardDraft, CoverageConcept, CoverageUnitPlan, SourceUnit } from "@/lib/study-models";
 
-const CARD_CONCURRENCY = 4;
+const CARD_CONCURRENCY = 2;
 
 const generatedCardSchema = z.object({
   front: z.string().min(6).max(140),
