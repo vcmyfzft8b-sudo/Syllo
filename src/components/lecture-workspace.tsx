@@ -558,24 +558,26 @@ export function LectureWorkspace({
 
     setStudyError(null);
     setActiveProgressFlashcardId(flashcard.id);
-    const response = await fetch(`/api/flashcards/${flashcard.id}/progress`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ confidenceBucket }),
-    });
-
-    const payload = await response.json().catch(() => null);
-    setActiveProgressFlashcardId(null);
-
-    if (!response.ok) {
-      setStudyError(payload?.error ?? "Flashcard progress could not be saved.");
-      return;
-    }
-
     const isLastCardInRound = reviewQueue.length === 1;
     const nextMissedCount = confidenceBucket === "again" ? repeatQueue.length + 1 : repeatQueue.length;
+    const previousDetail = detail;
+    const previousReviewQueue = reviewQueue;
+    const previousRepeatQueue = repeatQueue;
+    const previousRoundSummary = flashcardRoundSummary;
+    const previousResults = flashcardSessionResults[flashcard.id];
+    const previousProgress = flashcard.progress;
+    const nextProgress = {
+      ...(previousProgress ?? {
+        user_id: detail.lecture.user_id,
+        flashcard_id: flashcard.id,
+        confidence_bucket: confidenceBucket,
+        review_count: 0,
+        last_reviewed_at: null,
+      }),
+      confidence_bucket: confidenceBucket,
+      review_count: (previousProgress?.review_count ?? 0) + 1,
+      last_reviewed_at: new Date().toISOString(),
+    };
 
     setDetail((current) => ({
       ...current,
@@ -602,7 +604,7 @@ export function LectureWorkspace({
         currentFlashcard.id === flashcard.id
           ? {
               ...currentFlashcard,
-              progress: payload.progress,
+              progress: nextProgress,
             }
           : currentFlashcard,
       ),
@@ -636,6 +638,51 @@ export function LectureWorkspace({
         known: cycleCardCount - nextMissedCount,
         missed: nextMissedCount,
       });
+    }
+
+    const response = await fetch(`/api/flashcards/${flashcard.id}/progress`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ confidenceBucket }),
+    });
+
+    const payload = await response.json().catch(() => null);
+    setActiveProgressFlashcardId(null);
+
+    if (!response.ok) {
+      setDetail(previousDetail);
+      setFlashcardSessionResults((current) => {
+        const next = { ...current };
+
+        if (previousResults) {
+          next[flashcard.id] = previousResults;
+        } else {
+          delete next[flashcard.id];
+        }
+
+        return next;
+      });
+      setReviewQueue(previousReviewQueue);
+      setRepeatQueue(previousRepeatQueue);
+      setFlashcardRoundSummary(previousRoundSummary);
+      setStudyError(payload?.error ?? "Flashcard progress could not be saved.");
+      return;
+    }
+
+    if (payload?.progress) {
+      setDetail((current) => ({
+        ...current,
+        flashcards: current.flashcards.map((currentFlashcard) =>
+          currentFlashcard.id === flashcard.id
+            ? {
+                ...currentFlashcard,
+                progress: payload.progress,
+              }
+            : currentFlashcard,
+        ),
+      }));
     }
   }
 
