@@ -20,8 +20,10 @@ Recommended for production:
 - PDF uploads are capped at `4 MB` in the app to stay below Vercel's function request-body limit
 - long-running AI routes now export `maxDuration = 300`
 - audio uploads are already safe because the app uploads audio directly to Supabase Storage using signed upload URLs
+- server-side long-audio chunking depends on `ffmpeg`; standard Vercel Next.js functions should not be assumed to provide it
 
 If you want larger PDF uploads later, the fix is architectural: upload PDFs to storage first, then process them asynchronously from storage instead of posting the file through `/api/lectures/pdf`.
+If you want guaranteed long-audio chunking in production, move transcription work to infrastructure where `ffmpeg` is installed, or provide a bundled runtime that includes it.
 
 ## Create the Vercel project
 

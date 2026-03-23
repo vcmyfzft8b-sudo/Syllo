@@ -11,6 +11,11 @@ import type { AudioResponseFormat } from "openai/resources/audio/audio";
 import { getOpenAiClient } from "@/lib/ai/openai";
 import { getServerEnv } from "@/lib/server-env";
 import type { TranscriptResult } from "@/lib/types";
+import {
+  hasFfmpegBinary,
+  shouldChunkAudio,
+  splitAudioIntoChunks,
+} from "@/lib/transcription/audio-chunking";
 import type { TranscriptionProvider } from "@/lib/transcription/types";
 
 function fallbackSegments(text: string, durationSeconds: number): TranscriptResult["segments"] {
@@ -164,6 +169,111 @@ function normalizeTranscriptionError(error: unknown) {
   return String(error);
 }
 
+async function transcribeSingleFile(
+  openai: OpenAI,
+  attempts: TranscriptionAttempt[],
+  input: {
+    file: File;
+    languageHint: string | null;
+    durationSeconds?: number | null;
+  },
+) {
+  const fileBytes = await input.file.arrayBuffer();
+  const errors: string[] = [];
+
+  for (const attempt of attempts) {
+    try {
+      const transcription = await openai.audio.transcriptions.create({
+        file: new File([fileBytes], input.file.name, {
+          type: input.file.type,
+        }),
+        model: attempt.model,
+        language: input.languageHint ?? "sl",
+        response_format: attempt.responseFormat,
+        ...(attempt.responseFormat === "diarized_json" &&
+        input.durationSeconds &&
+        input.durationSeconds > 30
+          ? { chunking_strategy: "auto" as const }
+          : {}),
+        ...(attempt.responseFormat === "verbose_json"
+          ? { timestamp_granularities: ["segment"] }
+          : {}),
+      });
+
+      if (attempt.responseFormat === "diarized_json") {
+        return mapDiarizedTranscript(transcription as TranscriptionDiarized);
+      }
+
+      if (attempt.responseFormat === "verbose_json") {
+        return mapVerboseTranscript(
+          transcription as TranscriptionVerbose,
+          input.durationSeconds,
+        );
+      }
+
+      return mapPlainTranscript(transcription as Transcription, input.durationSeconds);
+    } catch (error) {
+      errors.push(`${attempt.model}/${attempt.responseFormat}: ${normalizeTranscriptionError(error)}`);
+    }
+  }
+
+  throw new Error(`Audio transcription failed. ${errors.join(" | ")}`);
+}
+
+function mergeChunkedTranscripts(
+  chunks: Array<{
+    startMs: number;
+    endMs: number;
+    transcript: TranscriptResult;
+  }>,
+  durationSeconds?: number | null,
+): TranscriptResult {
+  const mergedSegments: TranscriptResult["segments"] = [];
+  let maxCoveredMs = 0;
+
+  for (const chunk of chunks) {
+    for (const segment of chunk.transcript.segments) {
+      const adjustedStartMs = chunk.startMs + segment.startMs;
+      const adjustedEndMs = Math.min(chunk.startMs + segment.endMs, chunk.endMs);
+      const midpointMs = adjustedStartMs + Math.max(adjustedEndMs - adjustedStartMs, 0) / 2;
+
+      if (midpointMs <= maxCoveredMs - 1000) {
+        continue;
+      }
+
+      const nextStartMs = Math.max(
+        adjustedStartMs,
+        maxCoveredMs > 0 ? maxCoveredMs : adjustedStartMs,
+      );
+      const nextEndMs = Math.max(adjustedEndMs, nextStartMs);
+
+      mergedSegments.push({
+        idx: mergedSegments.length,
+        startMs: nextStartMs,
+        endMs: nextEndMs,
+        speakerLabel: segment.speakerLabel,
+        text: segment.text.trim(),
+      });
+
+      maxCoveredMs = Math.max(maxCoveredMs, nextEndMs);
+    }
+  }
+
+  const filteredSegments = mergedSegments.filter((segment) => segment.text.length > 0);
+
+  return {
+    text: filteredSegments.map((segment) => segment.text).join(" ").trim(),
+    durationSeconds: Math.max(
+      Math.round(maxCoveredMs / 1000),
+      Math.round(durationSeconds ?? 0),
+    ),
+    segments: filteredSegments.map((segment, index) => ({
+      ...segment,
+      idx: index,
+    })),
+  };
+}
+
 export class OpenAiTranscriptionProvider implements TranscriptionProvider {
   async transcribe(input: {
     file: File;
@@ -173,45 +283,34 @@ export class OpenAiTranscriptionProvider implements TranscriptionProvider {
     const openai = getOpenAiClient();
     const env = getServerEnv();
     const attempts = buildAttemptList(env.OPENAI_TRANSCRIPTION_MODEL);
-    const fileBytes = await input.file.arrayBuffer();
-    const errors: string[] = [];
+    const shouldUseChunking =
+      shouldChunkAudio(input.file, input.durationSeconds) && (await hasFfmpegBinary());
 
-    for (const attempt of attempts) {
-      try {
-        const transcription = await openai.audio.transcriptions.create({
-          file: new File([fileBytes], input.file.name, {
-            type: input.file.type,
-          }),
-          model: attempt.model,
-          language: input.languageHint ?? "sl",
-          response_format: attempt.responseFormat,
-          ...(attempt.responseFormat === "diarized_json" &&
-          input.durationSeconds &&
-          input.durationSeconds > 30
-            ? { chunking_strategy: "auto" as const }
-            : {}),
-          ...(attempt.responseFormat === "verbose_json"
-            ? { timestamp_granularities: ["segment"] }
-            : {}),
-        });
-
-        if (attempt.responseFormat === "diarized_json") {
-          return mapDiarizedTranscript(transcription as TranscriptionDiarized);
-        }
-
-        if (attempt.responseFormat === "verbose_json") {
-          return mapVerboseTranscript(
-            transcription as TranscriptionVerbose,
-            input.durationSeconds,
-          );
-        }
-
-        return mapPlainTranscript(transcription as Transcription, input.durationSeconds);
-      } catch (error) {
-        errors.push(`${attempt.model}/${attempt.responseFormat}: ${normalizeTranscriptionError(error)}`);
-      }
+    if (!shouldUseChunking || !input.durationSeconds) {
+      return transcribeSingleFile(openai, attempts, input);
     }
 
-    throw new Error(`Audio transcription failed. ${errors.join(" | ")}`);
+    const chunkFiles = await splitAudioIntoChunks({
+      file: input.file,
+      durationSeconds: input.durationSeconds,
+    });
+
+    const transcripts = [];
+
+    for (const chunk of chunkFiles) {
+      const transcript = await transcribeSingleFile(openai, attempts, {
+        file: chunk.file,
+        languageHint: input.languageHint,
+        durationSeconds: Math.max((chunk.endMs - chunk.startMs) / 1000, 1),
+      });
+
+      transcripts.push({
+        startMs: chunk.startMs,
+        endMs: chunk.endMs,
+        transcript,
+      });
+    }
+
+    return mergeChunkedTranscripts(transcripts, input.durationSeconds);
   }
 }
