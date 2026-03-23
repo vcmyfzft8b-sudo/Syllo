@@ -3773,7 +3773,7 @@ select:disabled {
   inset: 0;
   z-index: 5;
   pointer-events: none;
-  animation: lecture-flashcard-exit-swipe 0.52s cubic-bezier(0.2, 0.72, 0.2, 1) forwards;
+  animation: lecture-flashcard-exit-swipe 1.05s cubic-bezier(0.2, 0.72, 0.2, 1) forwards;
 }
 
 .lecture-flashcard-exit-card .lecture-flashcard-face {
@@ -5332,7 +5332,8 @@ select:disabled {
   }
 
   .lecture-flashcard-review {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
   }
 
   .lecture-quiz-actions {
@@ -5340,7 +5341,8 @@ select:disabled {
   }
 
   .lecture-flashcard-review-button {
-    width: 100%;
+    width: auto;
+    min-height: 2.5rem;
   }
 
   .lecture-chat-scroll {

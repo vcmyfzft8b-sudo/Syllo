@@ -617,7 +617,7 @@ export function LectureWorkspace({
         current?.token === feedbackToken ? null : current,
       );
       flashcardFeedbackTimerRef.current = null;
-    }, 520);
+    }, 1100);
 
     setDetail((current) => ({
       ...current,
