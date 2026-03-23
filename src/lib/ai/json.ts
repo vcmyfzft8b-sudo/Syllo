@@ -4,8 +4,9 @@ import type { ResponseInput } from "openai/resources/responses/responses";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 
+import { generateStructuredObjectWithGemini } from "@/lib/ai/gemini";
 import { getOpenAiClient } from "@/lib/ai/openai";
-import { getServerEnv } from "@/lib/server-env";
+import { getAiProvider, getServerEnv } from "@/lib/server-env";
 
 const STRUCTURED_OUTPUT_MAX_ATTEMPTS = 3;
 
@@ -43,10 +44,26 @@ export async function generateStructuredObject<TSchema extends z.ZodTypeAny>(par
   input: string | ResponseInput;
   maxOutputTokens?: number;
 }) {
+  const provider = getAiProvider();
   const env = getServerEnv();
-  const openai = getOpenAiClient();
   const baseMaxOutputTokens = params.maxOutputTokens;
   let lastError: unknown = null;
+
+  if (provider === "gemini") {
+    if (typeof params.input !== "string") {
+      throw new Error("Gemini structured generation currently expects string input.");
+    }
+
+    return generateStructuredObjectWithGemini({
+      schema: params.schema,
+      instructions: params.instructions,
+      input: params.input,
+      model: env.GEMINI_TEXT_MODEL,
+      maxOutputTokens: params.maxOutputTokens,
+    });
+  }
+
+  const openai = getOpenAiClient();
 
   for (let attempt = 0; attempt < STRUCTURED_OUTPUT_MAX_ATTEMPTS; attempt += 1) {
     const retryInstruction =

@@ -6,8 +6,7 @@ import { generateStructuredObject } from "@/lib/ai/json";
 import { generateNotesFromTranscript } from "@/lib/note-generation";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import type { TranscriptSegmentInput } from "@/lib/types";
-import { getOpenAiClient } from "@/lib/ai/openai";
-import { getServerEnv } from "@/lib/server-env";
+import { createEmbeddings as createAiEmbeddings } from "@/lib/ai/embeddings";
 import { serializeVector } from "@/lib/utils";
 
 const pdfExtractionSchema = z.object({
@@ -254,18 +253,7 @@ function buildSyntheticTranscript(params: {
 }
 
 async function createEmbeddings(texts: string[]) {
-  if (texts.length === 0) {
-    return [];
-  }
-
-  const env = getServerEnv();
-  const openai = getOpenAiClient();
-  const response = await openai.embeddings.create({
-    model: env.OPENAI_EMBEDDING_MODEL,
-    input: texts,
-  });
-
-  return response.data.map((item) => item.embedding);
+  return createAiEmbeddings(texts);
 }
 
 function extractTitle(html: string) {

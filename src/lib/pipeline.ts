@@ -4,6 +4,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
 
 import { chatAnswerSchema } from "@/lib/ai/schemas";
 import { generateStructuredObject } from "@/lib/ai/json";
+import { createEmbeddings } from "@/lib/ai/embeddings";
 import { parseAudioChunkManifest } from "@/lib/audio-processing";
 import { CHAT_MATCH_COUNT } from "@/lib/constants";
 import { buildGeneratedContentLanguageInstruction } from "@/lib/languages";
@@ -12,11 +13,9 @@ import { generateNotesFromTranscript } from "@/lib/note-generation";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { normalizeMimeType } from "@/lib/storage";
 import { serializeVector } from "@/lib/utils";
-import { OpenAiTranscriptionProvider } from "@/lib/transcription/openai";
-import { getOpenAiClient } from "@/lib/ai/openai";
-import { getServerEnv } from "@/lib/server-env";
+import { getTranscriptionProvider } from "@/lib/transcription/provider";
 
-const transcriptionProvider = new OpenAiTranscriptionProvider();
+const transcriptionProvider = getTranscriptionProvider();
 const EMBEDDING_BATCH_SIZE = 100;
 
 type LecturePipelineRow = {
@@ -109,28 +108,6 @@ function assertTranscriptCoverage(params: {
       `Transcript appears incomplete. Expected about ${expectedDurationSeconds}s but only covered ${Math.round(lastSegmentEndMs / 1000)}s.`,
     );
   }
-}
-
-async function createEmbeddings(texts: string[]) {
-  if (texts.length === 0) {
-    return [];
-  }
-
-  const env = getServerEnv();
-  const openai = getOpenAiClient();
-  const embeddings: number[][] = [];
-
-  for (let start = 0; start < texts.length; start += EMBEDDING_BATCH_SIZE) {
-    const batch = texts.slice(start, start + EMBEDDING_BATCH_SIZE);
-    const response = await openai.embeddings.create({
-      model: env.OPENAI_EMBEDDING_MODEL,
-      input: batch,
-    });
-
-    embeddings.push(...response.data.map((item) => item.embedding));
-  }
-
-  return embeddings;
 }
 
 async function getLectureForPipeline(params: { lectureId: string }) {
@@ -232,13 +209,24 @@ export async function transcribeLectureContent(params: { lectureId: string }) {
     expectedDurationSeconds: lecture.duration_seconds,
   });
 
-  const embeddings = await createEmbeddings(
-    transcript.segments.map((segment) => segment.text),
-  );
+  const embeddings: number[][] = [];
+
+  for (let start = 0; start < transcript.segments.length; start += EMBEDDING_BATCH_SIZE) {
+    const batch = transcript.segments.slice(start, start + EMBEDDING_BATCH_SIZE);
+    embeddings.push(
+      ...(await createEmbeddings(batch.map((segment: { text: string }) => segment.text))),
+    );
+  }
 
   await supabase.from("transcript_segments").delete().eq("lecture_id", lecture.id);
 
-  const transcriptRows = transcript.segments.map((segment, index) => ({
+  const transcriptRows = transcript.segments.map((segment: {
+    idx: number;
+    startMs: number;
+    endMs: number;
+    speakerLabel: string | null;
+    text: string;
+  }, index: number) => ({
     lecture_id: lecture.id,
     idx: segment.idx,
     start_ms: segment.startMs,
@@ -383,8 +371,6 @@ export async function answerLectureChat(params: {
   question: string;
 }) {
   const supabase = createSupabaseServiceRoleClient();
-  const env = getServerEnv();
-  const openai = getOpenAiClient();
 
   const [{ data: artifact }, { data: lecture }, embeddingResponse] = await Promise.all([
     supabase
@@ -397,13 +383,10 @@ export async function answerLectureChat(params: {
       .select("language_hint")
       .eq("id", params.lectureId)
       .maybeSingle(),
-    openai.embeddings.create({
-      model: env.OPENAI_EMBEDDING_MODEL,
-      input: params.question,
-    }),
+    createEmbeddings([params.question]),
   ]);
 
-  const queryEmbedding = serializeVector(embeddingResponse.data[0].embedding);
+  const queryEmbedding = serializeVector(embeddingResponse[0]);
   const artifactRow = (artifact ?? null) as {
     summary: string;
     key_topics: string[];
