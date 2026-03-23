@@ -3092,15 +3092,6 @@ select:disabled {
   position: relative;
 }
 
-.lecture-flashcard-placeholder {
-  width: 100%;
-  min-height: 22rem;
-  border-radius: 24px;
-  border: 1px solid color-mix(in srgb, var(--separator) 55%, transparent);
-  background: var(--surface-solid);
-  box-shadow: var(--shadow-soft);
-}
-
 .lecture-flashcard {
   position: relative;
   display: block;
@@ -3771,6 +3762,11 @@ select:disabled {
     transform: translate3d(0, -2px, 0) rotate(-1deg) scale(1.01);
   }
 
+  84% {
+    opacity: 1;
+    transform: translate3d(12%, -3%, 0) rotate(4deg) scale(1.02);
+  }
+
   100% {
     opacity: 0;
     transform: translate3d(18%, -4%, 0) rotate(6deg) scale(1.02);
@@ -3782,11 +3778,12 @@ select:disabled {
   inset: 0;
   z-index: 5;
   pointer-events: none;
-  animation: lecture-flashcard-exit-swipe 1.05s cubic-bezier(0.2, 0.72, 0.2, 1) forwards;
+  animation: lecture-flashcard-exit-swipe 0.74s cubic-bezier(0.2, 0.72, 0.2, 1) forwards;
 }
 
 .lecture-flashcard-exit-card .lecture-flashcard-face {
   box-shadow: var(--shadow-raised);
+  opacity: 1;
 }
 
 .lecture-flashcard-exit-card.easy .lecture-flashcard-face {
@@ -3817,6 +3814,7 @@ select:disabled {
   place-items: center;
   border-radius: 24px;
   color: white;
+  opacity: 1;
 }
 
 .lecture-flashcard-exit-card.easy .lecture-flashcard-exit-overlay {
@@ -5337,11 +5335,6 @@ select:disabled {
   .lecture-flashcard-face {
     min-height: 16rem;
     padding: 1.1rem;
-    border-radius: 20px;
-  }
-
-  .lecture-flashcard-placeholder {
-    min-height: 16rem;
     border-radius: 20px;
   }
 
