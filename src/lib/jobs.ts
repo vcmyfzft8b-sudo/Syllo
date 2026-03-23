@@ -9,6 +9,8 @@ import { generateLectureFlashcards } from "@/lib/study";
 export type LectureProcessingStage = "transcribe" | "generate_notes";
 
 const INTERNAL_LECTURE_PROCESSING_PATH = "/api/internal/lectures/process";
+const INTERNAL_LECTURE_STUDY_PATH = "/api/internal/lectures/study";
+const INTERNAL_LECTURE_QUIZ_PATH = "/api/internal/lectures/quiz";
 
 export async function enqueueLectureProcessingStage(params: {
   lectureId: string;
@@ -49,6 +51,42 @@ export async function enqueueLectureProcessingStage(params: {
   return true;
 }
 
+async function enqueueInternalLectureJob(params: {
+  lectureId: string;
+  path: string;
+}) {
+  const env = getServerEnv();
+
+  if (!env.NEXT_PUBLIC_SITE_URL || !env.INTERNAL_JOB_SECRET) {
+    return false;
+  }
+
+  const response = await fetch(new URL(params.path, env.NEXT_PUBLIC_SITE_URL), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-internal-job-secret": env.INTERNAL_JOB_SECRET,
+    },
+    body: JSON.stringify({ lectureId: params.lectureId }),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    let message = `Lecture background job could not be started for ${params.path}.`;
+
+    try {
+      const data = (await response.json()) as { error?: string };
+      message = data.error ?? message;
+    } catch {
+      // Ignore non-JSON responses.
+    }
+
+    throw new Error(message);
+  }
+
+  return true;
+}
+
 export async function enqueueLectureProcessing(lectureId: string) {
   const env = getServerEnv();
 
@@ -80,7 +118,11 @@ export async function enqueueLectureStudyGeneration(lectureId: string) {
     return;
   }
 
-  void generateLectureFlashcards({ lectureId }).catch((error) => {
+  if (await enqueueInternalLectureJob({ lectureId, path: INTERNAL_LECTURE_STUDY_PATH })) {
+    return;
+  }
+
+  await generateLectureFlashcards({ lectureId }).catch((error) => {
     console.error("Lecture study generation failed", { lectureId, error });
   });
 }
@@ -96,7 +138,11 @@ export async function enqueueLectureQuizGeneration(lectureId: string) {
     return;
   }
 
-  void generateLectureQuiz({ lectureId }).catch((error) => {
+  if (await enqueueInternalLectureJob({ lectureId, path: INTERNAL_LECTURE_QUIZ_PATH })) {
+    return;
+  }
+
+  await generateLectureQuiz({ lectureId }).catch((error) => {
     console.error("Lecture quiz generation failed", { lectureId, error });
   });
 }
