@@ -30,7 +30,7 @@ export function getServerEnv() {
     OPENAI_EMBEDDING_MODEL: process.env.OPENAI_EMBEDDING_MODEL,
     INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY,
     INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
-    INTERNAL_JOB_SECRET: process.env.INTERNAL_JOB_SECRET,
+    INTERNAL_JOB_SECRET: process.env.INTERNAL_JOB_SECRET?.trim(),
   });
 }
 
