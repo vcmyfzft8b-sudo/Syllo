@@ -48,7 +48,7 @@ export async function generateNotesFromTranscript(
   const result = await generateStructuredObject({
     schema: noteArtifactSchema,
     schemaName: "note_artifact",
-    maxOutputTokens: 7000,
+    maxOutputTokens: 9000,
     instructions: `${languageInstruction} You are preparing final study notes in ${languageLabel} from ${params.sourceLabel}. Produce a title, summary, key topics, and detailed student-ready notes that cover nearly all meaningful material in the source. Do not compress the lecture into a short outline. Organize the markdown with headings, subheadings, bullet lists, and short explanatory paragraphs. Explain the logic behind processes and relationships, preserve technical terms, and include examples only when supported by the source material. Every chunk summary should contribute substantive content to the final notes. Aim for about ${targets.targetNoteWordCount} words when the source supports it. Build at least ${targets.minSectionCount} substantial sections when the material supports it.`,
     input: JSON.stringify(
       {

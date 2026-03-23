@@ -6,13 +6,17 @@ import { z } from "zod";
 import { requireGeminiEnv } from "@/lib/server-env";
 import type { TranscriptResult } from "@/lib/types";
 
-const GEMINI_GENERATION_MAX_ATTEMPTS = 3;
+const GEMINI_GENERATION_MAX_ATTEMPTS = 4;
 const GEMINI_EMBEDDING_DIMENSION = 1536;
 
 let geminiClient: GoogleGenAI | undefined;
 
 function stripCodeFences(value: string) {
   return value.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+}
+
+function parseStructuredText<TSchema extends z.ZodTypeAny>(schema: TSchema, text: string) {
+  return schema.parse(JSON.parse(stripCodeFences(text)));
 }
 
 function toErrorMessage(error: unknown) {
@@ -53,13 +57,16 @@ export async function generateStructuredObjectWithGemini<TSchema extends z.ZodTy
           )}. Return exactly one valid JSON object matching the schema.`;
 
     try {
+      const maxOutputTokens = params.maxOutputTokens
+        ? Math.round(params.maxOutputTokens * (attempt === 0 ? 1 : 1 + attempt * 0.4))
+        : undefined;
       const response = await ai.models.generateContent({
         model: params.model,
         contents: `${params.instructions}${retryInstruction}\n\n${params.input}`,
         config: {
           responseMimeType: "application/json",
           responseSchema: z.toJSONSchema(params.schema),
-          maxOutputTokens: params.maxOutputTokens,
+          maxOutputTokens,
         },
       });
 
@@ -69,7 +76,7 @@ export async function generateStructuredObjectWithGemini<TSchema extends z.ZodTy
         throw new Error("Model returned empty structured output.");
       }
 
-      return params.schema.parse(JSON.parse(outputText));
+      return parseStructuredText(params.schema, outputText);
     } catch (error) {
       lastError = error;
     }
