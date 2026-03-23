@@ -16,7 +16,11 @@ import { enqueueLectureProcessingStage } from "@/lib/jobs";
 import { generateNotesFromTranscript } from "@/lib/note-generation";
 import { getAiProvider, getServerEnv } from "@/lib/server-env";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
-import type { TranscriptSegmentInput } from "@/lib/types";
+import {
+  buildSyntheticTranscriptFromTextSource,
+  estimateTextSourceDurationSeconds,
+  type StructuredSourceBlock,
+} from "@/lib/text-source-processing";
 import { createEmbeddings as createAiEmbeddings } from "@/lib/ai/embeddings";
 import { serializeVector } from "@/lib/utils";
 
@@ -24,14 +28,6 @@ const pdfExtractionSchema = z.object({
   title: z.string().min(1),
   text: z.string().min(120),
 });
-
-type StructuredSourceBlock = {
-  label: string | null;
-  pageNumber: number | null;
-  text: string;
-};
-
-const DOCUMENT_SOURCE_MAX_CHARS = 560;
 
 let pdfJsPromise: Promise<typeof import("pdfjs-dist/legacy/build/pdf.mjs")> | null =
   null;
@@ -78,201 +74,6 @@ function rtfToText(rtf: string) {
       .replace(/[{}]/g, " ")
       .replace(/\s+/g, " "),
   );
-}
-
-function estimateDurationSeconds(text: string) {
-  const wordCount = text.split(/\s+/).filter(Boolean).length;
-  return Math.max(Math.round(wordCount / 2.6), 1);
-}
-
-function splitLongBlock(paragraph: string, maxChars = 850) {
-  const normalized = paragraph.trim();
-
-  if (!normalized) {
-    return [];
-  }
-
-  if (normalized.length <= maxChars) {
-    return [normalized];
-  }
-
-  const sentenceParts = normalized
-    .split(/(?<=[.!?])\s+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (sentenceParts.length <= 1) {
-    const words = normalized.split(/\s+/).filter(Boolean);
-    const chunks: string[] = [];
-    let activeWords: string[] = [];
-
-    for (const word of words) {
-      const next = [...activeWords, word].join(" ");
-      if (next.length > maxChars && activeWords.length > 0) {
-        chunks.push(activeWords.join(" "));
-        activeWords = [word];
-        continue;
-      }
-
-      activeWords.push(word);
-    }
-
-    if (activeWords.length > 0) {
-      chunks.push(activeWords.join(" "));
-    }
-
-    return chunks;
-  }
-
-  const chunks: string[] = [];
-  let activeChunk = "";
-
-  for (const sentence of sentenceParts) {
-    const next = activeChunk ? `${activeChunk} ${sentence}` : sentence;
-
-    if (next.length > maxChars && activeChunk) {
-      chunks.push(activeChunk);
-      activeChunk = sentence;
-      continue;
-    }
-
-    activeChunk = next;
-  }
-
-  if (activeChunk) {
-    chunks.push(activeChunk);
-  }
-
-  return chunks;
-}
-
-function normalizeStructuredBlocks(blocks: StructuredSourceBlock[]) {
-  return blocks.flatMap((block) => {
-    const normalizedText = normalizeWhitespace(block.text);
-    if (!normalizedText) {
-      return [];
-    }
-
-    return splitLongBlock(normalizedText, DOCUMENT_SOURCE_MAX_CHARS).map((chunk) => ({
-      label: block.label?.trim() || null,
-      pageNumber: block.pageNumber ?? null,
-      text: chunk,
-    }));
-  });
-}
-
-function buildBlocksFromText(params: {
-  text: string;
-  sourceType: string;
-}) {
-  const cleanedText = normalizeWhitespace(params.text);
-  const paragraphs = cleanedText
-    .split(/\n{2,}|\f+/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean);
-  const blocks: StructuredSourceBlock[] = [];
-  let activeSection = `${params.sourceType === "link" ? "Section" : "Section"} 1`;
-  let sectionIndex = 1;
-
-  for (const paragraph of paragraphs) {
-    const normalized = paragraph.trim();
-    if (!normalized) {
-      continue;
-    }
-
-    const headingLike =
-      normalized.length <= 90 &&
-      (normalized.startsWith("#") ||
-        /^[A-Z][A-Z\s0-9:,-]{5,}$/.test(normalized) ||
-        /^\d+(\.\d+)*\s+[A-Z]/.test(normalized));
-
-    if (headingLike) {
-      sectionIndex += 1;
-      activeSection = normalized.replace(/^#+\s*/, "").trim() || `Section ${sectionIndex}`;
-      continue;
-    }
-
-    for (const chunk of splitLongBlock(normalized, DOCUMENT_SOURCE_MAX_CHARS)) {
-      blocks.push({
-        label: activeSection,
-        pageNumber: null,
-        text: chunk,
-      });
-    }
-  }
-
-  if (blocks.length > 0) {
-    return blocks;
-  }
-
-  return splitLongBlock(cleanedText, DOCUMENT_SOURCE_MAX_CHARS).map((chunk, index) => ({
-    label: `Section ${index + 1}`,
-    pageNumber: null,
-    text: chunk,
-  }));
-}
-
-function buildSyntheticTranscript(params: {
-  text?: string;
-  blocks?: StructuredSourceBlock[];
-  sourceType: string;
-}): TranscriptSegmentInput[] {
-  const blocks = params.blocks?.length
-    ? normalizeStructuredBlocks(params.blocks)
-    : buildBlocksFromText({
-        text: params.text ?? "",
-        sourceType: params.sourceType,
-      });
-  const segments: TranscriptSegmentInput[] = [];
-  let startMs = 0;
-  let elapsedMs = 0;
-
-  for (const block of blocks) {
-    const durationMs = Math.max(
-      Math.round(block.text.split(/\s+/).filter(Boolean).length * 420),
-      6000,
-    );
-
-    segments.push({
-      idx: segments.length,
-      startMs,
-      endMs: startMs + durationMs,
-      speakerLabel:
-        block.pageNumber != null
-          ? block.label
-            ? `Page ${block.pageNumber} · ${block.label}`
-            : `Page ${block.pageNumber}`
-          : block.label,
-      text: block.text,
-    });
-
-    elapsedMs += durationMs;
-    startMs = elapsedMs;
-  }
-
-  if (segments.length > 0) {
-    return segments;
-  }
-
-  const cleanedText = normalizeWhitespace(params.text ?? "");
-  if (!cleanedText) {
-    return [];
-  }
-
-  const fallbackDuration = Math.max(
-    Math.round(cleanedText.split(/\s+/).filter(Boolean).length * 420),
-    6000,
-  );
-
-  return [
-    {
-      idx: 0,
-      startMs: 0,
-      endMs: fallbackDuration,
-      speakerLabel: null,
-      text: cleanedText,
-    },
-  ];
 }
 
 async function createEmbeddings(texts: string[]) {
@@ -536,17 +337,7 @@ export async function createLectureFromTextSource(params: {
     throw new Error("Please provide a bit more source material before creating notes.");
   }
 
-  const transcript = buildSyntheticTranscript({
-    text: cleanedText,
-    blocks: params.blocks,
-    sourceType: params.sourceType,
-  });
-
-  if (transcript.length === 0) {
-    throw new Error("The source did not contain enough text to process.");
-  }
-
-  const durationSeconds = estimateDurationSeconds(cleanedText);
+  const durationSeconds = estimateTextSourceDurationSeconds(cleanedText);
   let lectureId: string | null = null;
 
   async function requireActiveLecture(targetLectureId: string) {
@@ -584,6 +375,8 @@ export async function createLectureFromTextSource(params: {
                 sourceType: params.sourceType,
                 titleHint: params.titleHint ?? null,
                 modelMetadata: params.modelMetadata ?? {},
+                text: cleanedText,
+                blocks: params.blocks ?? null,
               },
             },
           } as never,
@@ -610,6 +403,8 @@ export async function createLectureFromTextSource(params: {
                 sourceType: params.sourceType,
                 titleHint: params.titleHint ?? null,
                 modelMetadata: params.modelMetadata ?? {},
+                text: cleanedText,
+                blocks: params.blocks ?? null,
               },
             },
           } as never,
@@ -622,6 +417,24 @@ export async function createLectureFromTextSource(params: {
       }
 
       lectureId = (lecture as { id: string }).id;
+    }
+    if (
+      await enqueueLectureProcessingStage({
+        lectureId,
+        stage: "generate_notes",
+      })
+    ) {
+      return lectureId;
+    }
+
+    const transcript = buildSyntheticTranscriptFromTextSource({
+      text: cleanedText,
+      blocks: params.blocks,
+      sourceType: params.sourceType,
+    });
+
+    if (transcript.length === 0) {
+      throw new Error("The source did not contain enough text to process.");
     }
 
     const embeddings = await createEmbeddings(transcript.map((segment) => segment.text));
@@ -646,15 +459,6 @@ export async function createLectureFromTextSource(params: {
 
     if (transcriptError) {
       throw new Error(transcriptError.message);
-    }
-
-    if (
-      await enqueueLectureProcessingStage({
-        lectureId,
-        stage: "generate_notes",
-      })
-    ) {
-      return lectureId;
     }
 
     const notes = await generateNotesFromTranscript(transcript, {

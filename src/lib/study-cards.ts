@@ -12,14 +12,15 @@ import type {
   CoverageUnitPlan,
   SourceUnit,
 } from "@/lib/study-models";
+import type { FlashcardDifficulty } from "@/lib/database.types";
 
 const CARD_CONCURRENCY = 4;
 
 const generatedCardSchema = z.object({
   front: z.string().min(6).max(140),
-  back: z.string().min(12).max(420),
+  back: z.string().min(1).max(420),
   hint: z.string().min(4).max(180).nullable(),
-  difficulty: z.enum(["easy", "medium", "hard"]),
+  difficulty: z.string().min(3).max(40),
   citations: z.array(citationSchema).min(1).max(2),
   conceptKey: z.string().min(3).max(80),
   cardKind: z.string().min(3).max(40),
@@ -62,12 +63,32 @@ function tokenOverlap(left: string, right: string) {
 }
 
 function normalizeCard(card: CoverageCardDraft): CoverageCardDraft {
+  const normalizedBack = normalizeCardText(card.back);
+
   return {
     ...card,
     front: normalizeCardText(card.front),
-    back: normalizeCardText(card.back).slice(0, 260).trim(),
+    back: (normalizedBack.length >= 12 ? normalizedBack : `${normalizedBack}.`).slice(0, 260).trim(),
     hint: card.hint ? normalizeCardText(card.hint) : null,
   };
+}
+
+function normalizeDifficulty(value: string): FlashcardDifficulty {
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === "easy" || normalized === "medium" || normalized === "hard") {
+    return normalized;
+  }
+
+  if (normalized === "simple" || normalized === "basic" || normalized === "lahko") {
+    return "easy";
+  }
+
+  if (normalized === "advanced" || normalized === "challenging" || normalized === "tezko" || normalized === "tezko.") {
+    return "hard";
+  }
+
+  return "medium";
 }
 
 function normalizeCardKind(value: string, fallback: CoverageCardKind): CoverageCardKind {
@@ -249,7 +270,7 @@ Keep fronts concise and backs concise enough to review quickly.`,
         front: card.front,
         back: card.back,
         hint: card.hint,
-        difficulty: card.difficulty,
+        difficulty: normalizeDifficulty(card.difficulty),
         citations: card.citations,
         conceptKey: card.conceptKey,
         cardKind: normalizeCardKind(

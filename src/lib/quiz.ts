@@ -47,7 +47,7 @@ const quizQuestionSchema = z.object({
   options: z.array(z.string().min(2).max(220)).length(4),
   correctOptionIndex: z.number().int().min(0).max(3),
   explanation: z.string().min(20).max(520),
-  difficulty: z.enum(["easy", "medium", "hard"]),
+  difficulty: z.string().min(3).max(40),
   conceptKey: z.string().min(3).max(80),
 });
 
@@ -293,6 +293,24 @@ function normalizeQuizText(value: string, maxLength: number) {
   return sliced.trim();
 }
 
+function normalizeQuizDifficulty(value: string): FlashcardDifficulty {
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === "easy" || normalized === "medium" || normalized === "hard") {
+    return normalized;
+  }
+
+  if (normalized === "simple" || normalized === "basic" || normalized === "lahko") {
+    return "easy";
+  }
+
+  if (normalized === "advanced" || normalized === "challenging" || normalized === "tezko" || normalized === "tezko.") {
+    return "hard";
+  }
+
+  return "medium";
+}
+
 async function mapWithConcurrency<TInput, TOutput>(
   values: TInput[],
   concurrency: number,
@@ -377,7 +395,7 @@ Do not invent facts, terms, or examples that are not supported by the source.`,
       options: question.options.map((option) => normalizeQuizText(option, 180)),
       correctOptionIndex: question.correctOptionIndex,
       explanation: normalizeQuizText(question.explanation, 260),
-      difficulty: question.difficulty,
+      difficulty: normalizeQuizDifficulty(question.difficulty),
       conceptKey: question.conceptKey,
       sourceUnitIdx: params.unit.unitIndex,
       sourceLocator: params.unit.locatorLabel,

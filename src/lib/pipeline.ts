@@ -8,6 +8,11 @@ import { createEmbeddings } from "@/lib/ai/embeddings";
 import { parseAudioChunkManifest } from "@/lib/audio-processing";
 import { CHAT_MATCH_COUNT } from "@/lib/constants";
 import { buildGeneratedContentLanguageInstruction } from "@/lib/languages";
+import {
+  buildSyntheticTranscriptFromTextSource,
+  estimateTextSourceDurationSeconds,
+  type StructuredSourceBlock,
+} from "@/lib/text-source-processing";
 import type { ChatMessageWithCitations } from "@/lib/types";
 import { generateNotesFromTranscript } from "@/lib/note-generation";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -258,36 +263,6 @@ export async function transcribeLectureContent(params: { lectureId: string }) {
 
 export async function generateLectureNotesFromStoredTranscript(params: { lectureId: string }) {
   const { supabase, lecture } = await getLectureForPipeline(params);
-  const { data: transcriptSegments, error: transcriptError } = await supabase
-    .from("transcript_segments")
-    .select("idx, start_ms, end_ms, speaker_label, text")
-    .eq("lecture_id", lecture.id)
-    .order("idx", { ascending: true });
-
-  if (transcriptError) {
-    throw transcriptError;
-  }
-
-  const storedSegments = (transcriptSegments ?? []) as Array<{
-    idx: number;
-    start_ms: number;
-    end_ms: number;
-    speaker_label: string | null;
-    text: string;
-  }>;
-
-  const segments = storedSegments.map((segment) => ({
-    idx: segment.idx,
-    startMs: segment.start_ms,
-    endMs: segment.end_ms,
-    speakerLabel: segment.speaker_label,
-    text: segment.text,
-  }));
-
-  if (segments.length === 0) {
-    throw new Error("Transcript is empty.");
-  }
-
   const manualImportMetadata =
     lecture.processing_metadata &&
     typeof lecture.processing_metadata === "object" &&
@@ -300,6 +275,103 @@ export async function generateLectureNotesFromStoredTranscript(params: { lecture
     manualImportMetadata && typeof manualImportMetadata === "object" && !Array.isArray(manualImportMetadata)
       ? (manualImportMetadata as Record<string, unknown>)
       : null;
+
+  const { data: transcriptSegments, error: transcriptError } = await supabase
+    .from("transcript_segments")
+    .select("idx, start_ms, end_ms, speaker_label, text")
+    .eq("lecture_id", lecture.id)
+    .order("idx", { ascending: true });
+
+  if (transcriptError) {
+    throw transcriptError;
+  }
+
+  let storedSegments = (transcriptSegments ?? []) as Array<{
+    idx: number;
+    start_ms: number;
+    end_ms: number;
+    speaker_label: string | null;
+    text: string;
+  }>;
+
+  if (storedSegments.length === 0 && manualImportRecord) {
+    const manualText =
+      typeof manualImportRecord.text === "string" ? manualImportRecord.text.trim() : "";
+    const manualBlocks = Array.isArray(manualImportRecord.blocks)
+      ? (manualImportRecord.blocks as StructuredSourceBlock[])
+      : undefined;
+    const manualSourceType =
+      typeof manualImportRecord.sourceType === "string"
+        ? manualImportRecord.sourceType
+        : lecture.source_type ?? "text";
+
+    const syntheticSegments = buildSyntheticTranscriptFromTextSource({
+      text: manualText,
+      blocks: manualBlocks,
+      sourceType: manualSourceType,
+    });
+
+    if (syntheticSegments.length === 0) {
+      throw new Error("Transcript is empty.");
+    }
+
+    const embeddings: number[][] = [];
+
+    for (let start = 0; start < syntheticSegments.length; start += EMBEDDING_BATCH_SIZE) {
+      const batch = syntheticSegments.slice(start, start + EMBEDDING_BATCH_SIZE);
+      embeddings.push(
+        ...(await createEmbeddings(batch.map((segment: { text: string }) => segment.text))),
+      );
+    }
+
+    const transcriptRows = syntheticSegments.map((segment, index) => ({
+      lecture_id: lecture.id,
+      idx: segment.idx,
+      start_ms: segment.startMs,
+      end_ms: segment.endMs,
+      speaker_label: segment.speakerLabel,
+      text: segment.text,
+      embedding: embeddings[index] ? serializeVector(embeddings[index]) : null,
+    }));
+
+    const { error: insertTranscriptError } = await supabase
+      .from("transcript_segments")
+      .insert(transcriptRows as never);
+
+    if (insertTranscriptError) {
+      throw insertTranscriptError;
+    }
+
+    if (manualText.length > 0) {
+      await updateLectureProcessingState({
+        lectureId: lecture.id,
+        processingMetadata: lecture.processing_metadata,
+        stage: "generating_notes",
+        durationSeconds:
+          lecture.duration_seconds ?? estimateTextSourceDurationSeconds(manualText),
+      });
+    }
+
+    storedSegments = transcriptRows.map((segment) => ({
+      idx: segment.idx,
+      start_ms: segment.start_ms,
+      end_ms: segment.end_ms,
+      speaker_label: segment.speaker_label,
+      text: segment.text,
+    }));
+  }
+
+  const segments = storedSegments.map((segment) => ({
+    idx: segment.idx,
+    startMs: segment.start_ms,
+    endMs: segment.end_ms,
+    speakerLabel: segment.speaker_label,
+    text: segment.text,
+  }));
+
+  if (segments.length === 0) {
+    throw new Error("Transcript is empty.");
+  }
 
   const sourceLabel =
     lecture.source_type === "audio"
