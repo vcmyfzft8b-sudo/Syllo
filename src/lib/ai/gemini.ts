@@ -113,6 +113,88 @@ ${params.input}`,
   throw new Error(toErrorMessage(lastError));
 }
 
+export async function generateStructuredObjectWithGeminiFile<TSchema extends z.ZodTypeAny>(params: {
+  schema: TSchema;
+  instructions: string;
+  file: File;
+  model: string;
+  maxOutputTokens?: number;
+}) {
+  const ai = getGeminiClient();
+  const tempPath = `/tmp/${crypto.randomUUID()}-${params.file.name || "document.bin"}`;
+  const bytes = Buffer.from(await params.file.arrayBuffer());
+  const fs = await import("node:fs/promises");
+  let uploadedFileName: string | null = null;
+  let lastError: unknown = null;
+
+  await fs.writeFile(tempPath, bytes);
+
+  try {
+    const uploaded = await ai.files.upload({
+      file: tempPath,
+      config: {
+        mimeType: params.file.type || "application/octet-stream",
+      },
+    });
+
+    uploadedFileName = uploaded.name ?? null;
+
+    for (let attempt = 0; attempt < GEMINI_GENERATION_MAX_ATTEMPTS; attempt += 1) {
+      const retryInstruction =
+        attempt === 0 || !lastError
+          ? ""
+          : `\n\nPrevious attempt failed because the JSON was invalid: ${toErrorMessage(
+              lastError,
+            )}. Return exactly one valid JSON object matching the schema.`;
+
+      try {
+        const maxOutputTokens = params.maxOutputTokens
+          ? Math.round(params.maxOutputTokens * (attempt === 0 ? 1 : 1 + attempt * 0.4))
+          : undefined;
+        const response = await withTimeout(
+          ai.models.generateContent({
+            model: params.model,
+            contents: [
+              `${params.instructions}${retryInstruction}
+
+Return exactly one JSON object that matches this JSON schema:
+${JSON.stringify(z.toJSONSchema(params.schema))}`,
+              createPartFromUri(
+                uploaded.uri ?? "",
+                uploaded.mimeType ?? params.file.type ?? "application/octet-stream",
+              ),
+            ],
+            config: {
+              responseMimeType: "application/json",
+              maxOutputTokens,
+            },
+          }),
+          GEMINI_GENERATION_TIMEOUT_MS,
+          "Gemini document extraction",
+        );
+
+        const outputText = stripCodeFences(response.text ?? "");
+
+        if (!outputText) {
+          throw new Error("Model returned empty structured output.");
+        }
+
+        return parseStructuredText(params.schema, outputText);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw new Error(toErrorMessage(lastError));
+  } finally {
+    await fs.rm(tempPath, { force: true }).catch(() => null);
+
+    if (uploadedFileName) {
+      await ai.files.delete({ name: uploadedFileName }).catch(() => null);
+    }
+  }
+}
+
 export async function createGeminiEmbeddings(texts: string[]) {
   if (texts.length === 0) {
     return [];

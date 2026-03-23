@@ -3,6 +3,7 @@ export const STORAGE_BUCKET = "lecture-audio";
 export const MAX_AUDIO_BYTES = 150 * 1024 * 1024;
 export const MAX_AUDIO_SECONDS = 2 * 60 * 60;
 export const MAX_PDF_BYTES = 4 * 1024 * 1024;
+export const MAX_DOCUMENT_BYTES = MAX_PDF_BYTES;
 
 export const SUPPORTED_AUDIO_MIME_TYPES = [
   "audio/mpeg",
@@ -47,6 +48,33 @@ export const SUPPORTED_AUDIO_EXTENSIONS = [
 export const AUDIO_FILE_INPUT_ACCEPT = [
   "audio/*",
   ...SUPPORTED_AUDIO_EXTENSIONS.map((extension) => `.${extension}`),
+].join(",");
+
+export const SUPPORTED_DOCUMENT_MIME_TYPES = [
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "text/x-markdown",
+  "text/html",
+  "application/rtf",
+  "text/rtf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+] as const;
+
+export const SUPPORTED_DOCUMENT_EXTENSIONS = [
+  "pdf",
+  "txt",
+  "md",
+  "markdown",
+  "html",
+  "htm",
+  "rtf",
+  "docx",
+] as const;
+
+export const DOCUMENT_FILE_INPUT_ACCEPT = [
+  ...SUPPORTED_DOCUMENT_MIME_TYPES,
+  ...SUPPORTED_DOCUMENT_EXTENSIONS.map((extension) => `.${extension}`),
 ].join(",");
 
 export const LECTURE_STATUS = [

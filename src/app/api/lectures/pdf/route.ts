@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { MAX_PDF_BYTES } from "@/lib/constants";
-import { createLectureFromTextSource, extractTextFromPdf } from "@/lib/manual-lectures";
+import { MAX_DOCUMENT_BYTES } from "@/lib/constants";
+import { isPdfDocument, isSupportedDocumentFile } from "@/lib/document-files";
+import {
+  createLectureFromTextSource,
+  extractTextFromDocument,
+} from "@/lib/manual-lectures";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const maxDuration = 300;
@@ -26,16 +30,21 @@ export async function POST(request: Request) {
       : "sl";
 
   if (!(inputFile instanceof File)) {
-    return NextResponse.json({ error: "Missing PDF file." }, { status: 400 });
+    return NextResponse.json({ error: "Missing document file." }, { status: 400 });
   }
 
-  if (!inputFile.type.includes("pdf")) {
-    return NextResponse.json({ error: "Only PDF files are supported." }, { status: 400 });
-  }
-
-  if (inputFile.size > MAX_PDF_BYTES) {
+  if (!isSupportedDocumentFile(inputFile)) {
     return NextResponse.json(
-      { error: "The PDF file is too large. The current limit is 4 MB." },
+      {
+        error: "Unsupported document type. Use PDF, TXT, Markdown, HTML, RTF, or DOCX.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (inputFile.size > MAX_DOCUMENT_BYTES) {
+    return NextResponse.json(
+      { error: "The document file is too large. The current limit is 4 MB." },
       { status: 400 },
     );
   }
@@ -58,21 +67,22 @@ export async function POST(request: Request) {
       }
     }
 
-    const extracted = await extractTextFromPdf(inputFile);
+    const extracted = await extractTextFromDocument(inputFile);
+    const sourceType = isPdfDocument(inputFile) ? "pdf" : "text";
     const nextLectureId = await createLectureFromTextSource({
       lectureId: lectureId ?? undefined,
       userId: user.id,
-      sourceType: "pdf",
+      sourceType,
       text: extracted.text,
       blocks: extracted.pages.map((page) => ({
         label: `Page ${page.pageNumber}`,
         pageNumber: page.pageNumber,
         text: page.text,
       })),
-      titleHint: extracted.title || inputFile.name.replace(/\.pdf$/i, ""),
+      titleHint: extracted.title || inputFile.name.replace(/\.[^.]+$/i, ""),
       languageHint,
       modelMetadata: {
-        importMode: "pdf",
+        importMode: sourceType === "pdf" ? "pdf" : "document",
         sourceFileName: inputFile.name,
       },
     });
@@ -82,7 +92,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "The PDF could not be processed.",
+          error instanceof Error ? error.message : "The document could not be processed.",
       },
       { status: 500 },
     );

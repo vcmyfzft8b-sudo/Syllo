@@ -17,10 +17,12 @@ import { createAudioLectureWithProcessingChunks } from "@/lib/audio-lecture-uplo
 import { BRAND_NAME } from "@/lib/brand";
 import {
   AUDIO_FILE_INPUT_ACCEPT,
+  DOCUMENT_FILE_INPUT_ACCEPT,
   MAX_AUDIO_BYTES,
   MAX_AUDIO_SECONDS,
-  MAX_PDF_BYTES,
+  MAX_DOCUMENT_BYTES,
 } from "@/lib/constants";
+import { isSupportedDocumentFile } from "@/lib/document-files";
 import { NOTE_LANGUAGE_OPTIONS } from "@/lib/languages";
 import { getExtensionForMimeType, normalizeMimeType } from "@/lib/storage";
 import { formatTimestamp } from "@/lib/utils";
@@ -40,7 +42,7 @@ const MODES: Array<{
 }> = [
   { id: "record", label: "Record" },
   { id: "upload", label: "Upload" },
-  { id: "text", label: "PDF" },
+  { id: "text", label: "Docs" },
   { id: "link", label: "Link" },
 ];
 
@@ -108,7 +110,7 @@ function sheetTitle(mode: NoteSourceMode) {
     return "Add link";
   }
 
-  return "Paste text or PDF";
+  return "Paste text or document";
 }
 
 function sheetDescription(mode: NoteSourceMode) {
@@ -124,7 +126,7 @@ function sheetDescription(mode: NoteSourceMode) {
     return "Create notes from a web article or source.";
   }
 
-  return `Paste source material or use a PDF and let ${BRAND_NAME} structure it for you.`;
+  return `Paste source material or use a document and let ${BRAND_NAME} structure it for you.`;
 }
 
 export function NoteSourceModal({
@@ -639,12 +641,12 @@ export function NoteSourceModal({
     }
 
     try {
-      if (!file.type.includes("pdf")) {
-        throw new Error("Only PDF files are supported.");
+      if (!isSupportedDocumentFile(file)) {
+        throw new Error("Use PDF, TXT, Markdown, HTML, RTF, or DOCX.");
       }
 
-      if (file.size > MAX_PDF_BYTES) {
-        throw new Error("The PDF file is too large. The current limit is 4 MB.");
+      if (file.size > MAX_DOCUMENT_BYTES) {
+        throw new Error("The document file is too large. The current limit is 4 MB.");
       }
 
       setPdfSource(file);
@@ -654,7 +656,7 @@ export function NoteSourceModal({
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "The PDF could not be prepared.",
+          : "The document could not be prepared.",
       );
     } finally {
       event.target.value = "";
@@ -663,7 +665,7 @@ export function NoteSourceModal({
 
   async function createPdfLecture() {
     if (!pdfSource) {
-      setError("Choose a PDF first.");
+      setError("Choose a document first.");
       return;
     }
 
@@ -696,7 +698,7 @@ export function NoteSourceModal({
       const payload = await response.json();
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "The PDF could not be processed.");
+        throw new Error(payload.error ?? "The document could not be processed.");
       }
 
       onClose();
@@ -709,7 +711,7 @@ export function NoteSourceModal({
         setError(
           submitError instanceof Error
             ? submitError.message
-            : "The PDF note could not be created.",
+            : "The document note could not be created.",
         );
       }
     } finally {
@@ -1012,10 +1014,10 @@ export function NoteSourceModal({
 
                   {pdfSource ? (
                     <div className="ios-card">
-                      <p className="note-source-card-label">Selected PDF</p>
+                      <p className="note-source-card-label">Selected file</p>
                       <p className="ios-row-title mt-3">{pdfSource.name}</p>
                       <p className="ios-row-subtitle">
-                        PDF will be used until you start typing text again.
+                        This file will be used until you start typing text again.
                       </p>
                     </div>
                   ) : null}
@@ -1023,7 +1025,7 @@ export function NoteSourceModal({
                   <input
                     ref={pdfInputRef}
                     type="file"
-                    accept="application/pdf"
+                    accept={DOCUMENT_FILE_INPUT_ACCEPT}
                     onChange={handlePdfPick}
                     className="hidden"
                   />
@@ -1035,11 +1037,11 @@ export function NoteSourceModal({
                     onClick={() => pdfInputRef.current?.click()}
                   >
                     <UploadCloud className="h-4 w-4" />
-                    {pdfSource ? "Choose another PDF file" : "Choose PDF file"}
+                    {pdfSource ? "Choose another document" : "Choose document file"}
                   </button>
 
                   <p className="ios-row-subtitle">
-                    PDF uploads are currently limited to 4 MB.
+                    PDF, TXT, Markdown, HTML, RTF, and DOCX are supported up to 4 MB.
                   </p>
 
                   <button

@@ -1,9 +1,19 @@
 import "server-only";
 
+import mammoth from "mammoth";
 import { z } from "zod";
 
+import { generateStructuredObjectWithGeminiFile } from "@/lib/ai/gemini";
 import { generateStructuredObject } from "@/lib/ai/json";
+import {
+  isDocxDocument,
+  isHtmlDocument,
+  isPdfDocument,
+  isPlainTextDocument,
+  isRtfDocument,
+} from "@/lib/document-files";
 import { generateNotesFromTranscript } from "@/lib/note-generation";
+import { getAiProvider, getServerEnv } from "@/lib/server-env";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import type { TranscriptSegmentInput } from "@/lib/types";
 import { createEmbeddings as createAiEmbeddings } from "@/lib/ai/embeddings";
@@ -55,6 +65,18 @@ function normalizeWhitespace(value: string) {
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
+}
+
+function rtfToText(rtf: string) {
+  return normalizeWhitespace(
+    rtf
+      .replace(/\\'[0-9a-fA-F]{2}/g, " ")
+      .replace(/\\par[d]?/g, "\n")
+      .replace(/\\tab/g, " ")
+      .replace(/\\[a-z]+-?\d* ?/gi, " ")
+      .replace(/[{}]/g, " ")
+      .replace(/\s+/g, " "),
+  );
 }
 
 function estimateDurationSeconds(text: string) {
@@ -389,7 +411,7 @@ export async function extractTextFromPdf(file: File) {
             : "") ||
           file.name.replace(/\.pdf$/i, "");
 
-        if (parsedText.split(/\s+/).filter(Boolean).length >= 250) {
+        if (parsedText.split(/\s+/).filter(Boolean).length >= 40) {
           return {
             title: metadataTitle || "PDF document",
             text: parsedText,
@@ -407,36 +429,93 @@ export async function extractTextFromPdf(file: File) {
     console.warn("PDF.js extraction failed, falling back to OpenAI file extraction.", error);
   }
 
-  const base64 = buffer.toString("base64");
-  const fallback = await generateStructuredObject({
-    schema: pdfExtractionSchema,
-    schemaName: "pdf_extraction",
-    maxOutputTokens: 7000,
-    instructions:
-      "Extract as much readable text from this PDF as possible into plain text. Do not summarize. Preserve the source language, preserve examples and important details, and ignore repeated headers, footers, and page numbers when possible. Return a concise title plus the document text.",
-    input: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "input_text",
-            text: "Extract the document text as faithfully and completely as possible so it can be turned into detailed study notes and flashcards.",
-          },
-          {
-            type: "input_file",
-            filename: file.name,
-            file_data: `data:${file.type || "application/pdf"};base64,${base64}`,
-          },
-        ],
-      },
-    ],
-  });
+  const fallbackInstructions =
+    "Extract as much readable text from this PDF as possible into plain text. Do not summarize. Preserve the source language, preserve examples and important details, and ignore repeated headers, footers, and page numbers when possible. Return a concise title plus the document text.";
+  const provider = getAiProvider();
+  const env = getServerEnv();
+  const fallback =
+    provider === "gemini"
+      ? await generateStructuredObjectWithGeminiFile({
+          schema: pdfExtractionSchema,
+          instructions: `${fallbackInstructions}\n\nExtract the document text as faithfully and completely as possible so it can be turned into detailed study notes and flashcards.`,
+          file,
+          model: env.GEMINI_TEXT_MODEL,
+          maxOutputTokens: 7000,
+        })
+      : await generateStructuredObject({
+          schema: pdfExtractionSchema,
+          schemaName: "pdf_extraction",
+          maxOutputTokens: 7000,
+          instructions: fallbackInstructions,
+          input: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "input_text",
+                  text: "Extract the document text as faithfully and completely as possible so it can be turned into detailed study notes and flashcards.",
+                },
+                {
+                  type: "input_file",
+                  filename: file.name,
+                  file_data: `data:${file.type || "application/pdf"};base64,${buffer.toString("base64")}`,
+                },
+              ],
+            },
+          ],
+        });
 
   return {
     title: fallback.title,
     text: normalizeWhitespace(fallback.text),
     pages: [],
   };
+}
+
+export async function extractTextFromDocument(file: File) {
+  if (isPdfDocument(file)) {
+    return extractTextFromPdf(file);
+  }
+
+  if (isPlainTextDocument(file)) {
+    const text = normalizeWhitespace(await file.text());
+    return {
+      title: file.name.replace(/\.[^.]+$/i, "") || "Text document",
+      text,
+      pages: [] as Array<{ pageNumber: number; text: string }>,
+    };
+  }
+
+  if (isHtmlDocument(file)) {
+    const html = await file.text();
+    return {
+      title: file.name.replace(/\.[^.]+$/i, "") || "HTML document",
+      text: htmlToText(html),
+      pages: [] as Array<{ pageNumber: number; text: string }>,
+    };
+  }
+
+  if (isRtfDocument(file)) {
+    const rtf = await file.text();
+    return {
+      title: file.name.replace(/\.[^.]+$/i, "") || "RTF document",
+      text: rtfToText(rtf),
+      pages: [] as Array<{ pageNumber: number; text: string }>,
+    };
+  }
+
+  if (isDocxDocument(file)) {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const extracted = await mammoth.extractRawText({ buffer });
+
+    return {
+      title: file.name.replace(/\.[^.]+$/i, "") || "Word document",
+      text: normalizeWhitespace(extracted.value),
+      pages: [] as Array<{ pageNumber: number; text: string }>,
+    };
+  }
+
+  throw new Error("Unsupported document type. Use PDF, TXT, Markdown, HTML, RTF, or DOCX.");
 }
 
 export async function createLectureFromTextSource(params: {
