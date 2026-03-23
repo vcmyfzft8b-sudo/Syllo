@@ -15,6 +15,7 @@ const serverEnvSchema = z.object({
   OPENAI_EMBEDDING_MODEL: z.string().default("text-embedding-3-small"),
   INNGEST_EVENT_KEY: z.string().optional(),
   INNGEST_SIGNING_KEY: z.string().optional(),
+  INTERNAL_JOB_SECRET: z.string().optional(),
 });
 
 export function getServerEnv() {
@@ -29,6 +30,7 @@ export function getServerEnv() {
     OPENAI_EMBEDDING_MODEL: process.env.OPENAI_EMBEDDING_MODEL,
     INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY,
     INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
+    INTERNAL_JOB_SECRET: process.env.INTERNAL_JOB_SECRET,
   });
 }
 

@@ -19,6 +19,14 @@ import { getServerEnv } from "@/lib/server-env";
 const transcriptionProvider = new OpenAiTranscriptionProvider();
 const EMBEDDING_BATCH_SIZE = 100;
 
+type LecturePipelineRow = {
+  id: string;
+  storage_path: string | null;
+  language_hint: string | null;
+  duration_seconds: number | null;
+  processing_metadata: unknown;
+};
+
 function toErrorMessage(error: unknown) {
   if (error instanceof Error) {
     return error.message;
@@ -85,194 +93,241 @@ async function createEmbeddings(texts: string[]) {
   return embeddings;
 }
 
-export async function runLecturePipeline(params: { lectureId: string }) {
+async function getLectureForPipeline(params: { lectureId: string }) {
   const supabase = createSupabaseServiceRoleClient();
+  const { data: lecture, error: lectureError } = await supabase
+    .from("lectures")
+    .select("*")
+    .eq("id", params.lectureId)
+    .single();
 
-  try {
-    const { data: lecture, error: lectureError } = await supabase
-      .from("lectures")
-      .select("*")
-      .eq("id", params.lectureId)
-      .single();
+  if (lectureError) {
+    throw lectureError;
+  }
 
-    if (lectureError) {
-      throw lectureError;
+  return {
+    supabase,
+    lecture: lecture as LecturePipelineRow,
+  };
+}
+
+export async function transcribeLectureContent(params: { lectureId: string }) {
+  const { supabase, lecture } = await getLectureForPipeline(params);
+
+  if (!lecture.storage_path) {
+    throw new Error("Lecture has no storage path.");
+  }
+
+  await supabase
+    .from("lectures")
+    .update(
+      {
+        status: "transcribing",
+        error_message: null,
+      } as never,
+    )
+    .eq("id", lecture.id);
+
+  const audioChunks = parseAudioChunkManifest(
+    lecture.processing_metadata && typeof lecture.processing_metadata === "object"
+      ? (lecture.processing_metadata as Record<string, unknown>).audioChunks
+      : null,
+  ).sort((left, right) => left.index - right.index);
+
+  const transcript =
+    audioChunks.length > 0 && transcriptionProvider.transcribeChunks
+      ? await transcriptionProvider.transcribeChunks({
+          chunks: await Promise.all(
+            audioChunks.map(async (chunk) => {
+              const { data: chunkBlob, error: chunkDownloadError } = await supabase.storage
+                .from("lecture-audio")
+                .download(chunk.path);
+
+              if (chunkDownloadError) {
+                throw chunkDownloadError;
+              }
+
+              return {
+                file: new File([chunkBlob], chunk.path.split("/").pop() ?? `chunk-${chunk.index}.wav`, {
+                  type: normalizeMimeType(chunkBlob.type || chunk.mimeType),
+                }),
+                startMs: chunk.startMs,
+                endMs: chunk.endMs,
+              };
+            }),
+          ),
+          languageHint: lecture.language_hint,
+          durationSeconds: lecture.duration_seconds,
+        })
+      : await (async () => {
+          const storagePath = lecture.storage_path;
+
+          if (!storagePath) {
+            throw new Error("Lecture has no storage path.");
+          }
+
+          const { data: audioBlob, error: downloadError } = await supabase.storage
+            .from("lecture-audio")
+            .download(storagePath);
+
+          if (downloadError) {
+            throw downloadError;
+          }
+
+          const file = new File(
+            [audioBlob],
+            storagePath.split("/").pop() ?? "lecture.webm",
+            {
+              type: normalizeMimeType(audioBlob.type || "audio/webm"),
+            },
+          );
+
+          return transcriptionProvider.transcribe({
+            file,
+            languageHint: lecture.language_hint,
+            durationSeconds: lecture.duration_seconds,
+          });
+        })();
+
+  assertTranscriptCoverage({
+    transcript,
+    expectedDurationSeconds: lecture.duration_seconds,
+  });
+
+  const embeddings = await createEmbeddings(
+    transcript.segments.map((segment) => segment.text),
+  );
+
+  await supabase.from("transcript_segments").delete().eq("lecture_id", lecture.id);
+
+  const transcriptRows = transcript.segments.map((segment, index) => ({
+    lecture_id: lecture.id,
+    idx: segment.idx,
+    start_ms: segment.startMs,
+    end_ms: segment.endMs,
+    speaker_label: segment.speakerLabel,
+    text: segment.text,
+    embedding: embeddings[index] ? serializeVector(embeddings[index]) : null,
+  }));
+
+  if (transcriptRows.length > 0) {
+    const { error: insertTranscriptError } = await supabase
+      .from("transcript_segments")
+      .insert(transcriptRows as never);
+
+    if (insertTranscriptError) {
+      throw insertTranscriptError;
     }
+  }
 
-    const lectureRow = lecture as {
-      id: string;
-      storage_path: string | null;
-      language_hint: string | null;
-      duration_seconds: number | null;
-      processing_metadata: unknown;
-    };
+  await supabase
+    .from("lectures")
+    .update(
+      {
+        duration_seconds: transcript.durationSeconds || lecture.duration_seconds,
+        status: "generating_notes",
+      } as never,
+    )
+    .eq("id", lecture.id);
+}
 
-    if (!lectureRow.storage_path) {
-      throw new Error("Lecture has no storage path.");
-    }
+export async function generateLectureNotesFromStoredTranscript(params: { lectureId: string }) {
+  const { supabase, lecture } = await getLectureForPipeline(params);
+  const { data: transcriptSegments, error: transcriptError } = await supabase
+    .from("transcript_segments")
+    .select("idx, start_ms, end_ms, speaker_label, text")
+    .eq("lecture_id", lecture.id)
+    .order("idx", { ascending: true });
 
-    await supabase
-      .from("lectures")
-      .update(
-        {
-          status: "transcribing",
-          error_message: null,
-        } as never,
-      )
-      .eq("id", lectureRow.id);
+  if (transcriptError) {
+    throw transcriptError;
+  }
 
-    const audioChunks = parseAudioChunkManifest(
-      lectureRow.processing_metadata && typeof lectureRow.processing_metadata === "object"
-        ? (lectureRow.processing_metadata as Record<string, unknown>).audioChunks
-        : null,
-    ).sort((left, right) => left.index - right.index);
+  const storedSegments = (transcriptSegments ?? []) as Array<{
+    idx: number;
+    start_ms: number;
+    end_ms: number;
+    speaker_label: string | null;
+    text: string;
+  }>;
 
-    const transcript =
-      audioChunks.length > 0 && transcriptionProvider.transcribeChunks
-        ? await transcriptionProvider.transcribeChunks({
-            chunks: await Promise.all(
-              audioChunks.map(async (chunk) => {
-                const { data: chunkBlob, error: chunkDownloadError } = await supabase.storage
-                  .from("lecture-audio")
-                  .download(chunk.path);
+  const segments = storedSegments.map((segment) => ({
+    idx: segment.idx,
+    startMs: segment.start_ms,
+    endMs: segment.end_ms,
+    speakerLabel: segment.speaker_label,
+    text: segment.text,
+  }));
 
-                if (chunkDownloadError) {
-                  throw chunkDownloadError;
-                }
+  if (segments.length === 0) {
+    throw new Error("Transcript is empty.");
+  }
 
-                return {
-                  file: new File([chunkBlob], chunk.path.split("/").pop() ?? `chunk-${chunk.index}.wav`, {
-                    type: normalizeMimeType(chunkBlob.type || chunk.mimeType),
-                  }),
-                  startMs: chunk.startMs,
-                  endMs: chunk.endMs,
-                };
-              }),
-            ),
-            languageHint: lectureRow.language_hint,
-            durationSeconds: lectureRow.duration_seconds,
-          })
-        : await (async () => {
-            const storagePath = lectureRow.storage_path;
+  const notes = await generateNotesFromTranscript(segments, {
+    sourceLabel: "lecture transcripts",
+    pipelineName: "map-reduce-notes-v2",
+    outputLanguage: lecture.language_hint,
+  });
 
-            if (!storagePath) {
-              throw new Error("Lecture has no storage path.");
-            }
-
-            const { data: audioBlob, error: downloadError } = await supabase.storage
-              .from("lecture-audio")
-              .download(storagePath);
-
-            if (downloadError) {
-              throw downloadError;
-            }
-
-            const file = new File(
-              [audioBlob],
-              storagePath.split("/").pop() ?? "lecture.webm",
-              {
-                type: normalizeMimeType(audioBlob.type || "audio/webm"),
-              },
-            );
-
-            return transcriptionProvider.transcribe({
-              file,
-              languageHint: lectureRow.language_hint,
-              durationSeconds: lectureRow.duration_seconds,
-            });
-          })();
-
-    assertTranscriptCoverage({
-      transcript,
-      expectedDurationSeconds: lectureRow.duration_seconds,
-    });
-
-    const embeddings = await createEmbeddings(
-      transcript.segments.map((segment) => segment.text),
+  const { error: artifactError } = await supabase
+    .from("lecture_artifacts")
+    .upsert(
+      {
+        lecture_id: lecture.id,
+        summary: notes.summary,
+        key_topics: notes.keyTopics,
+        structured_notes_md: notes.structuredNotesMd,
+        model_metadata: notes.modelMetadata,
+      } as never,
+      {
+        onConflict: "lecture_id",
+      },
     );
 
-    await supabase.from("transcript_segments").delete().eq("lecture_id", lectureRow.id);
+  if (artifactError) {
+    throw artifactError;
+  }
 
-    const transcriptRows = transcript.segments.map((segment, index) => ({
-      lecture_id: lectureRow.id,
-      idx: segment.idx,
-      start_ms: segment.startMs,
-      end_ms: segment.endMs,
-      speaker_label: segment.speakerLabel,
-      text: segment.text,
-      embedding: embeddings[index] ? serializeVector(embeddings[index]) : null,
-    }));
+  const { error: lectureUpdateError } = await supabase
+    .from("lectures")
+    .update(
+      {
+        title: notes.title,
+        status: "ready",
+        error_message: null,
+      } as never,
+    )
+    .eq("id", lecture.id);
 
-    if (transcriptRows.length > 0) {
-      const { error: insertTranscriptError } = await supabase
-        .from("transcript_segments")
-        .insert(transcriptRows as never);
+  if (lectureUpdateError) {
+    throw lectureUpdateError;
+  }
+}
 
-      if (insertTranscriptError) {
-        throw insertTranscriptError;
-      }
-    }
+export async function markLecturePipelineFailed(params: {
+  lectureId: string;
+  error: unknown;
+}) {
+  await createSupabaseServiceRoleClient()
+    .from("lectures")
+    .update(
+      {
+        status: "failed",
+        error_message: toErrorMessage(params.error),
+      } as never,
+    )
+    .eq("id", params.lectureId);
+}
 
-    await supabase
-      .from("lectures")
-      .update(
-        {
-          duration_seconds: transcript.durationSeconds || lectureRow.duration_seconds,
-          status: "generating_notes",
-        } as never,
-      )
-      .eq("id", lectureRow.id);
-
-    const notes = await generateNotesFromTranscript(transcript.segments, {
-      sourceLabel: "lecture transcripts",
-      pipelineName: "map-reduce-notes-v2",
-      outputLanguage: lectureRow.language_hint,
-    });
-
-    const { error: artifactError } = await supabase
-      .from("lecture_artifacts")
-      .upsert(
-        {
-          lecture_id: lectureRow.id,
-          summary: notes.summary,
-          key_topics: notes.keyTopics,
-          structured_notes_md: notes.structuredNotesMd,
-          model_metadata: notes.modelMetadata,
-        } as never,
-        {
-          onConflict: "lecture_id",
-        },
-      );
-
-    if (artifactError) {
-      throw artifactError;
-    }
-
-    const { error: lectureUpdateError } = await supabase
-      .from("lectures")
-      .update(
-        {
-          title: notes.title,
-          status: "ready",
-          error_message: null,
-          duration_seconds: transcript.durationSeconds || lectureRow.duration_seconds,
-        } as never,
-      )
-      .eq("id", lectureRow.id);
-
-    if (lectureUpdateError) {
-      throw lectureUpdateError;
-    }
+export async function runLecturePipeline(params: { lectureId: string }) {
+  try {
+    await transcribeLectureContent(params);
+    await generateLectureNotesFromStoredTranscript(params);
   } catch (error) {
-    await createSupabaseServiceRoleClient()
-      .from("lectures")
-      .update(
-        {
-          status: "failed",
-          error_message: toErrorMessage(error),
-        } as never,
-      )
-      .eq("id", params.lectureId);
+    await markLecturePipelineFailed({
+      lectureId: params.lectureId,
+      error,
+    });
 
     throw error;
   }
