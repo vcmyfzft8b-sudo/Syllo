@@ -876,11 +876,17 @@ export function LectureWorkspace({
   }
 
   async function refreshLectureDetail() {
-    const refresh = await fetch(`/api/lectures/${detail.lecture.id}`);
+    const refresh = await fetch(`/api/lectures/${detail.lecture.id}`, {
+      cache: "no-store",
+    });
     if (refresh.ok) {
       setDetail((await refresh.json()) as LectureDetail);
     }
   }
+
+  useEffect(() => {
+    void refreshLectureDetail();
+  }, [detail.lecture.id]);
 
   async function handleStudyCreate() {
     setStudyError(null);
