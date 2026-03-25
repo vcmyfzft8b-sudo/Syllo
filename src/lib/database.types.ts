@@ -342,6 +342,33 @@ export type Database = {
           last_reviewed_at?: string | null;
         };
       };
+      lecture_study_sessions: {
+        Row: {
+          user_id: string;
+          lecture_id: string;
+          active_study_view: "flashcards" | "quiz";
+          flashcard_state: Json | null;
+          quiz_state: Json | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          lecture_id: string;
+          active_study_view?: "flashcards" | "quiz";
+          flashcard_state?: Json | null;
+          quiz_state?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          active_study_view?: "flashcards" | "quiz";
+          flashcard_state?: Json | null;
+          quiz_state?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       quiz_questions: {
         Row: {
           id: string;
@@ -419,4 +446,6 @@ export type LectureStudySectionRow =
 export type FlashcardRow = Database["public"]["Tables"]["flashcards"]["Row"];
 export type FlashcardProgressRow =
   Database["public"]["Tables"]["flashcard_progress"]["Row"];
+export type LectureStudySessionRow =
+  Database["public"]["Tables"]["lecture_study_sessions"]["Row"];
 export type QuizQuestionRow = Database["public"]["Tables"]["quiz_questions"]["Row"];

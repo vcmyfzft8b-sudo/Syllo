@@ -23,6 +23,8 @@ import { POLL_INTERVAL_MS } from "@/lib/constants";
 import type {
   ChatMessageWithCitations,
   LectureDetail,
+  PersistedFlashcardSessionState,
+  PersistedQuizSessionState,
   QuizQuestionWithOptions,
 } from "@/lib/types";
 import {
@@ -308,6 +310,169 @@ function buildQuizOptionOrders(
   );
 }
 
+function getInitialStudyView(detail: LectureDetail): StudyMaterialView {
+  if (detail.studySession?.active_study_view === "flashcards" && detail.flashcards.length > 0) {
+    return "flashcards";
+  }
+
+  if (detail.studySession?.active_study_view === "quiz" && detail.quizQuestions.length > 0) {
+    return "quiz";
+  }
+
+  if (detail.flashcards.length > 0) {
+    return "flashcards";
+  }
+
+  if (detail.quizQuestions.length > 0) {
+    return "quiz";
+  }
+
+  return "flashcards";
+}
+
+function buildDefaultFlashcardSessionState(
+  flashcardIds: string[],
+): PersistedFlashcardSessionState {
+  return {
+    reviewQueue: flashcardIds,
+    repeatQueue: [],
+    reviewCycle: 1,
+    cycleCardCount: flashcardIds.length,
+    roundSummary: null,
+    sessionResults: {},
+  };
+}
+
+function sanitizeFlashcardSessionState(
+  session: PersistedFlashcardSessionState | null | undefined,
+  flashcardIds: string[],
+): PersistedFlashcardSessionState {
+  const validIds = new Set(flashcardIds);
+  const fallback = buildDefaultFlashcardSessionState(flashcardIds);
+
+  if (!session) {
+    return fallback;
+  }
+
+  const reviewQueue = session.reviewQueue.filter((id) => validIds.has(id));
+  const repeatQueue = session.repeatQueue.filter((id) => validIds.has(id));
+  const sessionResults = Object.fromEntries(
+    Object.entries(session.sessionResults).filter(([id]) => validIds.has(id)),
+  );
+  const roundSummary = session.roundSummary
+    ? {
+        cycle: Math.max(1, session.roundSummary.cycle),
+        total: Math.max(0, session.roundSummary.total),
+        known: Math.max(0, session.roundSummary.known),
+        missed: Math.max(0, session.roundSummary.missed),
+      }
+    : null;
+
+  if (flashcardIds.length > 0 && reviewQueue.length === 0 && !roundSummary) {
+    return fallback;
+  }
+
+  return {
+    reviewQueue,
+    repeatQueue,
+    reviewCycle: Math.max(1, session.reviewCycle),
+    cycleCardCount: Math.max(0, session.cycleCardCount),
+    roundSummary,
+    sessionResults,
+  };
+}
+
+function serializeQuizOptionOrders(optionOrders: Map<string, number[]>) {
+  return Object.fromEntries(optionOrders.entries());
+}
+
+function buildDefaultQuizSessionState(
+  questionIds: string[],
+  questionsById: Map<string, QuizQuestionWithOptions>,
+): PersistedQuizSessionState {
+  return {
+    quizQueue: questionIds,
+    quizRound: 1,
+    quizRoundCount: questionIds.length,
+    roundSummary: null,
+    activeQuestionIndex: 0,
+    selections: {},
+    optionOrders: serializeQuizOptionOrders(buildQuizOptionOrders(questionIds, questionsById)),
+  };
+}
+
+function sanitizeQuizSessionState(
+  session: PersistedQuizSessionState | null | undefined,
+  questionIds: string[],
+  questionsById: Map<string, QuizQuestionWithOptions>,
+): PersistedQuizSessionState {
+  const validIds = new Set(questionIds);
+  const fallback = buildDefaultQuizSessionState(questionIds, questionsById);
+
+  if (!session) {
+    return fallback;
+  }
+
+  const quizQueue = session.quizQueue.filter((id) => validIds.has(id));
+  const selections = Object.fromEntries(
+    Object.entries(session.selections).filter(([id, optionIndex]) => {
+      const question = questionsById.get(id);
+      return !!question && optionIndex >= 0 && optionIndex < question.options.length;
+    }),
+  );
+  const optionOrders = Object.fromEntries(
+    Object.entries(session.optionOrders).flatMap(([id, order]) => {
+      const question = questionsById.get(id);
+
+      if (!question || order.length !== question.options.length) {
+        return [];
+      }
+
+      const normalizedOrder = order.filter(
+        (optionIndex) =>
+          Number.isInteger(optionIndex) &&
+          optionIndex >= 0 &&
+          optionIndex < question.options.length,
+      );
+
+      if (new Set(normalizedOrder).size !== question.options.length) {
+        return [];
+      }
+
+      return [[id, normalizedOrder]];
+    }),
+  );
+  const roundSummary = session.roundSummary
+    ? {
+        cycle: Math.max(1, session.roundSummary.cycle),
+        total: Math.max(0, session.roundSummary.total),
+        correct: Math.max(0, session.roundSummary.correct),
+        missed: Math.max(0, session.roundSummary.missed),
+        missedQuestionIds: session.roundSummary.missedQuestionIds.filter((id) => validIds.has(id)),
+      }
+    : null;
+
+  if (questionIds.length > 0 && quizQueue.length === 0 && !roundSummary) {
+    return fallback;
+  }
+
+  return {
+    quizQueue,
+    quizRound: Math.max(1, session.quizRound),
+    quizRoundCount: Math.max(0, session.quizRoundCount),
+    roundSummary,
+    activeQuestionIndex:
+      quizQueue.length > 0
+        ? Math.min(Math.max(0, session.activeQuestionIndex), quizQueue.length - 1)
+        : 0,
+    selections,
+    optionOrders: {
+      ...fallback.optionOrders,
+      ...optionOrders,
+    },
+  };
+}
+
 function ChatBubble({ message }: { message: ChatMessageWithCitations }) {
   const assistant = message.role === "assistant";
 
@@ -349,31 +514,49 @@ export function LectureWorkspace({
   const [studyError, setStudyError] = useState<string | null>(null);
   const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false);
   const [activeStudyView, setActiveStudyView] = useState<StudyMaterialView>(
-    initialDetail.flashcards.length > 0
-      ? "flashcards"
-      : initialDetail.quizQuestions.length > 0
-        ? "quiz"
-        : "flashcards",
+    getInitialStudyView(initialDetail),
   );
-  const [reviewQueue, setReviewQueue] = useState<string[]>([]);
-  const [repeatQueue, setRepeatQueue] = useState<string[]>([]);
-  const [reviewCycle, setReviewCycle] = useState(1);
-  const [cycleCardCount, setCycleCardCount] = useState(0);
+  const initialFlashcardSession = sanitizeFlashcardSessionState(
+    initialDetail.studySession?.flashcard_state,
+    initialDetail.flashcards.map((flashcard) => flashcard.id),
+  );
+  const initialQuizQuestionsById = new Map(
+    initialDetail.quizQuestions.map((question) => [question.id, question]),
+  );
+  const initialQuizSession = sanitizeQuizSessionState(
+    initialDetail.studySession?.quiz_state,
+    initialDetail.quizQuestions.map((question) => question.id),
+    initialQuizQuestionsById,
+  );
+  const [reviewQueue, setReviewQueue] = useState<string[]>(initialFlashcardSession.reviewQueue);
+  const [repeatQueue, setRepeatQueue] = useState<string[]>(initialFlashcardSession.repeatQueue);
+  const [reviewCycle, setReviewCycle] = useState(initialFlashcardSession.reviewCycle);
+  const [cycleCardCount, setCycleCardCount] = useState(initialFlashcardSession.cycleCardCount);
   const [activeProgressFlashcardId, setActiveProgressFlashcardId] = useState<string | null>(null);
-  const [flashcardRoundSummary, setFlashcardRoundSummary] = useState<FlashcardRoundSummary | null>(null);
+  const [flashcardRoundSummary, setFlashcardRoundSummary] = useState<FlashcardRoundSummary | null>(
+    initialFlashcardSession.roundSummary,
+  );
   const [flashcardExitAnimation, setFlashcardExitAnimation] = useState<FlashcardExitAnimation | null>(
     null,
   );
   const [flashcardSessionResults, setFlashcardSessionResults] = useState<
     Record<string, FlashcardSessionResult>
-  >({});
-  const [quizQueue, setQuizQueue] = useState<string[]>([]);
-  const [quizRound, setQuizRound] = useState(1);
-  const [quizRoundCount, setQuizRoundCount] = useState(0);
-  const [quizRoundSummary, setQuizRoundSummary] = useState<QuizRoundSummary | null>(null);
-  const [activeQuizQuestionIndex, setActiveQuizQuestionIndex] = useState(0);
-  const [quizSelections, setQuizSelections] = useState<Record<string, number>>({});
-  const [quizOptionOrders, setQuizOptionOrders] = useState<Map<string, number[]>>(new Map());
+  >(initialFlashcardSession.sessionResults);
+  const [quizQueue, setQuizQueue] = useState<string[]>(initialQuizSession.quizQueue);
+  const [quizRound, setQuizRound] = useState(initialQuizSession.quizRound);
+  const [quizRoundCount, setQuizRoundCount] = useState(initialQuizSession.quizRoundCount);
+  const [quizRoundSummary, setQuizRoundSummary] = useState<QuizRoundSummary | null>(
+    initialQuizSession.roundSummary,
+  );
+  const [activeQuizQuestionIndex, setActiveQuizQuestionIndex] = useState(
+    initialQuizSession.activeQuestionIndex,
+  );
+  const [quizSelections, setQuizSelections] = useState<Record<string, number>>(
+    initialQuizSession.selections,
+  );
+  const [quizOptionOrders, setQuizOptionOrders] = useState<Map<string, number[]>>(
+    new Map(Object.entries(initialQuizSession.optionOrders)),
+  );
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const flashcardFeedbackTimerRef = useRef<number | null>(null);
   const flashcardFeedbackTokenRef = useRef(0);
@@ -390,6 +573,7 @@ export function LectureWorkspace({
 
   useEffect(() => {
     setDetail(initialDetail);
+    setActiveStudyView(getInitialStudyView(initialDetail));
   }, [initialDetail]);
 
   useEffect(() => {
@@ -459,28 +643,39 @@ export function LectureWorkspace({
   }, [activeTab, currentReviewFlashcardId]);
 
   useEffect(() => {
-    const initialQueue = flashcardDeckKey ? flashcardDeckKey.split("|") : [];
-    setReviewQueue(initialQueue);
-    setRepeatQueue([]);
-    setReviewCycle(1);
-    setCycleCardCount(initialQueue.length);
+    const flashcardIds = flashcardDeckKey ? flashcardDeckKey.split("|") : [];
+    const nextState = sanitizeFlashcardSessionState(
+      detail.studySession?.flashcard_state,
+      flashcardIds,
+    );
+
+    setReviewQueue(nextState.reviewQueue);
+    setRepeatQueue(nextState.repeatQueue);
+    setReviewCycle(nextState.reviewCycle);
+    setCycleCardCount(nextState.cycleCardCount);
     setIsFlashcardFlipped(false);
-    setFlashcardRoundSummary(null);
-    setFlashcardSessionResults({});
+    setFlashcardRoundSummary(nextState.roundSummary);
+    setFlashcardSessionResults(nextState.sessionResults);
     setFlashcardExitAnimation(null);
     setStudyError(null);
-  }, [flashcardDeckKey]);
+  }, [detail.studySession?.flashcard_state, flashcardDeckKey]);
 
   useEffect(() => {
-    const initialQueue = quizDeckKey ? quizDeckKey.split("|") : [];
-    setQuizQueue(initialQueue);
-    setQuizRound(1);
-    setQuizRoundCount(initialQueue.length);
-    setQuizRoundSummary(null);
-    setActiveQuizQuestionIndex(0);
-    setQuizSelections({});
-    setQuizOptionOrders(buildQuizOptionOrders(initialQueue, quizQuestionsById));
-  }, [quizDeckKey, quizQuestionsById]);
+    const quizQuestionIds = quizDeckKey ? quizDeckKey.split("|") : [];
+    const nextState = sanitizeQuizSessionState(
+      detail.studySession?.quiz_state,
+      quizQuestionIds,
+      quizQuestionsById,
+    );
+
+    setQuizQueue(nextState.quizQueue);
+    setQuizRound(nextState.quizRound);
+    setQuizRoundCount(nextState.quizRoundCount);
+    setQuizRoundSummary(nextState.roundSummary);
+    setActiveQuizQuestionIndex(nextState.activeQuestionIndex);
+    setQuizSelections(nextState.selections);
+    setQuizOptionOrders(new Map(Object.entries(nextState.optionOrders)));
+  }, [detail.studySession?.quiz_state, quizDeckKey, quizQuestionsById]);
 
   useEffect(() => {
     return () => {
@@ -507,6 +702,68 @@ export function LectureWorkspace({
       });
     });
   }, [activeTab, detail.chatMessages.length, isSending]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      const flashcardState: PersistedFlashcardSessionState | null =
+        studyDeck.length > 0
+          ? {
+              reviewQueue,
+              repeatQueue,
+              reviewCycle,
+              cycleCardCount,
+              roundSummary: flashcardRoundSummary,
+              sessionResults: flashcardSessionResults,
+            }
+          : null;
+      const quizState: PersistedQuizSessionState | null =
+        detail.quizQuestions.length > 0
+          ? {
+              quizQueue,
+              quizRound,
+              quizRoundCount,
+              roundSummary: quizRoundSummary,
+              activeQuestionIndex: activeQuizQuestionIndex,
+              selections: quizSelections,
+              optionOrders: serializeQuizOptionOrders(quizOptionOrders),
+            }
+          : null;
+
+      void fetch(`/api/lectures/${detail.lecture.id}/study-session`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          activeStudyView,
+          flashcardState,
+          quizState,
+        }),
+      });
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    activeQuizQuestionIndex,
+    activeStudyView,
+    cycleCardCount,
+    detail.lecture.id,
+    detail.quizQuestions.length,
+    flashcardRoundSummary,
+    flashcardSessionResults,
+    quizOptionOrders,
+    quizQueue,
+    quizRound,
+    quizRoundCount,
+    quizRoundSummary,
+    quizSelections,
+    repeatQueue,
+    reviewCycle,
+    reviewQueue,
+    studyDeck.length,
+  ]);
 
   const cleanedStructuredNotes = useMemo(() => {
     if (!detail.artifact?.structured_notes_md) {

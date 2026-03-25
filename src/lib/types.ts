@@ -1,12 +1,14 @@
 import type {
   ChatMessageRow,
   Citation,
+  FlashcardConfidenceBucket,
   FlashcardRow,
   FlashcardProgressRow,
   LectureArtifactRow,
   LectureQuizAssetRow,
   LectureRow,
   LectureStudyAssetRow,
+  LectureStudySessionRow,
   LectureStudySectionRow,
   ProfileRow,
   QuizQuestionRow,
@@ -22,6 +24,7 @@ export interface LectureDetail {
   artifact: LectureArtifactRow | null;
   studyAsset: LectureStudyAssetRow | null;
   quizAsset: LectureQuizAssetRow | null;
+  studySession: StudySession | null;
   studySections: StudySectionWithProgress[];
   flashcards: FlashcardWithCitations[];
   quizQuestions: QuizQuestionWithOptions[];
@@ -41,6 +44,48 @@ export interface FlashcardWithCitations extends Omit<FlashcardRow, "citations_js
 
 export interface QuizQuestionWithOptions extends Omit<QuizQuestionRow, "options_json"> {
   options: string[];
+}
+
+export interface PersistedFlashcardSessionResult {
+  attempts: number;
+  firstConfidence: FlashcardConfidenceBucket;
+  latestConfidence: FlashcardConfidenceBucket;
+}
+
+export interface PersistedFlashcardSessionState {
+  reviewQueue: string[];
+  repeatQueue: string[];
+  reviewCycle: number;
+  cycleCardCount: number;
+  roundSummary: {
+    cycle: number;
+    total: number;
+    known: number;
+    missed: number;
+  } | null;
+  sessionResults: Record<string, PersistedFlashcardSessionResult>;
+}
+
+export interface PersistedQuizSessionState {
+  quizQueue: string[];
+  quizRound: number;
+  quizRoundCount: number;
+  roundSummary: {
+    cycle: number;
+    total: number;
+    correct: number;
+    missed: number;
+    missedQuestionIds: string[];
+  } | null;
+  activeQuestionIndex: number;
+  selections: Record<string, number>;
+  optionOrders: Record<string, number[]>;
+}
+
+export interface StudySession
+  extends Omit<LectureStudySessionRow, "flashcard_state" | "quiz_state"> {
+  flashcard_state: PersistedFlashcardSessionState | null;
+  quiz_state: PersistedQuizSessionState | null;
 }
 
 export interface StudySectionWithProgress extends LectureStudySectionRow {
