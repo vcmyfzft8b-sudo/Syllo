@@ -4,9 +4,11 @@ import type { LectureRow, TranscriptSegmentRow } from "@/lib/database.types";
 import { countWords } from "@/lib/note-generation";
 import type { SourceImportance, SourceUnit, StudySectionDraft } from "@/lib/study-models";
 
-const AUDIO_UNIT_TARGET_WORDS = 110;
-const AUDIO_UNIT_MAX_WORDS = 145;
+const AUDIO_UNIT_TARGET_WORDS = 85;
+const AUDIO_UNIT_MAX_WORDS = 115;
 const AUDIO_SECTION_TARGET_MS = 6 * 60 * 1000;
+const AUDIO_SEGMENT_SPLIT_TARGET_WORDS = 55;
+const AUDIO_SEGMENT_SPLIT_MAX_WORDS = 80;
 
 function normalizeLabel(value: string | null | undefined) {
   return value?.replace(/\s+/g, " ").trim() || null;
@@ -31,6 +33,106 @@ function inferImportance(text: string): SourceImportance {
   }
 
   return "low";
+}
+
+function splitTextIntoAudioChunks(text: string) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return [];
+  }
+
+  const sentences = normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  if (sentences.length <= 1) {
+    const words = normalized.split(/\s+/).filter(Boolean);
+    const chunks: string[] = [];
+    let activeWords: string[] = [];
+
+    for (const word of words) {
+      if (activeWords.length >= AUDIO_SEGMENT_SPLIT_MAX_WORDS) {
+        chunks.push(activeWords.join(" "));
+        activeWords = [word];
+        continue;
+      }
+
+      activeWords.push(word);
+    }
+
+    if (activeWords.length > 0) {
+      chunks.push(activeWords.join(" "));
+    }
+
+    return chunks;
+  }
+
+  const chunks: string[] = [];
+  let activeSentences: string[] = [];
+  let activeWordCount = 0;
+
+  for (const sentence of sentences) {
+    const sentenceWordCount = countWords(sentence);
+    const shouldFlush =
+      activeSentences.length > 0 &&
+      (activeWordCount + sentenceWordCount > AUDIO_SEGMENT_SPLIT_MAX_WORDS ||
+        (activeWordCount >= AUDIO_SEGMENT_SPLIT_TARGET_WORDS && sentenceWordCount >= 12));
+
+    if (shouldFlush) {
+      chunks.push(activeSentences.join(" ").trim());
+      activeSentences = [sentence];
+      activeWordCount = sentenceWordCount;
+      continue;
+    }
+
+    activeSentences.push(sentence);
+    activeWordCount += sentenceWordCount;
+  }
+
+  if (activeSentences.length > 0) {
+    chunks.push(activeSentences.join(" ").trim());
+  }
+
+  return chunks;
+}
+
+function splitAudioTranscriptSegment(segment: TranscriptSegmentRow) {
+  const chunks = splitTextIntoAudioChunks(segment.text);
+
+  if (chunks.length <= 1) {
+    return [segment];
+  }
+
+  const totalWords = chunks.reduce((sum, chunk) => sum + Math.max(countWords(chunk), 1), 0);
+  const totalDurationMs = Math.max(segment.end_ms - segment.start_ms, chunks.length * 1000);
+  let cursorMs = segment.start_ms;
+
+  return chunks.map((chunk, index) => {
+    const remainingDurationMs = Math.max(segment.end_ms - cursorMs, 1000);
+    const chunkWords = Math.max(countWords(chunk), 1);
+    const allocatedDurationMs =
+      index === chunks.length - 1
+        ? remainingDurationMs
+        : Math.max(
+            1000,
+            Math.round((totalDurationMs * chunkWords) / Math.max(totalWords, 1)),
+          );
+    const endMs =
+      index === chunks.length - 1
+        ? segment.end_ms
+        : Math.min(segment.end_ms, cursorMs + allocatedDurationMs);
+    const nextSegment = {
+      ...segment,
+      start_ms: cursorMs,
+      end_ms: Math.max(endMs, cursorMs + 1000),
+      text: chunk,
+    };
+
+    cursorMs = nextSegment.end_ms;
+    return nextSegment;
+  });
 }
 
 function parsePageNumber(label: string | null) {
@@ -82,6 +184,9 @@ function buildAudioSourceUnits(params: {
   lecture: LectureRow;
   transcript: TranscriptSegmentRow[];
 }): SourceUnit[] {
+  const transcriptSegments = params.transcript.flatMap((segment) =>
+    splitAudioTranscriptSegment(segment),
+  );
   const units: SourceUnit[] = [];
   let activeSegments: TranscriptSegmentRow[] = [];
   let activeWordCount = 0;
@@ -119,7 +224,7 @@ function buildAudioSourceUnits(params: {
     activeWordCount = 0;
   }
 
-  for (const segment of params.transcript) {
+  for (const segment of transcriptSegments) {
     const segmentWordCount = countWords(segment.text);
     const previous = activeSegments[activeSegments.length - 1] ?? null;
     const speakerChanged =

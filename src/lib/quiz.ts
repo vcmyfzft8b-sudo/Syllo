@@ -250,7 +250,7 @@ export async function queueLectureQuizGeneration(lectureId: string) {
 
 function countTargetQuestions(concepts: CoverageConcept[]) {
   return concepts.reduce(
-    (total, concept) => total + Math.min(Math.max(concept.recommendedCardCount, 1), 2),
+    (total, concept) => total + Math.min(Math.max(concept.recommendedCardCount, 1), 3),
     0,
   );
 }
@@ -354,8 +354,8 @@ ${params.repairOnly ? "Repair missing quiz coverage." : "Generate source-grounde
 Use only the supplied source material.
 Cover every requested concept explicitly.
 Return ${targetCount} total questions for this unit.
-For each concept, create as many questions as its recommendedCardCount, capped at 2.
-When a concept requests 2 questions, make them materially different and test different angles of understanding.
+For each concept, create as many questions as its recommendedCardCount, capped at 3.
+When a concept requests multiple questions, make them materially different and test different angles of understanding.
 Every question must have exactly 4 answer options and exactly 1 correct answer.
 Avoid "all of the above", "none of the above", trick phrasing, and ambiguous distractors.
 Keep questions concise, testable, and grounded in the source.
@@ -376,7 +376,7 @@ Do not invent facts, terms, or examples that are not supported by the source.`,
         },
         concepts: params.concepts.map((concept) => ({
           ...concept,
-          recommendedQuestionCount: Math.min(Math.max(concept.recommendedCardCount, 1), 2),
+          recommendedQuestionCount: Math.min(Math.max(concept.recommendedCardCount, 1), 3),
         })),
         contextUnits: params.contextUnits.map((unit) => ({
           unitIndex: unit.unitIndex,
@@ -420,7 +420,7 @@ function findMissingConcepts(params: {
 
   for (const plan of params.plans) {
     const missingConcepts = plan.concepts.filter((concept) => {
-      const targetCount = Math.min(Math.max(concept.recommendedCardCount, 1), 2);
+      const targetCount = Math.min(Math.max(concept.recommendedCardCount, 1), 3);
       return (questionCountsByConcept.get(concept.conceptKey) ?? 0) < targetCount;
     });
 

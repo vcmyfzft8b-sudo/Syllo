@@ -149,13 +149,15 @@ function normalizeCardStyle(value: string, conceptType: CoverageConceptType): Co
 function buildFallbackConcept(unit: SourceUnit): CoverageConcept {
   const excerpt = unit.text.split(/(?<=[.!?])\s+/).find(Boolean) ?? unit.text.slice(0, 180);
   const conceptType = fallbackConceptType(unit.text);
+  const maxRecommendedCardCount =
+    unit.sourceType === "audio" && unit.wordCount >= 90 ? 3 : 2;
 
   return {
     conceptKey: `${unit.unitIndex}-${slugify(excerpt) || "core-idea"}`,
     conceptLabel: excerpt.slice(0, 100),
     conceptType,
     studyValue: unit.importance,
-    recommendedCardCount: unit.importance === "high" ? 2 : 1,
+    recommendedCardCount: unit.importance === "high" ? maxRecommendedCardCount : 1,
     preferredCardStyle: fallbackCardStyle(conceptType),
     supportingExcerpt: excerpt.slice(0, 200),
   };
@@ -179,6 +181,8 @@ function normalizeUnitPlan(unit: SourceUnit, plan: PlannerUnitDraft | CoverageUn
     importance: plan.importance || unit.importance,
     concepts: plan.concepts.slice(0, 16).map((concept, index) => {
       const conceptType = normalizeConceptType(concept.conceptType);
+      const maxRecommendedCardCount =
+        unit.sourceType === "audio" && unit.wordCount >= 90 ? 3 : 2;
 
       return {
         ...concept,
@@ -186,7 +190,10 @@ function normalizeUnitPlan(unit: SourceUnit, plan: PlannerUnitDraft | CoverageUn
         preferredCardStyle: normalizeCardStyle(concept.preferredCardStyle, conceptType),
         conceptKey:
           concept.conceptKey || `${unit.unitIndex}-${slugify(concept.conceptLabel) || index}`,
-        recommendedCardCount: Math.min(Math.max(concept.recommendedCardCount, 1), 2),
+        recommendedCardCount: Math.min(
+          Math.max(concept.recommendedCardCount, 1),
+          maxRecommendedCardCount,
+        ),
       };
     }),
   };
@@ -246,7 +253,7 @@ export async function createCoveragePlan(params: {
       schemaName: "coverage_plan_batch",
       maxOutputTokens: Math.max(3200, batch.length * 760),
       instructions:
-        "Create a study-worthy flashcard plan from the supplied source units. Be selective like a strong human-made study deck, but still preserve broad coverage of the material. Prefer atomic, testable facts over broad summaries. Good concepts are: acronym meanings, term definitions, protocol purposes, device roles, named examples, exact lists, step sequences, comparisons, warnings, and concrete numeric or structural facts. When a unit contains several distinct facts, split them into separate concepts rather than merging them. If a unit is mostly slide metadata, learning goals, repeated headings, or image/diagram narration such as 'the figure shows ...', return an empty concepts array for that unit. Do not create concepts for generic chapter goals, obvious captions, or paraphrases of the same point. Use high importance only for core exam-relevant facts. Default to one card per concept; recommend two cards only when the source clearly supports two distinct study angles such as recall plus process/comparison.",
+        "Create a study-worthy flashcard plan from the supplied source units. Preserve broad coverage of the material so a student can review the whole lecture through interactive study tools. Prefer atomic, testable facts over broad summaries. Good concepts are: acronym meanings, term definitions, protocol purposes, device roles, named examples, exact lists, step sequences, comparisons, warnings, and concrete numeric or structural facts. When a unit contains several distinct facts, split them into separate concepts rather than merging them. If a unit is mostly slide metadata, learning goals, repeated headings, or image/diagram narration such as 'the figure shows ...', return an empty concepts array for that unit. Do not create concepts for generic chapter goals, obvious captions, or paraphrases of the same point. Use high importance only for core exam-relevant facts. Default to one card per concept; recommend two cards when the source supports two distinct study angles such as recall plus process/comparison; recommend three cards only for dense source units with several distinct facts that deserve fuller review coverage.",
       input: JSON.stringify(
         {
           title: params.title,
