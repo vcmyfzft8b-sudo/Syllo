@@ -560,6 +560,7 @@ export function LectureWorkspace({
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const flashcardFeedbackTimerRef = useRef<number | null>(null);
   const flashcardFeedbackTokenRef = useRef(0);
+  const studySessionPayloadRef = useRef<string | null>(null);
   const studyDeck = detail.flashcards;
   const flashcardDeckKey = studyDeck.map((flashcard) => flashcard.id).join("|");
   const quizDeckKey = detail.quizQuestions.map((question) => question.id).join("|");
@@ -704,8 +705,9 @@ export function LectureWorkspace({
   }, [activeTab, detail.chatMessages.length, isSending]);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      const flashcardState: PersistedFlashcardSessionState | null =
+    const payload = JSON.stringify({
+      activeStudyView,
+      flashcardState:
         studyDeck.length > 0
           ? {
               reviewQueue,
@@ -715,8 +717,8 @@ export function LectureWorkspace({
               roundSummary: flashcardRoundSummary,
               sessionResults: flashcardSessionResults,
             }
-          : null;
-      const quizState: PersistedQuizSessionState | null =
+          : null,
+      quizState:
         detail.quizQuestions.length > 0
           ? {
               quizQueue,
@@ -727,18 +729,19 @@ export function LectureWorkspace({
               selections: quizSelections,
               optionOrders: serializeQuizOptionOrders(quizOptionOrders),
             }
-          : null;
+          : null,
+    });
 
+    studySessionPayloadRef.current = payload;
+
+    const timeoutId = window.setTimeout(() => {
       void fetch(`/api/lectures/${detail.lecture.id}/study-session`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          activeStudyView,
-          flashcardState,
-          quizState,
-        }),
+        body: payload,
+        keepalive: true,
       });
     }, 300);
 
@@ -765,6 +768,37 @@ export function LectureWorkspace({
     studyDeck.length,
   ]);
 
+  useEffect(() => {
+    const flushStudySession = () => {
+      if (!studySessionPayloadRef.current) {
+        return;
+      }
+
+      void fetch(`/api/lectures/${detail.lecture.id}/study-session`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: studySessionPayloadRef.current,
+        keepalive: true,
+      });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        flushStudySession();
+      }
+    };
+
+    window.addEventListener("pagehide", flushStudySession);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      flushStudySession();
+      window.removeEventListener("pagehide", flushStudySession);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [detail.lecture.id]);
   const cleanedStructuredNotes = useMemo(() => {
     if (!detail.artifact?.structured_notes_md) {
       return null;
