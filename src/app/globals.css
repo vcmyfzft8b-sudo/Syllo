@@ -3148,6 +3148,10 @@ select:disabled {
   transform: rotateY(180deg);
 }
 
+.lecture-flashcard-face-front {
+  grid-template-rows: auto 1fr;
+}
+
 .lecture-flashcard-face-meta {
   display: flex;
   flex-wrap: wrap;
@@ -3176,6 +3180,13 @@ select:disabled {
   font-size: clamp(1.08rem, 1.05vw + 0.88rem, 1.35rem);
   line-height: 1.62;
   letter-spacing: -0.02em;
+}
+
+.lecture-flashcard-face-front .lecture-flashcard-content {
+  align-self: center;
+  justify-self: center;
+  width: min(100%, 19ch);
+  text-align: center;
 }
 
 .lecture-flashcard-hintline {
