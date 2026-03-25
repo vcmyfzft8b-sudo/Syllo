@@ -1092,9 +1092,18 @@ export function LectureWorkspace({
                     <p className="lecture-study-hint">{studyStageCopy}</p>
                   ) : null}
                 </div>
-              ) : currentFlashcard ? (
+            ) : currentFlashcard ? (
                 <>
                   <div className="lecture-flashcard-stage">
+                    <div className="lecture-flashcard-stage-meta">
+                      <span>
+                        {Math.max(
+                          1,
+                          studyDeck.findIndex((flashcard) => flashcard.id === currentFlashcard.id) + 1,
+                        )}{" "}
+                        / {totalFlashcards}
+                      </span>
+                    </div>
                     <div className="lecture-flashcard-stage-card">
                       <button
                         type="button"
