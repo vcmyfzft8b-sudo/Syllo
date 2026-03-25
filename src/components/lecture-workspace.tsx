@@ -1333,7 +1333,7 @@ export function LectureWorkspace({
             ) : activeQuizQuestion ? (
               <div className="lecture-quiz-stage">
                 <div className="lecture-quiz-meta">
-                  <span>Question {activeQuizQuestionIndex + 1} / {quizRoundCount}</span>
+                  <span>{activeQuizQuestionIndex + 1} / {quizRoundCount}</span>
                   {quizRound > 1 ? <span>Cycle {quizRound}</span> : null}
                 </div>
 
