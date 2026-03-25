@@ -590,6 +590,12 @@ export function LectureWorkspace({
   }, [activeTab, detail.audioUrl]);
 
   useEffect(() => {
+    if (activeTab === "study") {
+      setActiveStudyView("flashcards");
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     if (!shouldPollCurrentDetail) {
       return;
     }
