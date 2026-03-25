@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
 import {
@@ -76,21 +76,16 @@ export async function POST(request: Request) {
     );
   }
 
-  try {
-    await runLectureStage(parsed.data);
-  } catch (error) {
-    await markLecturePipelineFailed({
-      lectureId: parsed.data.lectureId,
-      error,
-    });
-
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Lecture processing failed.",
-      },
-      { status: 500 },
-    );
-  }
+  after(async () => {
+    try {
+      await runLectureStage(parsed.data);
+    } catch (error) {
+      await markLecturePipelineFailed({
+        lectureId: parsed.data.lectureId,
+        error,
+      });
+    }
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -43,16 +43,16 @@ type QuizQuestionDraft = {
 };
 
 const quizQuestionSchema = z.object({
-  prompt: z.string().min(12).max(260),
-  options: z.array(z.string().min(2).max(220)).length(4),
+  prompt: z.string().min(12).max(420),
+  options: z.array(z.string().min(1).max(320)).length(4),
   correctOptionIndex: z.number().int().min(0).max(3),
-  explanation: z.string().min(20).max(520),
+  explanation: z.string().min(20).max(760),
   difficulty: z.string().min(3).max(40),
   conceptKey: z.string().min(3).max(80),
 });
 
 const quizQuestionBatchSchema = z.object({
-  questions: z.array(quizQuestionSchema).min(1).max(24),
+  questions: z.array(quizQuestionSchema).min(1).max(32),
 });
 
 function toErrorMessage(error: unknown) {

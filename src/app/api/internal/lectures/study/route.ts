@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { generateLectureFlashcards } from "@/lib/study";
@@ -40,18 +40,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  try {
-    await generateLectureFlashcards({
-      lectureId: parsed.data.lectureId,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Study generation failed.",
-      },
-      { status: 500 },
-    );
-  }
+  after(async () => {
+    try {
+      await generateLectureFlashcards({
+        lectureId: parsed.data.lectureId,
+      });
+    } catch (error) {
+      console.error("Study generation failed", {
+        lectureId: parsed.data.lectureId,
+        error,
+      });
+    }
+  });
 
   return NextResponse.json({ ok: true });
 }

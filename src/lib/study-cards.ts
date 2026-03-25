@@ -2,7 +2,6 @@ import "server-only";
 
 import { z } from "zod";
 
-import { citationSchema } from "@/lib/ai/schemas";
 import { generateStructuredObject } from "@/lib/ai/json";
 import { buildGeneratedContentLanguageInstruction } from "@/lib/languages";
 import type {
@@ -16,19 +15,26 @@ import type { FlashcardDifficulty } from "@/lib/database.types";
 
 const CARD_CONCURRENCY = 4;
 
+const generatedCitationSchema = z.object({
+  idx: z.number().int().nonnegative(),
+  startMs: z.number().int().nonnegative(),
+  endMs: z.number().int().nonnegative(),
+  quote: z.string().min(1).max(400),
+});
+
 const generatedCardSchema = z.object({
   front: z.string().min(6).max(140),
-  back: z.string().min(1).max(420),
-  hint: z.string().min(4).max(180).nullable(),
+  back: z.string().min(1).max(640),
+  hint: z.string().min(1).max(220).nullable(),
   difficulty: z.string().min(3).max(40),
-  citations: z.array(citationSchema).min(1).max(2),
+  citations: z.array(generatedCitationSchema).min(1).max(6),
   conceptKey: z.string().min(3).max(80),
   cardKind: z.string().min(3).max(40),
   coverageRank: z.number().int().min(0).max(10),
 });
 
 const generatedCardBatchSchema = z.object({
-  flashcards: z.array(generatedCardSchema).min(1).max(18),
+  flashcards: z.array(generatedCardSchema).min(1).max(32),
 });
 
 function normalizeCardText(value: string) {
@@ -71,6 +77,45 @@ function normalizeCard(card: CoverageCardDraft): CoverageCardDraft {
     back: (normalizedBack.length >= 12 ? normalizedBack : `${normalizedBack}.`).slice(0, 260).trim(),
     hint: card.hint ? normalizeCardText(card.hint) : null,
   };
+}
+
+function buildFallbackQuote(text: string) {
+  const normalized = normalizeCardText(text);
+
+  if (normalized.length >= 3) {
+    return normalized.slice(0, 180);
+  }
+
+  return "Source excerpt";
+}
+
+function normalizeCitations(params: {
+  citations: Array<{
+    idx: number;
+    startMs: number;
+    endMs: number;
+    quote: string;
+  }>;
+  unit: SourceUnit;
+  contextUnits: SourceUnit[];
+}) {
+  const unitByIndex = new Map(
+    [params.unit, ...params.contextUnits].map((unit) => [unit.unitIndex, unit]),
+  );
+  const fallbackUnit = params.unit;
+
+  return params.citations.slice(0, 2).map((citation) => {
+    const sourceUnit = unitByIndex.get(citation.idx) ?? fallbackUnit;
+    const normalizedQuote = normalizeCardText(citation.quote);
+    const fallbackQuote = buildFallbackQuote(sourceUnit.text);
+
+    return {
+      idx: citation.idx,
+      startMs: citation.startMs,
+      endMs: citation.endMs,
+      quote: normalizedQuote.length >= 3 ? normalizedQuote.slice(0, 180) : fallbackQuote,
+    };
+  });
 }
 
 function normalizeDifficulty(value: string): FlashcardDifficulty {
@@ -271,7 +316,11 @@ Keep fronts concise and backs concise enough to review quickly.`,
         back: card.back,
         hint: card.hint,
         difficulty: normalizeDifficulty(card.difficulty),
-        citations: card.citations,
+        citations: normalizeCitations({
+          citations: card.citations,
+          unit: params.unit,
+          contextUnits: params.contextUnits,
+        }),
         conceptKey: card.conceptKey,
         cardKind: normalizeCardKind(
           card.cardKind,
