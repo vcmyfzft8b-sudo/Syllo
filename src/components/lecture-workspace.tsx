@@ -799,7 +799,6 @@ export function LectureWorkspace({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [detail.lecture.id]);
-
   const cleanedStructuredNotes = useMemo(() => {
     if (!detail.artifact?.structured_notes_md) {
       return null;
