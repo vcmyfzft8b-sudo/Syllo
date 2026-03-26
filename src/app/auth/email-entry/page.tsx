@@ -38,7 +38,7 @@ export default async function EmailEntryPage({
 
       <section className="landing-auth-wrap email-entry-wrap">
         <Link href="/" className="landing-auth-brand email-entry-brand" aria-label={`${BRAND_NAME} home`}>
-          <BrandLogo compact />
+          <BrandLogo compact imageSizes="(max-width: 768px) 4.6rem, 7rem" priority />
         </Link>
 
         <div className="landing-auth-hero email-entry-copy">
