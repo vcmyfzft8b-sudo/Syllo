@@ -44,8 +44,7 @@ export default async function EmailEntryPage({
         <div className="landing-auth-hero email-entry-copy">
           <h1 className="landing-auth-title email-entry-title">What&apos;s your email?</h1>
           <p className="landing-auth-copy email-entry-text">
-            Enter your email address and we&apos;ll send you a verification code to{" "}
-            {mode === "signup" ? "create your account" : "sign in"}.
+            Enter your email address and we&apos;ll send you a verification code.
           </p>
         </div>
 
