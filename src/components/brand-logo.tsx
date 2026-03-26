@@ -5,9 +5,13 @@ import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 export function BrandLogo({
   subtitle = BRAND_TAGLINE,
   compact = false,
+  imageSizes,
+  priority = false,
 }: {
   subtitle?: string;
   compact?: boolean;
+  imageSizes?: string;
+  priority?: boolean;
 }) {
   return (
     <span className={`brand-logo ${compact ? "compact" : ""}`}>
@@ -18,7 +22,8 @@ export function BrandLogo({
           width={3651}
           height={3285}
           className="brand-logo-image"
-          sizes={compact ? "2.2rem" : "2.55rem"}
+          sizes={imageSizes ?? (compact ? "2.2rem" : "2.55rem")}
+          priority={priority}
         />
       </span>
       <span className="brand-logo-copy">

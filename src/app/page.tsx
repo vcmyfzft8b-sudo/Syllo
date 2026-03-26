@@ -58,7 +58,7 @@ export default async function HomePage() {
     <main className="landing-shell landing-auth-page">
       <div className="landing-auth-wrap">
         <Link href="/" className="landing-auth-brand" aria-label={`${BRAND_NAME} home`}>
-          <BrandLogo compact />
+          <BrandLogo compact imageSizes="(max-width: 768px) 4.6rem, 7rem" priority />
         </Link>
 
         <section className="landing-auth-hero">
