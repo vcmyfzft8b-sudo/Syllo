@@ -5030,26 +5030,27 @@ select:disabled {
 }
 
 .email-entry-wrap {
-  gap: 1.4rem;
+  gap: 1rem;
 }
 
 .email-entry-brand {
-  margin-bottom: 1.9rem;
+  margin-bottom: 1.15rem;
 }
 
 .email-entry-copy {
-  gap: 0.8rem;
+  gap: 0.65rem;
 }
 
 .email-entry-text {
   max-width: 33rem;
+  font-size: clamp(1rem, 2.2vw, 1.22rem);
 }
 
 .email-entry-form {
   display: grid;
   gap: 0.8rem;
   width: 100%;
-  margin-top: 2.9rem;
+  margin-top: 1.7rem;
 }
 
 .email-entry-input {
