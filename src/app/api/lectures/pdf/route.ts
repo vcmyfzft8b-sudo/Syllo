@@ -24,6 +24,10 @@ export async function POST(request: Request) {
   const lectureId =
     typeof formData.get("lectureId") === "string" ? String(formData.get("lectureId")) : null;
   const inputFile = formData.get("file");
+  const originalFileName =
+    typeof formData.get("originalFileName") === "string"
+      ? String(formData.get("originalFileName")).trim()
+      : "";
   const languageHint =
     typeof formData.get("languageHint") === "string"
       ? String(formData.get("languageHint"))
@@ -50,6 +54,8 @@ export async function POST(request: Request) {
   }
 
   try {
+    const sourceFileName = originalFileName || inputFile.name;
+
     if (lectureId) {
       const { data: lecture, error: lectureError } = await supabase
         .from("lectures")
@@ -79,11 +85,11 @@ export async function POST(request: Request) {
         pageNumber: page.pageNumber,
         text: page.text,
       })),
-      titleHint: extracted.title || inputFile.name.replace(/\.[^.]+$/i, ""),
+      titleHint: extracted.title || sourceFileName.replace(/\.[^.]+$/i, ""),
       languageHint,
       modelMetadata: {
         importMode: sourceType === "pdf" ? "pdf" : "document",
-        sourceFileName: inputFile.name,
+        sourceFileName,
       },
     });
 

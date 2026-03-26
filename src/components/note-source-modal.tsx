@@ -22,7 +22,10 @@ import {
   MAX_AUDIO_SECONDS,
   MAX_DOCUMENT_BYTES,
 } from "@/lib/constants";
-import { isSupportedDocumentFile } from "@/lib/document-files";
+import {
+  createSafeTransportFileName,
+  isSupportedDocumentFile,
+} from "@/lib/document-files";
 import { NOTE_LANGUAGE_OPTIONS } from "@/lib/languages";
 import { getExtensionForMimeType, normalizeMimeType } from "@/lib/storage";
 import { formatTimestamp } from "@/lib/utils";
@@ -680,14 +683,24 @@ export function NoteSourceModal({
         return;
       }
 
+      const uploadFileName = createSafeTransportFileName(pdfSource.name);
+      const uploadFile =
+        uploadFileName === pdfSource.name
+          ? pdfSource
+          : new File([pdfSource], uploadFileName, {
+              type: pdfSource.type,
+              lastModified: pdfSource.lastModified,
+            });
+
       const formData = new FormData();
       formData.append("lectureId", lectureId);
-      formData.append("file", pdfSource);
+      formData.append("file", uploadFile);
+      formData.append("originalFileName", pdfSource.name);
       formData.append("languageHint", languageHint);
 
       const controller = new AbortController();
       activeRequestControllerRef.current = controller;
-      setBusyLabel("Reading PDF...");
+      setBusyLabel("Reading document...");
 
       const response = await fetch("/api/lectures/pdf", {
         method: "POST",

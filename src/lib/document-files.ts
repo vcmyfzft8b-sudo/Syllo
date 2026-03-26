@@ -12,6 +12,36 @@ export function normalizeDocumentMimeType(value: string | null | undefined) {
   return value?.trim().toLowerCase() ?? "";
 }
 
+export function createSafeTransportFileName(fileName: string) {
+  const trimmed = fileName.trim();
+
+  if (!trimmed) {
+    return "document";
+  }
+
+  const lastDot = trimmed.lastIndexOf(".");
+  const rawBaseName = lastDot > 0 ? trimmed.slice(0, lastDot) : trimmed;
+  const rawExtension = lastDot > 0 ? trimmed.slice(lastDot + 1) : "";
+
+  const normalizeSegment = (value: string) => {
+    const normalized = value
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^A-Za-z0-9._-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^[-._]+|[-._]+$/g, "");
+
+    return normalized || "document";
+  };
+
+  const safeBaseName = normalizeSegment(rawBaseName);
+  const safeExtension = rawExtension
+    ? normalizeSegment(rawExtension).toLowerCase()
+    : "";
+
+  return safeExtension ? `${safeBaseName}.${safeExtension}` : safeBaseName;
+}
+
 export function isPdfDocument(file: Pick<File, "name" | "type">) {
   const mimeType = normalizeDocumentMimeType(file.type);
   return mimeType.includes("pdf") || getLowercaseExtension(file.name) === "pdf";
