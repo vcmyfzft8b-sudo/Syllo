@@ -1413,6 +1413,7 @@ select:disabled {
   max-width: 1660px;
   margin: 0 auto;
   overflow-x: clip;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 5.5rem);
 }
 
 .dashboard-section {
@@ -5951,6 +5952,10 @@ select:disabled {
 
   .app-shell-content {
     padding-top: 0.9rem;
+  }
+
+  .home-dashboard {
+    padding-bottom: 0;
   }
 
   .lecture-workspace {
