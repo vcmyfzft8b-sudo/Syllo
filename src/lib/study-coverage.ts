@@ -15,7 +15,7 @@ const plannerConceptSchema = z.object({
   studyValue: z.enum(["high", "medium", "low"]),
   recommendedCardCount: z.number().int().min(1).max(3),
   preferredCardStyle: z.string().min(3).max(40),
-  supportingExcerpt: z.string().min(12),
+  supportingExcerpt: z.string().min(1).max(240),
 });
 
 const plannerUnitSchema = z.object({
@@ -49,6 +49,22 @@ function normalizeUnitText(value: string) {
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeSupportingExcerpt(value: string, fallback: string) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+
+  if (normalized.length >= 12) {
+    return normalized.slice(0, 200);
+  }
+
+  const normalizedFallback = fallback.replace(/\s+/g, " ").trim();
+
+  if (normalizedFallback.length >= 12) {
+    return normalizedFallback.slice(0, 200);
+  }
+
+  return `${normalizedFallback || "Core concept"} - study point`.slice(0, 200);
 }
 
 function isMetaStudyUnit(unit: SourceUnit) {
@@ -197,6 +213,10 @@ function normalizeUnitPlan(unit: SourceUnit, plan: PlannerUnitDraft | CoverageUn
         recommendedCardCount: Math.min(
           Math.max(concept.recommendedCardCount, 1),
           maxRecommendedCardCount,
+        ),
+        supportingExcerpt: normalizeSupportingExcerpt(
+          concept.supportingExcerpt,
+          concept.conceptLabel || unit.text,
         ),
       };
     }),

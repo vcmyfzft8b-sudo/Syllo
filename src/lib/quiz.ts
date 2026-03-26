@@ -56,6 +56,13 @@ const quizQuestionBatchSchema = z.object({
 });
 
 function toErrorMessage(error: unknown) {
+  if (error instanceof z.ZodError) {
+    return error.issues
+      .slice(0, 3)
+      .map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`)
+      .join("; ");
+  }
+
   if (error instanceof Error) {
     return error.message;
   }
