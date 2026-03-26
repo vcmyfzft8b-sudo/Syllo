@@ -1308,6 +1308,15 @@ select:disabled {
     linear-gradient(180deg, color-mix(in srgb, var(--surface-solid) 98%, transparent), color-mix(in srgb, var(--surface-muted) 60%, transparent));
   border: 1px solid color-mix(in srgb, var(--separator) 65%, transparent);
   box-shadow: var(--shadow-soft);
+}
+
+.interactive-card,
+.dashboard-surface-card,
+.dashboard-link-card,
+.note-action-card,
+.ios-row-note-card,
+.dashboard-note-menu-button,
+.dashboard-note-menu-item {
   transition:
     opacity 0.15s ease,
     background-color 0.15s ease,
@@ -1318,9 +1327,24 @@ select:disabled {
 .interactive-card:hover,
 .dashboard-link-card:hover,
 .dashboard-surface-card:hover,
-.note-action-card:hover {
+.note-action-card:hover,
+.ios-row-note-card:hover,
+.dashboard-note-menu-button:hover,
+.dashboard-note-menu-item:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-raised);
+}
+
+.interactive-card:active,
+.dashboard-link-card:active,
+.dashboard-surface-card:active,
+.note-action-card:active,
+.ios-row-note-card:active,
+.dashboard-note-menu-button:active,
+.dashboard-note-menu-item:active {
+  opacity: 0.96;
+  transform: translate3d(0, 0, 0);
+  box-shadow: var(--shadow-soft);
 }
 
 .note-action-card {
@@ -2366,11 +2390,6 @@ select:disabled {
   background-color: var(--surface-solid);
   border: 1px solid color-mix(in srgb, var(--separator) 65%, transparent);
   border-radius: 18px;
-  transition:
-    opacity 0.15s ease,
-    background-color 0.15s ease,
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
   box-shadow: var(--shadow-soft);
 }
 
@@ -2387,11 +2406,6 @@ select:disabled {
 .ios-row-note-card.menu-open {
   z-index: 80;
   contain: layout style;
-}
-
-.ios-row-note-card:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-raised);
 }
 
 .ios-row-note-card-link {
@@ -2444,16 +2458,6 @@ select:disabled {
   border: 1px solid color-mix(in srgb, var(--separator) 70%, transparent);
   background: color-mix(in srgb, var(--surface-muted) 88%, transparent);
   color: var(--secondary-label);
-  transition:
-    opacity 0.15s ease,
-    background-color 0.15s ease,
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.dashboard-note-menu-button:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-soft);
 }
 
 .dashboard-note-menu-button.open {
@@ -2504,20 +2508,15 @@ select:disabled {
   min-width: 8.5rem;
   padding: 0 0.75rem;
   border-radius: 12px;
+  border: 1px solid transparent;
   color: var(--label);
   font-size: 0.9rem;
   font-weight: 500;
   text-align: left;
-  transition:
-    opacity 0.15s ease,
-    background-color 0.15s ease,
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
 }
 
 .dashboard-note-menu-item:hover {
   background: color-mix(in srgb, var(--surface-muted) 88%, transparent);
-  transform: translateY(-1px);
 }
 
 .dashboard-note-menu-item.danger {
