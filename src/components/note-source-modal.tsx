@@ -1027,7 +1027,7 @@ export function NoteSourceModal({
                       onClick={() => pdfInputRef.current?.click()}
                     >
                       <UploadCloud className="h-4 w-4" />
-                      {pdfSource ? "Change doc" : "Choose doc"}
+                      File
                     </button>
 
                     <button
@@ -1037,7 +1037,7 @@ export function NoteSourceModal({
                       onClick={() => setIsTextEditorOpen(true)}
                     >
                       <Type className="h-4 w-4" />
-                      {trimmedTextValue ? "Edit text" : "Paste text"}
+                      Text
                     </button>
                   </div>
 
