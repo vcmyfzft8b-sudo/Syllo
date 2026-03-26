@@ -5,7 +5,10 @@ import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 
 const verifyEmailCodeSchema = z.object({
   email: z.string().trim().email(),
-  code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code from your email."),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6,8}$/, "Enter the verification code from your email."),
   mode: z.enum(["login", "signup"]),
   next: z.string().trim().optional(),
 });
@@ -36,7 +39,7 @@ export async function POST(request: NextRequest) {
     retryUrl.searchParams.set("next", normalizeNextPath(String(formData.get("next") ?? "/app")));
     retryUrl.searchParams.set(
       "message",
-      parsed.error.issues[0]?.message ?? "Enter the 6-digit code from your email.",
+      parsed.error.issues[0]?.message ?? "Enter the verification code from your email.",
     );
     return NextResponse.redirect(retryUrl, { status: 303 });
   }

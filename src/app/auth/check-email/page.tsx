@@ -48,7 +48,7 @@ export default async function CheckEmailPage({
             <p className="auth-eyebrow">Check your email</p>
             <h1 className="auth-title">Enter your code</h1>
             <p className="auth-copy">
-              We sent a 6-digit verification code to <strong>{email}</strong>. Enter it below to{" "}
+              We sent a verification code to <strong>{email}</strong>. Enter it below to{" "}
               {mode === "signup" ? "finish creating your account" : "sign in"}.
             </p>
 
@@ -62,11 +62,11 @@ export default async function CheckEmailPage({
                   type="text"
                   name="code"
                   inputMode="numeric"
-                  pattern="[0-9]{6}"
+                  pattern="[0-9]{6,8}"
                   minLength={6}
-                  maxLength={6}
+                  maxLength={8}
                   autoComplete="one-time-code"
-                  placeholder="6-digit code"
+                  placeholder="Verification code"
                   className="auth-code-input"
                   required
                 />

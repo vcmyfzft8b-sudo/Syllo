@@ -80,7 +80,7 @@ PREVIEW_AUTH_BYPASS=
 - Google
 - Apple (optional)
 
-For email code login, update the Supabase email template to include the OTP token placeholder such as `{{ .Token }}` so users receive a code they can type into the app.
+For email code login, update the Supabase email template to include the OTP token placeholder such as `{{ .Token }}` so users receive a code they can type into the app. This repo includes local templates in [`supabase/templates/magic-link.html`](./supabase/templates/magic-link.html) and [`supabase/templates/confirmation.html`](./supabase/templates/confirmation.html).
 
 6. Start the app:
 

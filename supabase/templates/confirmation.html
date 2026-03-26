@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Your Memo verification code</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f5f1e8;color:#1f1300;font-family:Arial,sans-serif;">
+    <div style="max-width:560px;margin:0 auto;padding:40px 20px;">
+      <div style="background:#fffdf8;border:1px solid #e8dcc8;border-radius:24px;padding:32px;">
+        <p style="margin:0 0 12px;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#8a6a3d;">
+          Memo
+        </p>
+        <h1 style="margin:0 0 16px;font-size:28px;line-height:1.15;color:#1f1300;">
+          Your verification code
+        </h1>
+        <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#4c3a20;">
+          Enter this code in the app to finish creating your account.
+        </p>
+        <div style="margin:0 0 24px;padding:18px 20px;border-radius:18px;background:#f3eadc;border:1px solid #e3d3bb;text-align:center;">
+          <span style="font-size:32px;line-height:1;font-weight:700;letter-spacing:0.4em;color:#1f1300;">
+            {{ .Token }}
+          </span>
+        </div>
+        <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#6b5737;">
+          This code expires automatically. If you did not request it, you can ignore this email.
+        </p>
+        <p style="margin:0;font-size:13px;line-height:1.6;color:#8a6a3d;">
+          Email sent to {{ .Email }}
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
