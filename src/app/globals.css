@@ -2020,12 +2020,6 @@ select:disabled {
   background: var(--folder-back-color);
   border-radius: 0 7px 7px 7px;
   transform: translateZ(0);
-  will-change: transform;
-  transition: transform var(--motion-duration-base) var(--motion-curve-soft);
-}
-
-.folder.open .folder__back {
-  transform: translate3d(0, -4px, 0);
 }
 
 .folder__back::after {
@@ -2054,8 +2048,8 @@ select:disabled {
   backface-visibility: hidden;
   will-change: transform, opacity;
   transition:
-    transform var(--motion-duration-base) var(--motion-curve-soft),
-    opacity var(--motion-duration-fast) var(--motion-curve-standard);
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s ease;
 }
 
 .paper:nth-child(2) {
@@ -2096,7 +2090,7 @@ select:disabled {
   transform-origin: bottom center;
   backface-visibility: hidden;
   will-change: transform;
-  transition: transform var(--motion-duration-base) var(--motion-curve-soft);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .folder__front.right {
