@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, MailCheck } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { CheckEmailCard } from "@/components/check-email-card";
@@ -47,9 +47,6 @@ export default async function CheckEmailPage({
       <div className="ios-content">
         <section className="auth-stage">
           <div className="auth-panel">
-            <div className="auth-check-icon">
-              <MailCheck className="h-6 w-6" />
-            </div>
             <p className="auth-eyebrow">Check your email</p>
             <h1 className="auth-title">Enter your code</h1>
             <p className="auth-copy">

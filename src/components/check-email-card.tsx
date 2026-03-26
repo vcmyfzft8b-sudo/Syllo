@@ -90,7 +90,7 @@ export function CheckEmailCard(props: {
             {secondsLeft > 0 ? `Send new code in ${formatCountdown(secondsLeft)}` : "Send new code"}
           </button>
         </form>
-        <a href="/auth/login?next=/app" className="auth-secondary-link auth-tertiary-button">
+        <a href="/" className="auth-secondary-link auth-tertiary-button">
           Use another method
         </a>
       </div>
