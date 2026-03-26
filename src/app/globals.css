@@ -40,6 +40,11 @@
   --paper-1: #e6e6e6;
   --paper-2: #f2f2f2;
   --paper-3: #ffffff;
+  --motion-curve-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-curve-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-duration-fast: 180ms;
+  --motion-duration-base: 240ms;
+  --motion-duration-slow: 320ms;
   color-scheme: light;
 }
 
@@ -75,6 +80,11 @@
   --paper-1: #d9d9d9;
   --paper-2: #ededed;
   --paper-3: #ffffff;
+  --motion-curve-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-curve-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-duration-fast: 180ms;
+  --motion-duration-base: 240ms;
+  --motion-duration-slow: 320ms;
   color-scheme: dark;
 }
 
@@ -112,7 +122,51 @@
     --paper-1: #d9d9d9;
     --paper-2: #ededed;
     --paper-3: #ffffff;
+    --motion-curve-soft: cubic-bezier(0.22, 1, 0.36, 1);
+    --motion-curve-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --motion-duration-fast: 180ms;
+    --motion-duration-base: 240ms;
+    --motion-duration-slow: 320ms;
     color-scheme: dark;
+  }
+}
+
+@keyframes subtle-fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes subtle-fade-slide-down {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -6px, 0) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -1560,11 +1614,22 @@ select:disabled {
   background: color-mix(in srgb, var(--surface-solid) 98%, transparent);
   color: var(--label);
   box-shadow: var(--shadow-soft);
+  transform: translate3d(0, 0, 0);
+  transition:
+    background-color var(--motion-duration-base) var(--motion-curve-standard),
+    border-color var(--motion-duration-base) var(--motion-curve-standard),
+    box-shadow var(--motion-duration-base) var(--motion-curve-standard),
+    transform var(--motion-duration-base) var(--motion-curve-standard);
 }
 
 .library-folder-trigger.open {
   border-color: color-mix(in srgb, var(--tint) 45%, var(--separator));
   background: color-mix(in srgb, var(--surface-muted) 82%, transparent);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.06);
+}
+
+.library-folder-trigger:hover {
+  transform: translate3d(0, -1px, 0);
 }
 
 .library-folder-trigger-icon {
@@ -1586,7 +1651,7 @@ select:disabled {
   width: 0.95rem;
   height: 0.95rem;
   color: var(--secondary-label);
-  transition: transform 0.2s ease;
+  transition: transform var(--motion-duration-base) var(--motion-curve-standard);
 }
 
 .library-folder-chevron.open {
@@ -1609,6 +1674,8 @@ select:disabled {
   overflow-x: hidden;
   overflow-y: auto;
   max-height: min(32rem, calc(100dvh - env(safe-area-inset-bottom) - 9.5rem));
+  transform-origin: top left;
+  animation: subtle-fade-slide-down var(--motion-duration-base) var(--motion-curve-soft);
 }
 
 .library-folder-menu-primary,
@@ -1654,6 +1721,24 @@ select:disabled {
   text-align: left;
   font-size: 0.92rem;
   font-weight: 600;
+  transform: translate3d(0, 0, 0);
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-curve-standard),
+    border-color var(--motion-duration-fast) var(--motion-curve-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-curve-standard),
+    transform var(--motion-duration-fast) var(--motion-curve-standard),
+    color var(--motion-duration-fast) var(--motion-curve-standard);
+}
+
+.library-folder-option:hover,
+.library-folder-edit-trigger:hover,
+.library-folder-primary-button:hover,
+.library-folder-secondary-button:hover,
+.library-folder-danger-button:hover,
+.library-folder-modal-folder-option:hover,
+.library-folder-lecture-option:hover {
+  transform: translate3d(0, -1px, 0);
+  box-shadow: var(--shadow-soft);
 }
 
 .library-folder-option-copy {
@@ -1737,6 +1822,11 @@ select:disabled {
   border: 1px solid color-mix(in srgb, var(--separator) 65%, transparent);
   border-radius: 14px;
   background: color-mix(in srgb, var(--surface-solid) 95%, black 5%);
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-curve-standard),
+    border-color var(--motion-duration-fast) var(--motion-curve-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-curve-standard),
+    transform var(--motion-duration-fast) var(--motion-curve-standard);
 }
 
 .library-folder-lecture-option input {
@@ -1776,6 +1866,12 @@ select:disabled {
   color: var(--red);
   font-size: 0.92rem;
   font-weight: 600;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-curve-standard),
+    border-color var(--motion-duration-fast) var(--motion-curve-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-curve-standard),
+    transform var(--motion-duration-fast) var(--motion-curve-standard),
+    color var(--motion-duration-fast) var(--motion-curve-standard);
 }
 
 .library-folder-primary-button.modal {
@@ -1889,6 +1985,11 @@ select:disabled {
   background: color-mix(in srgb, var(--surface-solid) 95%, black 5%);
   color: var(--label);
   text-align: left;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-curve-standard),
+    border-color var(--motion-duration-fast) var(--motion-curve-standard),
+    box-shadow var(--motion-duration-fast) var(--motion-curve-standard),
+    transform var(--motion-duration-fast) var(--motion-curve-standard);
 }
 
 .library-folder-modal-folder-option.active {
@@ -1909,7 +2010,7 @@ select:disabled {
 }
 
 .folder.open .folder__front {
-  transform: translateY(8px) skew(14deg) scaleY(0.62) translateZ(0);
+  transform: translateY(5px) skew(9deg) scaleY(0.76) translateZ(0);
 }
 
 .folder__back {
@@ -1947,8 +2048,8 @@ select:disabled {
   backface-visibility: hidden;
   will-change: transform, opacity;
   transition:
-    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.22s ease;
+    transform var(--motion-duration-base) var(--motion-curve-soft),
+    opacity var(--motion-duration-fast) var(--motion-curve-standard);
 }
 
 .paper:nth-child(2) {
@@ -1964,17 +2065,17 @@ select:disabled {
 }
 
 .folder.open .paper:nth-child(1) {
-  transform: translate(-50%, -1px) translateZ(0);
+  transform: translate(-50%, 1px) translateZ(0);
   opacity: 1;
 }
 
 .folder.open .paper:nth-child(2) {
-  transform: translate(-50%, -3px) translateZ(0);
+  transform: translate(-50%, -1px) translateZ(0);
   opacity: 1;
 }
 
 .folder.open .paper:nth-child(3) {
-  transform: translate(-50%, -5px) translateZ(0);
+  transform: translate(-50%, -3px) translateZ(0);
   opacity: 1;
 }
 
@@ -1989,7 +2090,7 @@ select:disabled {
   transform-origin: bottom center;
   backface-visibility: hidden;
   will-change: transform;
-  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--motion-duration-base) var(--motion-curve-soft);
 }
 
 .folder__front.right {
@@ -1998,7 +2099,7 @@ select:disabled {
 }
 
 .folder.open .folder__front.right {
-  transform: translateY(8px) skew(-14deg) scaleY(0.62) translateZ(0);
+  transform: translateY(5px) skew(-9deg) scaleY(0.76) translateZ(0);
 }
 
 .notes-search {
@@ -2008,6 +2109,17 @@ select:disabled {
   border-radius: 16px;
   background-color: var(--surface-solid);
   box-shadow: var(--shadow-soft);
+  transition:
+    border-color var(--motion-duration-base) var(--motion-curve-standard),
+    box-shadow var(--motion-duration-base) var(--motion-curve-standard),
+    background-color var(--motion-duration-base) var(--motion-curve-standard),
+    transform var(--motion-duration-base) var(--motion-curve-standard);
+}
+
+.notes-search:focus-within {
+  border-color: color-mix(in srgb, var(--tint) 34%, var(--separator));
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.06);
+  transform: translate3d(0, -1px, 0);
 }
 
 @media (max-width: 720px) {
@@ -2266,10 +2378,11 @@ select:disabled {
   border: 1px solid color-mix(in srgb, var(--separator) 65%, transparent);
   border-radius: 18px;
   transition:
-    opacity 0.15s ease,
-    background-color 0.15s ease,
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+    opacity var(--motion-duration-fast) var(--motion-curve-standard),
+    background-color var(--motion-duration-base) var(--motion-curve-standard),
+    transform var(--motion-duration-base) var(--motion-curve-standard),
+    box-shadow var(--motion-duration-base) var(--motion-curve-standard),
+    border-color var(--motion-duration-base) var(--motion-curve-standard);
   box-shadow: var(--shadow-soft);
 }
 
@@ -2290,7 +2403,7 @@ select:disabled {
 
 .ios-row-note-card:hover {
   background-color: color-mix(in srgb, var(--surface-solid) 96%, var(--pressed));
-  transform: translate3d(0, -1px, 0);
+  transform: translate3d(0, -0.5px, 0);
   box-shadow: var(--shadow-raised);
 }
 
@@ -2345,14 +2458,24 @@ select:disabled {
   background: color-mix(in srgb, var(--surface-muted) 88%, transparent);
   color: var(--secondary-label);
   transition:
-    transform 0.15s ease,
-    opacity 0.15s ease,
-    box-shadow 0.15s ease;
+    transform var(--motion-duration-base) var(--motion-curve-standard),
+    opacity var(--motion-duration-fast) var(--motion-curve-standard),
+    box-shadow var(--motion-duration-base) var(--motion-curve-standard),
+    background-color var(--motion-duration-base) var(--motion-curve-standard),
+    border-color var(--motion-duration-base) var(--motion-curve-standard),
+    color var(--motion-duration-base) var(--motion-curve-standard);
 }
 
 .dashboard-note-menu-button:hover {
-  transform: translateY(-1px);
+  transform: translate3d(0, -0.5px, 0);
   box-shadow: var(--shadow-soft);
+}
+
+.dashboard-note-menu-button.open {
+  border-color: color-mix(in srgb, var(--tint) 28%, var(--separator));
+  background: color-mix(in srgb, var(--surface-solid) 94%, var(--tint-soft));
+  color: var(--label);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
 }
 
 .dashboard-note-menu-button:disabled {
@@ -2384,6 +2507,8 @@ select:disabled {
   border: 1px solid color-mix(in srgb, var(--separator) 72%, transparent);
   background: var(--surface-solid);
   box-shadow: var(--shadow-raised);
+  transform-origin: top right;
+  animation: subtle-fade-slide-down var(--motion-duration-fast) var(--motion-curve-soft);
 }
 
 .dashboard-note-menu-item {
@@ -2398,10 +2523,15 @@ select:disabled {
   font-size: 0.9rem;
   font-weight: 500;
   text-align: left;
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-curve-standard),
+    transform var(--motion-duration-fast) var(--motion-curve-standard),
+    color var(--motion-duration-fast) var(--motion-curve-standard);
 }
 
 .dashboard-note-menu-item:hover {
   background: color-mix(in srgb, var(--surface-muted) 88%, transparent);
+  transform: translate3d(1px, 0, 0);
 }
 
 .dashboard-note-menu-item.danger {

@@ -147,9 +147,10 @@ const NoteRow = memo(function NoteRow({
         <button
           type="button"
           aria-label={`Open actions for ${lecture.title ?? "note"}`}
+          aria-expanded={isMenuOpen}
           disabled={isBusy}
           onClick={() => onToggleMenu(lecture.id)}
-          className="dashboard-note-menu-button"
+          className={`dashboard-note-menu-button ${isMenuOpen ? "open" : ""}`}
         >
           {isBusy ? (
             <Loader2 className="h-4 w-4 animate-spin" />

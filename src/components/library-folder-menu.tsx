@@ -336,6 +336,7 @@ export function LibraryFolderMenu({
         type="button"
         className={`library-folder-trigger ${isOpen ? "open" : ""}`}
         onClick={handleToggleMenu}
+        aria-expanded={isOpen}
       >
         <span className="library-folder-trigger-icon">
           <Folder open={isOpen} size={0.5} />
