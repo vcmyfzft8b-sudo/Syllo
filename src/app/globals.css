@@ -4900,6 +4900,11 @@ select:disabled {
   border-radius: 18px;
 }
 
+.auth-code-field:focus-within {
+  border-color: color-mix(in srgb, var(--tint) 30%, var(--separator));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tint) 18%, transparent);
+}
+
 .auth-field-icon {
   color: var(--secondary-label);
   flex: 0 0 auto;
@@ -4924,6 +4929,12 @@ select:disabled {
   font-size: 1.15rem;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
+}
+
+.auth-code-input:focus,
+.auth-code-input:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .auth-submit-button {
