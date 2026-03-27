@@ -1760,8 +1760,8 @@ select:disabled {
 .library-folder-danger-button:hover,
 .library-folder-modal-folder-option:hover,
 .library-folder-lecture-option:hover {
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
-  background: color-mix(in srgb, var(--surface-muted) 88%, var(--surface-solid));
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
+  background: color-mix(in srgb, var(--surface-muted) 82%, var(--surface-solid));
 }
 
 .library-folder-option-copy {
