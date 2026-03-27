@@ -7,14 +7,30 @@ import {
   processLectureQuizFunction,
   processLectureStudyFunction,
 } from "@/inngest/functions";
+import {
+  applyCorsHeaders,
+  buildCorsPreflightResponse,
+  ensureAllowedBrowserOrigin,
+} from "@/lib/cors";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 
 export const maxDuration = 300;
+const INNGEST_ROUTE_METHODS = "GET, POST, PUT, OPTIONS";
 
 const handlers = serve({
   client: inngest,
   functions: [processLectureFunction, processLectureStudyFunction, processLectureQuizFunction],
 });
+
+function withRestrictedCors(request: NextRequest, response: Response) {
+  const allowedOrigin = ensureAllowedBrowserOrigin(request);
+
+  if (allowedOrigin instanceof Response) {
+    return allowedOrigin;
+  }
+
+  return applyCorsHeaders(response, allowedOrigin, INNGEST_ROUTE_METHODS);
+}
 
 export async function GET(request: NextRequest, context: unknown) {
   const limited = await enforceRateLimit({
@@ -27,7 +43,7 @@ export async function GET(request: NextRequest, context: unknown) {
     return limited;
   }
 
-  return handlers.GET(request, context as never);
+  return withRestrictedCors(request, await handlers.GET(request, context as never));
 }
 
 export async function POST(request: NextRequest, context: unknown) {
@@ -41,7 +57,7 @@ export async function POST(request: NextRequest, context: unknown) {
     return limited;
   }
 
-  return handlers.POST(request, context as never);
+  return withRestrictedCors(request, await handlers.POST(request, context as never));
 }
 
 export async function PUT(request: NextRequest, context: unknown) {
@@ -55,5 +71,15 @@ export async function PUT(request: NextRequest, context: unknown) {
     return limited;
   }
 
-  return handlers.PUT(request, context as never);
+  return withRestrictedCors(request, await handlers.PUT(request, context as never));
+}
+
+export async function OPTIONS(request: NextRequest) {
+  const allowedOrigin = ensureAllowedBrowserOrigin(request);
+
+  if (allowedOrigin instanceof Response) {
+    return allowedOrigin;
+  }
+
+  return buildCorsPreflightResponse(allowedOrigin, INNGEST_ROUTE_METHODS);
 }
