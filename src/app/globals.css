@@ -1728,8 +1728,8 @@ select:disabled {
   justify-content: space-between;
   gap: 0.85rem;
   width: 100%;
-  min-height: 3.1rem;
-  padding: 0.84rem 0.9rem;
+  min-height: calc(3.1rem + 2px);
+  padding: calc(0.84rem + 1px) 0.9rem;
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--separator) 72%, transparent);
   background: color-mix(in srgb, var(--surface-solid) 94%, black 6%);
