@@ -377,7 +377,6 @@ export function LibraryFolderMenu({
                     </span>
                     <span>{folder.name}</span>
                   </span>
-                  {selectedFolderId === folder.id ? <EmojiIcon symbol="✅" size="0.95rem" /> : null}
                 </button>
               ))}
 
@@ -560,7 +559,6 @@ export function LibraryFolderMenu({
                             {lectureSummary(folder.lectureIds.length)}
                           </span>
                         </span>
-                        {editingFolderId === folder.id ? <EmojiIcon symbol="✅" size="0.95rem" /> : null}
                       </button>
                     ))}
                   </div>
