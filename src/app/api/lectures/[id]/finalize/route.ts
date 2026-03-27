@@ -1,11 +1,16 @@
 import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
+import { STORAGE_BUCKET } from "@/lib/constants";
+import { validateStoredAudioFile } from "@/lib/file-validation";
 import { enqueueLectureProcessing } from "@/lib/jobs";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { isCanonicalLectureStoragePath } from "@/lib/storage";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  createSupabaseServerClient,
+  createSupabaseServiceRoleClient,
+} from "@/lib/supabase/server";
 import { routeIdParamSchema } from "@/lib/validation";
 
 const finalizeSchema = z.object({
@@ -75,6 +80,19 @@ export async function POST(
       { error: "Invalid storage path." },
       { status: 400 },
     );
+  }
+
+  const validatedAudio = await validateStoredAudioFile({
+    path: parsed.data.path,
+  });
+
+  if (!validatedAudio.ok) {
+    await createSupabaseServiceRoleClient()
+      .storage
+      .from(STORAGE_BUCKET)
+      .remove([parsed.data.path]);
+
+    return NextResponse.json({ error: validatedAudio.error }, { status: 400 });
   }
 
   const { error } = await supabase

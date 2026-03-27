@@ -93,11 +93,11 @@ function readAudioDuration(file: File) {
 
 function validateAudio(file: File, durationSeconds: number) {
   if (file.size > MAX_AUDIO_BYTES) {
-    throw new Error("The audio file is too large. The limit is 150 MB.");
+    throw new Error("The audio file is too large. The limit is 300 MB.");
   }
 
   if (durationSeconds > MAX_AUDIO_SECONDS) {
-    throw new Error("The audio file is too long. The limit is 2 hours.");
+    throw new Error("The audio file is too long. The limit is 3 hours.");
   }
 }
 

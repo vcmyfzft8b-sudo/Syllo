@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { MAX_DOCUMENT_BYTES } from "@/lib/constants";
 import { isPdfDocument, isSupportedDocumentFile } from "@/lib/document-files";
+import { validateDocumentFileSignature } from "@/lib/file-validation";
 import {
   createLectureFromTextSource,
   extractTextFromDocument,
@@ -74,11 +74,10 @@ export async function POST(request: Request) {
     );
   }
 
-  if (inputFile.size > MAX_DOCUMENT_BYTES) {
-    return NextResponse.json(
-      { error: "The document file is too large. The current limit is 4 MB." },
-      { status: 400 },
-    );
+  const validatedDocument = await validateDocumentFileSignature(inputFile);
+
+  if (!validatedDocument.ok) {
+    return NextResponse.json({ error: validatedDocument.error }, { status: 400 });
   }
 
   try {

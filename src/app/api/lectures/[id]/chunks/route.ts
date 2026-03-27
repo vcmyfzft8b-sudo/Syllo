@@ -4,6 +4,7 @@ import { z } from "zod";
 import { buildLectureChunkStoragePath } from "@/lib/storage";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
+import { isSupportedAudioMimeType } from "@/lib/storage";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { routeIdParamSchema } from "@/lib/validation";
 
@@ -66,6 +67,14 @@ export async function POST(
       { error: parsed.error.flatten() },
       { status: 400 },
     );
+  }
+
+  if (
+    parsed.data.chunks.some(
+      (chunk) => !isSupportedAudioMimeType(chunk.mimeType, `chunk-${chunk.index}`),
+    )
+  ) {
+    return NextResponse.json({ error: "Unsupported audio chunk format." }, { status: 400 });
   }
 
   const service = createSupabaseServiceRoleClient();
