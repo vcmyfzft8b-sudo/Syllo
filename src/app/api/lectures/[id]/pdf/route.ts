@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { TDocumentDefinitions } from "pdfmake/interfaces";
 
 import { getLectureDetailForUser } from "@/lib/lectures";
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatLectureDuration, formatRelativeDate } from "@/lib/utils";
 import { routeIdParamSchema } from "@/lib/validation";
@@ -62,7 +63,7 @@ async function buildPdfBuffer(docDefinition: TDocumentDefinitions) {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createSupabaseServerClient();
@@ -72,6 +73,17 @@ export async function GET(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:lectures:pdf:get",
+    rules: rateLimitPresets.detailRead,
+    userId: user.id,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   const parsedParams = routeIdParamSchema.safeParse(await context.params);

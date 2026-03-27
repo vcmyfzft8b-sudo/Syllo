@@ -7,6 +7,7 @@ import {
   createLectureFromTextSource,
   extractTextFromDocument,
 } from "@/lib/manual-lectures";
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   languageHintSchema,
@@ -26,6 +27,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:lectures:pdf:post",
+    rules: rateLimitPresets.create,
+    userId: user.id,
+  });
+
+  if (limited) {
+    return limited;
+  }
+
   const formData = await request.formData();
   const parsedFields = z
     .object({
@@ -34,7 +46,7 @@ export async function POST(request: Request) {
       languageHint: z
         .union([z.string(), z.null()])
         .transform((value) => (typeof value === "string" ? value : "sl"))
-        .pipe(languageHintSchema.default("sl")),
+        .pipe(languageHintSchema),
     })
     .safeParse({
       lectureId: formData.get("lectureId"),

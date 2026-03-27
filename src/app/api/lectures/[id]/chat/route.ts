@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { answerLectureChat } from "@/lib/pipeline";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { routeIdParamSchema } from "@/lib/validation";
 
@@ -23,6 +24,17 @@ export async function POST(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:lectures:chat:post",
+    rules: rateLimitPresets.chat,
+    userId: user.id,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   const body = await request.json().catch(() => null);

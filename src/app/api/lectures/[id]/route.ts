@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { parseAudioChunkManifest } from "@/lib/audio-processing";
 import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { routeIdParamSchema } from "@/lib/validation";
 
@@ -11,7 +12,7 @@ const updateLectureSchema = z.object({
 });
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createSupabaseServerClient();
@@ -21,6 +22,17 @@ export async function GET(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:lectures:detail:get",
+    rules: rateLimitPresets.detailRead,
+    userId: user.id,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   const parsedParams = routeIdParamSchema.safeParse(await context.params);
@@ -43,7 +55,7 @@ export async function GET(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createSupabaseServerClient();
@@ -53,6 +65,17 @@ export async function DELETE(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:lectures:detail:delete",
+    rules: rateLimitPresets.mutate,
+    userId: user.id,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   const parsedParams = routeIdParamSchema.safeParse(await context.params);
@@ -109,6 +132,17 @@ export async function PATCH(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:lectures:detail:patch",
+    rules: rateLimitPresets.mutate,
+    userId: user.id,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   const body = await request.json().catch(() => null);

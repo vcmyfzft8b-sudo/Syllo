@@ -2,13 +2,14 @@ import { after, NextResponse } from "next/server";
 
 import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
 import { enqueueLectureStudyGeneration } from "@/lib/jobs";
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { routeIdParamSchema } from "@/lib/validation";
 
 export const maxDuration = 300;
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createSupabaseServerClient();
@@ -18,6 +19,17 @@ export async function GET(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:lectures:study:get",
+    rules: rateLimitPresets.detailRead,
+    userId: user.id,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   const parsedParams = routeIdParamSchema.safeParse(await context.params);
@@ -46,7 +58,7 @@ export async function GET(
 }
 
 export async function POST(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createSupabaseServerClient();
@@ -56,6 +68,17 @@ export async function POST(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:lectures:study:post",
+    rules: rateLimitPresets.mutate,
+    userId: user.id,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   const parsedParams = routeIdParamSchema.safeParse(await context.params);

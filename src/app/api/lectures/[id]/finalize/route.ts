@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { enqueueLectureProcessing } from "@/lib/jobs";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { isCanonicalLectureStoragePath } from "@/lib/storage";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { routeIdParamSchema } from "@/lib/validation";
@@ -24,6 +25,17 @@ export async function POST(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:lectures:finalize:post",
+    rules: rateLimitPresets.upload,
+    userId: user.id,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   const parsedParams = routeIdParamSchema.safeParse(await context.params);

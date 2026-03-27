@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { parseAudioChunkManifest } from "@/lib/audio-processing";
 import { MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS } from "@/lib/constants";
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import {
   buildLectureStoragePath,
   isSupportedAudioMimeType,
@@ -31,6 +32,17 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:lectures:create:post",
+    rules: rateLimitPresets.create,
+    userId: user.id,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   const body = await request.json().catch(() => null);
@@ -111,6 +123,17 @@ export async function DELETE(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:lectures:delete",
+    rules: rateLimitPresets.mutate,
+    userId: user.id,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   const body = await request.json().catch(() => null);

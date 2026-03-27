@@ -1,6 +1,7 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 
 const validEmailOtpTypes: EmailOtpType[] = [
@@ -31,6 +32,16 @@ function normalizeEmailOtpType(value: string | null): EmailOtpType | null {
 }
 
 export async function GET(request: NextRequest) {
+  const limited = await enforceRateLimit({
+    request,
+    route: "auth:callback:get",
+    rules: rateLimitPresets.authCallback,
+  });
+
+  if (limited) {
+    return limited;
+  }
+
   const code = request.nextUrl.searchParams.get("code");
   const tokenHash = request.nextUrl.searchParams.get("token_hash");
   const otpType = normalizeEmailOtpType(request.nextUrl.searchParams.get("type"));

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { ensureUserOwnsLecture } from "@/lib/lectures";
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { routeIdParamSchema } from "@/lib/validation";
 
@@ -65,6 +66,17 @@ async function updateStudySession(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:lectures:study-session:write",
+    rules: rateLimitPresets.studySession,
+    userId: user.id,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   const body = await request.json().catch(() => null);

@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { PREVIEW_AUTH_BYPASS_DISABLED_COOKIE } from "@/lib/preview-mode";
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
+  const limited = await enforceRateLimit({
+    request,
+    route: "auth:logout:post",
+    rules: rateLimitPresets.authLogout,
+  });
+
+  if (limited) {
+    return limited;
+  }
+
   const url = request.nextUrl.clone();
   url.pathname = "/";
   url.search = "";

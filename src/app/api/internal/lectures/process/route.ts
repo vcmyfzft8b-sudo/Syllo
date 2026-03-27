@@ -10,6 +10,7 @@ import {
   markLecturePipelineFailed,
   transcribeLectureContent,
 } from "@/lib/pipeline";
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { getServerEnv } from "@/lib/server-env";
 
 const requestSchema = z.object({
@@ -59,6 +60,16 @@ async function runLectureStage(params: {
 
 export async function POST(request: Request) {
   const env = getServerEnv();
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:internal:lectures:process:post",
+    rules: rateLimitPresets.internal,
+  });
+
+  if (limited) {
+    return limited;
+  }
+
   const requestSecret = getSecretFromRequest(request);
 
   if (!env.INTERNAL_JOB_SECRET || requestSecret !== env.INTERNAL_JOB_SECRET) {

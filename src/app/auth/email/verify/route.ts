@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 
 const verifyEmailCodeSchema = z.object({
@@ -22,6 +23,16 @@ function normalizeNextPath(value: string | undefined) {
 }
 
 export async function POST(request: NextRequest) {
+  const limited = await enforceRateLimit({
+    request,
+    route: "auth:email:verify:post",
+    rules: rateLimitPresets.authVerify,
+  });
+
+  if (limited) {
+    return limited;
+  }
+
   const formData = await request.formData();
   const parsed = verifyEmailCodeSchema.safeParse({
     email: formData.get("email"),

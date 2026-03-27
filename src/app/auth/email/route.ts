@@ -5,6 +5,7 @@ import {
   createSupabaseRouteHandlerClient,
   createSupabaseServiceRoleClient,
 } from "@/lib/supabase/server";
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 
 const EMAIL_AUTH_MINUTE_LIMIT_SECONDS = 60;
 const EMAIL_AUTH_HOURLY_LIMIT = 10;
@@ -64,6 +65,16 @@ function redirectToCheckEmail(
 }
 
 export async function POST(request: NextRequest) {
+  const limited = await enforceRateLimit({
+    request,
+    route: "auth:email:post",
+    rules: rateLimitPresets.authEmail,
+  });
+
+  if (limited) {
+    return limited;
+  }
+
   const formData = await request.formData();
   const parsed = emailAuthSchema.safeParse({
     email: formData.get("email"),

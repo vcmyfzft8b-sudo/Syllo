@@ -1,6 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { generateLectureFlashcards } from "@/lib/study";
 import { getServerEnv } from "@/lib/server-env";
 
@@ -28,6 +29,16 @@ function getSecretFromRequest(request: Request) {
 
 export async function POST(request: Request) {
   const env = getServerEnv();
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:internal:lectures:study:post",
+    rules: rateLimitPresets.internal,
+  });
+
+  if (limited) {
+    return limited;
+  }
+
   const requestSecret = getSecretFromRequest(request);
 
   if (!env.INTERNAL_JOB_SECRET || requestSecret !== env.INTERNAL_JOB_SECRET) {

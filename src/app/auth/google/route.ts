@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getPublicEnv } from "@/lib/public-env";
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 
 function resolveNextPath(request: NextRequest, value?: FormDataEntryValue | null) {
@@ -50,10 +51,30 @@ async function startGoogleAuth(request: NextRequest, next: string) {
 }
 
 export async function GET(request: NextRequest) {
+  const limited = await enforceRateLimit({
+    request,
+    route: "auth:google:get",
+    rules: rateLimitPresets.authOAuth,
+  });
+
+  if (limited) {
+    return limited;
+  }
+
   return startGoogleAuth(request, resolveNextPath(request));
 }
 
 export async function POST(request: NextRequest) {
+  const limited = await enforceRateLimit({
+    request,
+    route: "auth:google:post",
+    rules: rateLimitPresets.authOAuth,
+  });
+
+  if (limited) {
+    return limited;
+  }
+
   const formData = await request.formData();
   const next = resolveNextPath(request, formData.get("next"));
   return startGoogleAuth(request, next);
