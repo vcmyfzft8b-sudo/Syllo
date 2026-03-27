@@ -1748,11 +1748,11 @@ select:disabled {
   font-weight: 600;
   transform: translate3d(0, 0, 0);
   transition:
-    background-color var(--motion-duration-fast) var(--motion-curve-standard),
-    border-color var(--motion-duration-fast) var(--motion-curve-standard),
-    box-shadow var(--motion-duration-fast) var(--motion-curve-standard),
-    transform var(--motion-duration-fast) var(--motion-curve-standard),
-    color var(--motion-duration-fast) var(--motion-curve-standard);
+    background-color 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease,
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.22s ease;
 }
 
 .library-folder-option:hover,
@@ -1762,8 +1762,8 @@ select:disabled {
 .library-folder-danger-button:hover,
 .library-folder-modal-folder-option:hover,
 .library-folder-lecture-option:hover {
-  transform: translate3d(0, -1px, 0);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  transform: translate3d(0, -0.5px, 0);
+  box-shadow: none;
 }
 
 .library-folder-option-copy {
