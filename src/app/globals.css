@@ -6232,7 +6232,7 @@ select:disabled {
   }
 
   .desktop-sidebar-link.active .desktop-sidebar-link-icon {
-    background: color-mix(in srgb, var(--surface-solid) 96%, var(--canvas));
+    background: color-mix(in srgb, var(--surface-solid) 90%, var(--canvas));
     color: var(--label);
   }
 
