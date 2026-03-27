@@ -395,10 +395,14 @@ export function LibraryFolderMenu({
                 }}
               >
                 <span className="library-folder-option-copy">
-                  <EmojiIcon symbol="➕" size="0.95rem" />
+                  <span className="library-folder-option-icon">
+                    <EmojiIcon symbol="➕" size="0.95rem" />
+                  </span>
                   <span>New folder</span>
                 </span>
-                <EmojiIcon symbol="›" size="1.1rem" />
+                <span className="library-folder-option-icon">
+                  <EmojiIcon symbol="›" size="1.1rem" />
+                </span>
               </button>
 
               <button
@@ -407,10 +411,14 @@ export function LibraryFolderMenu({
                 onClick={handleOpenEditModal}
               >
                 <span className="library-folder-option-copy">
-                  <EmojiIcon symbol="✏️" size="0.95rem" />
+                  <span className="library-folder-option-icon">
+                    <EmojiIcon symbol="✏️" size="0.95rem" />
+                  </span>
                   <span>Edit folders</span>
                 </span>
-                <EmojiIcon symbol="›" size="1.1rem" />
+                <span className="library-folder-option-icon">
+                  <EmojiIcon symbol="›" size="1.1rem" />
+                </span>
               </button>
             </div>
           </div>
