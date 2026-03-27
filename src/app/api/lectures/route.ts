@@ -9,13 +9,14 @@ import {
   normalizeUploadAudioMimeType,
 } from "@/lib/storage";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { languageHintSchema, optionalUploadFileNameSchema } from "@/lib/validation";
 
 const createLectureSchema = z.object({
   mimeType: z.string().min(1),
-  fileName: z.string().trim().min(1).max(255).optional(),
+  fileName: optionalUploadFileNameSchema,
   size: z.number().int().positive().max(MAX_AUDIO_BYTES),
   durationSeconds: z.number().positive().max(MAX_AUDIO_SECONDS),
-  languageHint: z.string().trim().min(2).max(10).default("sl"),
+  languageHint: languageHintSchema.default("sl"),
 });
 
 const deleteLecturesSchema = z.object({
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
   const parsed = createLectureSchema.safeParse(body);
 
   if (!parsed.success) {

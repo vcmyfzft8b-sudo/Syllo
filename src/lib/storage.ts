@@ -52,6 +52,8 @@ const extensionToMimeTypeMap = new Map<string, string>([
   ["aiff", "audio/aiff"],
 ]);
 
+const supportedAudioExtensions = new Set(extensionMap.values());
+
 function getExtensionFromFileName(fileName: string) {
   const match = /\.([a-z0-9]+)$/i.exec(fileName.trim());
   return match?.[1]?.toLowerCase() ?? "";
@@ -111,6 +113,26 @@ export function buildLectureStoragePath(params: {
 }) {
   const ext = getExtensionForMimeType(params.mimeType);
   return `${params.userId}/${params.lectureId}.${ext}`;
+}
+
+export function isCanonicalLectureStoragePath(params: {
+  path: string;
+  userId: string;
+  lectureId: string;
+}) {
+  const expectedPrefix = `${params.userId}/${params.lectureId}.`;
+
+  if (!params.path.startsWith(expectedPrefix)) {
+    return false;
+  }
+
+  const extension = params.path.slice(expectedPrefix.length).toLowerCase();
+
+  if (!extension || extension.includes("/")) {
+    return false;
+  }
+
+  return supportedAudioExtensions.has(extension);
 }
 
 export function buildLectureChunkStoragePath(params: {

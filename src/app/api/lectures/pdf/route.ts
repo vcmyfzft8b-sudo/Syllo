@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 import { MAX_DOCUMENT_BYTES } from "@/lib/constants";
 import { isPdfDocument, isSupportedDocumentFile } from "@/lib/document-files";
@@ -7,6 +8,11 @@ import {
   extractTextFromDocument,
 } from "@/lib/manual-lectures";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  languageHintSchema,
+  optionalDocumentLectureIdSchema,
+  optionalOriginalFileNameSchema,
+} from "@/lib/validation";
 
 export const maxDuration = 300;
 
@@ -21,17 +27,27 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
-  const lectureId =
-    typeof formData.get("lectureId") === "string" ? String(formData.get("lectureId")) : null;
+  const parsedFields = z
+    .object({
+      lectureId: optionalDocumentLectureIdSchema,
+      originalFileName: optionalOriginalFileNameSchema,
+      languageHint: z
+        .union([z.string(), z.null()])
+        .transform((value) => (typeof value === "string" ? value : "sl"))
+        .pipe(languageHintSchema.default("sl")),
+    })
+    .safeParse({
+      lectureId: formData.get("lectureId"),
+      originalFileName: formData.get("originalFileName"),
+      languageHint: formData.get("languageHint"),
+    });
   const inputFile = formData.get("file");
-  const originalFileName =
-    typeof formData.get("originalFileName") === "string"
-      ? String(formData.get("originalFileName")).trim()
-      : "";
-  const languageHint =
-    typeof formData.get("languageHint") === "string"
-      ? String(formData.get("languageHint"))
-      : "sl";
+
+  if (!parsedFields.success) {
+    return NextResponse.json({ error: parsedFields.error.flatten() }, { status: 400 });
+  }
+
+  const { lectureId, originalFileName, languageHint } = parsedFields.data;
 
   if (!(inputFile instanceof File)) {
     return NextResponse.json({ error: "Missing document file." }, { status: 400 });

@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { FlashcardProgressRow } from "@/lib/database.types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { routeIdParamSchema } from "@/lib/validation";
 
 const progressSchema = z.object({
   confidenceBucket: z.enum(["again", "good", "easy"]),
@@ -21,7 +22,7 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
   const parsed = progressSchema.safeParse(body);
 
   if (!parsed.success) {
@@ -31,7 +32,13 @@ export async function POST(
     );
   }
 
-  const { id } = await context.params;
+  const parsedParams = routeIdParamSchema.safeParse(await context.params);
+
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Invalid flashcard id." }, { status: 400 });
+  }
+
+  const { id } = parsedParams.data;
   const { data: flashcard, error: flashcardError } = await supabase
     .from("flashcards")
     .select("id")

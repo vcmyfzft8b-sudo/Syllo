@@ -4,6 +4,7 @@ import { z } from "zod";
 import { answerLectureChat } from "@/lib/pipeline";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { routeIdParamSchema } from "@/lib/validation";
 
 const chatSchema = z.object({
   question: z.string().trim().min(3).max(1000),
@@ -24,7 +25,7 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
   const parsed = chatSchema.safeParse(body);
 
   if (!parsed.success) {
@@ -34,7 +35,13 @@ export async function POST(
     );
   }
 
-  const { id } = await context.params;
+  const parsedParams = routeIdParamSchema.safeParse(await context.params);
+
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Invalid lecture id." }, { status: 400 });
+  }
+
+  const { id } = parsedParams.data;
   const lecture = await ensureUserOwnsLecture({
     lectureId: id,
     user,

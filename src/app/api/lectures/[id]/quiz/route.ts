@@ -4,6 +4,7 @@ import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
 import { enqueueLectureQuizGeneration } from "@/lib/jobs";
 import { queueLectureQuizGeneration } from "@/lib/quiz";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { routeIdParamSchema } from "@/lib/validation";
 
 export const maxDuration = 300;
 
@@ -20,7 +21,13 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await context.params;
+  const parsedParams = routeIdParamSchema.safeParse(await context.params);
+
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Invalid lecture id." }, { status: 400 });
+  }
+
+  const { id } = parsedParams.data;
   const detail = await getLectureDetailForUser({
     lectureId: id,
     userId: user.id,
@@ -51,7 +58,13 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await context.params;
+  const parsedParams = routeIdParamSchema.safeParse(await context.params);
+
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Invalid lecture id." }, { status: 400 });
+  }
+
+  const { id } = parsedParams.data;
   const lecture = await ensureUserOwnsLecture({
     lectureId: id,
     user,

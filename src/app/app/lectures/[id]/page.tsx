@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { LectureWorkspace } from "@/components/lecture-workspace";
 import { requireUser } from "@/lib/auth";
 import { getLectureDetailForUser } from "@/lib/lectures";
+import { routeIdParamSchema } from "@/lib/validation";
 
 export default async function LecturePage({
   params,
@@ -10,7 +11,13 @@ export default async function LecturePage({
   params: Promise<{ id: string }>;
 }) {
   const user = await requireUser();
-  const { id } = await params;
+  const parsedParams = routeIdParamSchema.safeParse(await params);
+
+  if (!parsedParams.success) {
+    notFound();
+  }
+
+  const { id } = parsedParams.data;
   const detail = await getLectureDetailForUser({
     lectureId: id,
     userId: user.id,

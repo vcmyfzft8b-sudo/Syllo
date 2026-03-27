@@ -4,6 +4,7 @@ import { z } from "zod";
 import { buildLectureChunkStoragePath } from "@/lib/storage";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { routeIdParamSchema } from "@/lib/validation";
 
 const chunkSchema = z.object({
   index: z.number().int().min(0).max(100),
@@ -29,7 +30,13 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await context.params;
+  const parsedParams = routeIdParamSchema.safeParse(await context.params);
+
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Invalid lecture id." }, { status: 400 });
+  }
+
+  const { id } = parsedParams.data;
   const lecture = await ensureUserOwnsLecture({
     lectureId: id,
     user,

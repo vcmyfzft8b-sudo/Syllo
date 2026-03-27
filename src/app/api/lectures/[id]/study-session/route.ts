@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { ensureUserOwnsLecture } from "@/lib/lectures";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { routeIdParamSchema } from "@/lib/validation";
 
 const flashcardConfidenceSchema = z.enum(["again", "good", "easy"]);
 
@@ -73,7 +74,13 @@ async function updateStudySession(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { id } = await context.params;
+  const parsedParams = routeIdParamSchema.safeParse(await context.params);
+
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Invalid lecture id." }, { status: 400 });
+  }
+
+  const { id } = parsedParams.data;
   const lecture = await ensureUserOwnsLecture({
     lectureId: id,
     user,

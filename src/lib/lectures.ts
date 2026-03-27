@@ -28,6 +28,7 @@ import type {
   StudySession,
 } from "@/lib/types";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { uuidSchema } from "@/lib/validation";
 
 type PostgrestLikeError = {
   code?: string;
@@ -457,6 +458,10 @@ export async function getLectureDetailForUser(params: {
   lectureId: string;
   userId: string;
 }): Promise<LectureDetail | null> {
+  if (!uuidSchema.safeParse(params.lectureId).success) {
+    return null;
+  }
+
   const supabase = await createSupabaseServerClient();
   const service = createSupabaseServiceRoleClient();
 
@@ -660,6 +665,10 @@ export async function ensureUserOwnsLecture(params: {
   lectureId: string;
   user: User;
 }): Promise<LectureRow | null> {
+  if (!uuidSchema.safeParse(params.lectureId).success) {
+    return null;
+  }
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("lectures")

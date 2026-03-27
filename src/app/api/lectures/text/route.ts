@@ -3,11 +3,12 @@ import { z } from "zod";
 
 import { createLectureFromTextSource } from "@/lib/manual-lectures";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { languageHintSchema, optionalLectureIdSchema } from "@/lib/validation";
 
 const createTextLectureSchema = z.object({
-  lectureId: z.string().uuid().optional(),
+  lectureId: optionalLectureIdSchema,
   text: z.string().trim().min(120).max(120000),
-  languageHint: z.string().trim().min(2).max(10).default("sl"),
+  languageHint: languageHintSchema.default("sl"),
 });
 
 export const maxDuration = 300;
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
   const parsed = createTextLectureSchema.safeParse(body);
 
   if (!parsed.success) {

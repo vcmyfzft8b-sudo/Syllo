@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { languageHintSchema } from "@/lib/validation";
 
 const createManualLectureSchema = z.object({
   sourceType: z.enum(["text", "pdf", "link"]),
-  languageHint: z.string().trim().min(2).max(10).default("sl"),
+  languageHint: languageHintSchema.default("sl"),
 });
 
 export async function POST(request: Request) {

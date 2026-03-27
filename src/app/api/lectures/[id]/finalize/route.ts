@@ -3,7 +3,9 @@ import { z } from "zod";
 
 import { enqueueLectureProcessing } from "@/lib/jobs";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
+import { isCanonicalLectureStoragePath } from "@/lib/storage";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { routeIdParamSchema } from "@/lib/validation";
 
 const finalizeSchema = z.object({
   path: z.string().min(3),
@@ -24,7 +26,13 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await context.params;
+  const parsedParams = routeIdParamSchema.safeParse(await context.params);
+
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Invalid lecture id." }, { status: 400 });
+  }
+
+  const { id } = parsedParams.data;
   const lecture = await ensureUserOwnsLecture({
     lectureId: id,
     user,
@@ -34,12 +42,25 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
   const parsed = finalizeSchema.safeParse(body);
 
   if (!parsed.success) {
     return NextResponse.json(
       { error: parsed.error.flatten() },
+      { status: 400 },
+    );
+  }
+
+  if (
+    !isCanonicalLectureStoragePath({
+      path: parsed.data.path,
+      userId: user.id,
+      lectureId: id,
+    })
+  ) {
+    return NextResponse.json(
+      { error: "Invalid storage path." },
       { status: 400 },
     );
   }
