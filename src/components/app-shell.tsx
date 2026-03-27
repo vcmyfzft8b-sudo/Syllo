@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronLeft } from "lucide-react";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -79,7 +80,7 @@ export function AppShell({
         <div className="desktop-brandline-actions">
           {chrome.backHref ? (
             <InstantLink href={chrome.backHref} className="app-back-button desktop-brandline-back">
-              <EmojiIcon symbol="◀️" size="0.95rem" />
+              <ChevronLeft className="h-5 w-5" />
               Back
             </InstantLink>
           ) : null}
@@ -137,7 +138,7 @@ export function AppShell({
             {chrome.backHref ? (
               <div className="ios-nav-actions">
                 <InstantLink href={chrome.backHref} className="app-back-button">
-                  <EmojiIcon symbol="◀️" size="0.95rem" />
+                  <ChevronLeft className="h-5 w-5" />
                   Back
                 </InstantLink>
               </div>
