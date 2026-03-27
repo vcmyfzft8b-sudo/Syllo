@@ -2,18 +2,12 @@
 
 import {
   ChevronDown,
-  FileUp,
-  Link2,
   Loader2,
-  Mic,
-  Search,
-  Type,
-  UploadCloud,
-  X,
 } from "lucide-react";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { EmojiIcon } from "@/components/emoji-icon";
 import { createAudioLectureWithProcessingChunks } from "@/lib/audio-lecture-upload";
 import { BRAND_NAME } from "@/lib/brand";
 import {
@@ -809,7 +803,7 @@ export function NoteSourceModal({
                 className="app-close-button ios-sheet-header-close"
                 aria-label="Close"
               >
-                <X className="h-4 w-4" />
+                <EmojiIcon symbol="✖️" size="1rem" />
               </button>
             </div>
 
@@ -887,7 +881,7 @@ export function NoteSourceModal({
                       {busyLabel ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <Mic className="h-4 w-4" />
+                        <EmojiIcon symbol="🎙️" size="1rem" />
                       )}
                       {busyLabel ?? "Stop recording"}
                     </button>
@@ -904,7 +898,7 @@ export function NoteSourceModal({
                         {busyLabel ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <FileUp className="h-4 w-4" />
+                          <EmojiIcon symbol="📄" size="1rem" />
                         )}
                         {busyLabel ?? "Generate"}
                       </button>
@@ -944,7 +938,7 @@ export function NoteSourceModal({
                       {busyLabel ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <Mic className="h-4 w-4" />
+                        <EmojiIcon symbol="🎙️" size="1rem" />
                       )}
                       {busyLabel ?? "Start recording"}
                     </button>
@@ -975,10 +969,10 @@ export function NoteSourceModal({
                   <button
                     type="button"
                     disabled={Boolean(busyLabel)}
-                    className="ios-secondary-button"
-                    onClick={() => uploadInputRef.current?.click()}
-                  >
-                    <UploadCloud className="h-4 w-4" />
+                  className="ios-secondary-button"
+                  onClick={() => uploadInputRef.current?.click()}
+                >
+                  <EmojiIcon symbol="📤" size="1rem" />
                     {preparedUpload ? "Choose another audio file" : "Choose audio file"}
                   </button>
 
@@ -991,7 +985,7 @@ export function NoteSourceModal({
                     {busyLabel ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <FileUp className="h-4 w-4" />
+                      <EmojiIcon symbol="📄" size="1rem" />
                     )}
                     {busyLabel ?? "Generate"}
                   </button>
@@ -1016,7 +1010,7 @@ export function NoteSourceModal({
                       Link
                     </label>
                     <div className="ios-search">
-                      <Search className="h-4 w-4 text-[var(--secondary-label)]" />
+                      <EmojiIcon symbol="🔎" size="0.95rem" />
                       <input
                         value={linkValue}
                         onChange={(event) => setLinkValue(event.target.value)}
@@ -1034,7 +1028,7 @@ export function NoteSourceModal({
                     {busyLabel ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Link2 className="h-4 w-4" />
+                      <EmojiIcon symbol="🔗" size="1rem" />
                     )}
                     {busyLabel ?? "Generate"}
                   </button>
@@ -1061,7 +1055,7 @@ export function NoteSourceModal({
                       disabled={Boolean(busyLabel)}
                       onClick={() => pdfInputRef.current?.click()}
                     >
-                      <UploadCloud className="h-4 w-4" />
+                      <EmojiIcon symbol="📤" size="1rem" />
                       File
                     </button>
 
@@ -1071,7 +1065,7 @@ export function NoteSourceModal({
                       disabled={Boolean(busyLabel)}
                       onClick={() => setIsTextEditorOpen(true)}
                     >
-                      <Type className="h-4 w-4" />
+                      <EmojiIcon symbol="⌨️" size="1rem" />
                       Text
                     </button>
                   </div>
@@ -1126,7 +1120,7 @@ export function NoteSourceModal({
                     {busyLabel ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <FileUp className="h-4 w-4" />
+                      <EmojiIcon symbol="📄" size="1rem" />
                     )}
                     {busyLabel ?? "Generate"}
                   </button>
@@ -1186,7 +1180,7 @@ export function NoteSourceModal({
                     aria-label="Close paste text dialog"
                     disabled={Boolean(busyLabel)}
                   >
-                    <X className="h-4 w-4" />
+                    <EmojiIcon symbol="✖️" size="1rem" />
                   </button>
                 </div>
 

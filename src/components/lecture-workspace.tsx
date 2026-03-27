@@ -1,20 +1,11 @@
 "use client";
 
 import {
-  Brain,
-  Check,
-  Download,
-  FileAudio2,
-  FileText,
   Loader2,
-  MessageSquareText,
-  RefreshCcw,
-  ScrollText,
-  Send,
-  X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { EmojiIcon } from "@/components/emoji-icon";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { StatusBadge } from "@/components/status-badge";
 import { StudyCompletionCard } from "@/components/study-completion-card";
@@ -81,19 +72,19 @@ function getTabItems({
   const items: Array<{
     id: WorkspaceTab;
     label: string;
-    icon: React.ComponentType<{ className?: string }>;
+    icon: string;
   }> = [
-    { id: "notes", label: "Notes", icon: FileText },
-    { id: "study", label: "Study", icon: Brain },
-    { id: "chat", label: "Chat", icon: MessageSquareText },
+    { id: "notes", label: "Notes", icon: "📝" },
+    { id: "study", label: "Study", icon: "🧠" },
+    { id: "chat", label: "Chat", icon: "💬" },
   ];
 
   if (showsTranscript) {
-    items.push({ id: "transcript", label: "Transcript", icon: ScrollText });
+    items.push({ id: "transcript", label: "Transcript", icon: "📜" });
   }
 
   if (hasAudio) {
-    items.push({ id: "audio", label: "Audio", icon: FileAudio2 });
+    items.push({ id: "audio", label: "Audio", icon: "🎧" });
   }
 
   return items;
@@ -216,7 +207,7 @@ function confidenceLabel(value: FlashcardConfidenceBucket) {
 }
 
 function confidenceIcon(value: FlashcardConfidenceBucket) {
-  return value === "again" ? X : Check;
+  return value === "again" ? "❌" : "✅";
 }
 
 const FLASHCARD_EXIT_ANIMATION_MS = 770;
@@ -1561,9 +1552,9 @@ export function LectureWorkspace({
                           </div>
                           <div className="lecture-flashcard-exit-overlay">
                             {flashcardExitAnimation.bucket === "again" ? (
-                              <X className="h-9 w-9" />
+                              <EmojiIcon symbol="❌" size="2.25rem" />
                             ) : (
-                              <Check className="h-9 w-9" />
+                              <EmojiIcon symbol="✅" size="2.25rem" />
                             )}
                           </div>
                         </div>
@@ -1590,7 +1581,7 @@ export function LectureWorkspace({
                               {activeProgressFlashcardId === currentFlashcard.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
-                                <Icon className="h-5 w-5" />
+                                <EmojiIcon symbol={Icon} size="1.15rem" />
                               )}
                             </button>
                           );
@@ -1626,7 +1617,7 @@ export function LectureWorkspace({
                         aria-label="Start over"
                         title="Start over"
                       >
-                        <RefreshCcw className="h-4 w-4" />
+                        <EmojiIcon symbol="🔄" size="1rem" />
                         Restart deck
                       </button>
                     ) : (
@@ -1635,7 +1626,7 @@ export function LectureWorkspace({
                         onClick={continueFlashcardReview}
                         className="lecture-study-refresh lecture-study-restart"
                       >
-                        <RefreshCcw className="h-4 w-4" />
+                        <EmojiIcon symbol="🔄" size="1rem" />
                         Review {flashcardRoundSummary.missed}{" "}
                         {flashcardRoundSummary.missed === 1 ? "missed card" : "missed cards"}
                       </button>
@@ -1660,7 +1651,7 @@ export function LectureWorkspace({
                       aria-label="Start over"
                       title="Start over"
                     >
-                      <RefreshCcw className="h-4 w-4" />
+                      <EmojiIcon symbol="🔄" size="1rem" />
                       Restart deck
                     </button>
                   }
@@ -1729,7 +1720,7 @@ export function LectureWorkspace({
                       onClick={restartQuiz}
                       className="lecture-study-refresh lecture-study-restart"
                     >
-                      <RefreshCcw className="h-4 w-4" />
+                      <EmojiIcon symbol="🔄" size="1rem" />
                       Restart quiz
                     </button>
                   ) : (
@@ -1738,7 +1729,7 @@ export function LectureWorkspace({
                       onClick={continueQuizReview}
                       className="lecture-study-refresh lecture-study-restart"
                     >
-                      <RefreshCcw className="h-4 w-4" />
+                      <EmojiIcon symbol="🔄" size="1rem" />
                       Review {quizRoundSummary.missed}{" "}
                       {quizRoundSummary.missed === 1 ? "missed question" : "missed questions"}
                     </button>
@@ -1837,7 +1828,7 @@ export function LectureWorkspace({
                     onClick={restartQuiz}
                     className="lecture-study-refresh lecture-study-restart"
                   >
-                    <RefreshCcw className="h-4 w-4" />
+                    <EmojiIcon symbol="🔄" size="1rem" />
                     Restart quiz
                   </button>
                 }
@@ -1907,7 +1898,7 @@ export function LectureWorkspace({
                 className="lecture-chat-send"
                 aria-label="Send message"
               >
-                {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <EmojiIcon symbol="📨" size="1rem" />}
               </button>
             </div>
           </form>
@@ -1984,7 +1975,7 @@ export function LectureWorkspace({
                   {isExportingPdf ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Download className="h-4 w-4" />
+                    <EmojiIcon symbol="⬇️" size="1rem" />
                   )}
                 </button>
               ) : null}
@@ -1998,7 +1989,7 @@ export function LectureWorkspace({
                   {isRetrying ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <RefreshCcw className="h-4 w-4" />
+                    <EmojiIcon symbol="🔄" size="1rem" />
                   )}
                   Retry
                 </button>
@@ -2033,7 +2024,7 @@ export function LectureWorkspace({
               title={tab.label}
             >
               <span className="lecture-tab-button-content">
-                <tab.icon className="h-4 w-4" />
+                <EmojiIcon symbol={tab.icon} size="1rem" />
                 <span className="lecture-tab-button-label">{tab.label}</span>
               </span>
             </button>

@@ -1,8 +1,8 @@
 "use client";
 
-import { Check, ChevronDown, ChevronRight, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { EmojiIcon } from "@/components/emoji-icon";
 import { Folder } from "@/components/folder";
 import type { AppLectureListItem } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
@@ -344,7 +344,7 @@ export function LibraryFolderMenu({
         <span className="library-folder-trigger-label">
           {selectedFolder?.name ?? "All Notes"}
         </span>
-        <ChevronDown className={`library-folder-chevron ${isOpen ? "open" : ""}`} />
+        <EmojiIcon className={`library-folder-chevron ${isOpen ? "open" : ""}`} symbol="▾" size="0.95rem" />
       </button>
 
       {isOpen ? (
@@ -356,13 +356,13 @@ export function LibraryFolderMenu({
                 className={`library-folder-option ${selectedFolderId === null ? "active" : ""}`}
                 onClick={handleSelectAllNotes}
               >
-                <span className="library-folder-option-copy">
-                  <span className="library-folder-option-icon">
-                    <Folder open={false} size={0.34} />
+                  <span className="library-folder-option-copy">
+                    <span className="library-folder-option-icon">
+                      <Folder open={false} size={0.34} />
+                    </span>
+                    <span>All Notes</span>
                   </span>
-                  <span>All Notes</span>
-                </span>
-                {selectedFolderId === null ? <Check className="h-4 w-4" /> : null}
+                {selectedFolderId === null ? <EmojiIcon symbol="✅" size="0.95rem" /> : null}
               </button>
 
               {folders.map((folder) => (
@@ -378,7 +378,7 @@ export function LibraryFolderMenu({
                     </span>
                     <span>{folder.name}</span>
                   </span>
-                  {selectedFolderId === folder.id ? <Check className="h-4 w-4" /> : null}
+                  {selectedFolderId === folder.id ? <EmojiIcon symbol="✅" size="0.95rem" /> : null}
                 </button>
               ))}
 
@@ -395,10 +395,10 @@ export function LibraryFolderMenu({
                 }}
               >
                 <span className="library-folder-option-copy">
-                  <Plus className="h-4 w-4" />
+                  <EmojiIcon symbol="➕" size="0.95rem" />
                   <span>New folder</span>
                 </span>
-                <ChevronRight className="h-4 w-4" />
+                <EmojiIcon symbol="›" size="1.1rem" />
               </button>
 
               <button
@@ -407,10 +407,10 @@ export function LibraryFolderMenu({
                 onClick={handleOpenEditModal}
               >
                 <span className="library-folder-option-copy">
-                  <Pencil className="h-4 w-4" />
+                  <EmojiIcon symbol="✏️" size="0.95rem" />
                   <span>Edit folders</span>
                 </span>
-                <ChevronRight className="h-4 w-4" />
+                <EmojiIcon symbol="›" size="1.1rem" />
               </button>
             </div>
           </div>
@@ -436,7 +436,7 @@ export function LibraryFolderMenu({
               onClick={() => setIsCreateModalOpen(false)}
               aria-label="Close new folder dialog"
             >
-              <X className="h-5 w-5" />
+              <EmojiIcon symbol="✖️" size="1rem" />
             </button>
 
             <div className="library-folder-modal-header">
@@ -523,7 +523,7 @@ export function LibraryFolderMenu({
               onClick={handleCancelEdit}
               aria-label="Close edit folder dialog"
             >
-              <X className="h-5 w-5" />
+              <EmojiIcon symbol="✖️" size="1rem" />
             </button>
 
             <div className="library-folder-modal-header">
@@ -553,7 +553,7 @@ export function LibraryFolderMenu({
                             {lectureSummary(folder.lectureIds.length)}
                           </span>
                         </span>
-                        {editingFolderId === folder.id ? <Check className="h-4 w-4" /> : null}
+                        {editingFolderId === folder.id ? <EmojiIcon symbol="✅" size="0.95rem" /> : null}
                       </button>
                     ))}
                   </div>
@@ -627,7 +627,7 @@ export function LibraryFolderMenu({
                   }
                 }}
               >
-                <Trash2 className="h-4 w-4" />
+                <EmojiIcon symbol="🗑️" size="0.95rem" />
                 Delete folder
               </button>
             </div>

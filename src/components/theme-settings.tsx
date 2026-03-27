@@ -1,8 +1,8 @@
 "use client";
 
-import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
+import { EmojiIcon } from "@/components/emoji-icon";
 import type { ThemePreference } from "@/lib/theme";
 import {
   applyTheme,
@@ -13,22 +13,22 @@ import {
 const OPTIONS: Array<{
   value: ThemePreference;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: string;
 }> = [
   {
     value: "system",
     label: "System",
-    icon: Monitor,
+    icon: "💻",
   },
   {
     value: "light",
     label: "Light",
-    icon: Sun,
+    icon: "☀️",
   },
   {
     value: "dark",
     label: "Dark",
-    icon: Moon,
+    icon: "🌙",
   },
 ];
 
@@ -61,13 +61,15 @@ export function ThemeSettings() {
             className={`dashboard-link-card settings-link-card theme-choice-card ${active ? "active" : ""}`}
           >
             <span className="note-action-card-icon">
-              <option.icon className="h-5 w-5" />
+              <EmojiIcon symbol={option.icon} size="1.2rem" />
             </span>
             <span className="note-action-card-copy">
               <span className="note-action-card-label">{option.label}</span>
             </span>
-            <Check
-              className={`theme-choice-check h-4 w-4 ${active ? "" : "opacity-0"}`}
+            <EmojiIcon
+              symbol="✅"
+              size="0.95rem"
+              className={`theme-choice-check ${active ? "" : "opacity-0"}`}
             />
           </button>
         );

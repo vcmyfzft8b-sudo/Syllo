@@ -1,46 +1,46 @@
 import Link from "next/link";
-import { Bell, ChevronRight, Lock, Power, Send, Ticket } from "lucide-react";
 
+import { EmojiIcon } from "@/components/emoji-icon";
 import { ThemeSettings } from "@/components/theme-settings";
 import { requireUser } from "@/lib/auth";
 import { BRAND_NAME } from "@/lib/brand";
 
 function SettingsLinkCard(props: {
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: string;
   title: string;
   detail?: string;
 }) {
   return (
     <Link href={props.href} className="dashboard-link-card settings-link-card">
       <span className="note-action-card-icon">
-        <props.icon className="h-5 w-5" />
+        <EmojiIcon symbol={props.icon} size="1.2rem" />
       </span>
       <span className="note-action-card-copy">
         <span className="note-action-card-label">{props.title}</span>
         {props.detail ? <span className="note-action-card-detail">{props.detail}</span> : null}
       </span>
-      <ChevronRight className="note-action-card-chevron h-4 w-4" />
+      <EmojiIcon className="note-action-card-chevron" symbol="›" size="1.1rem" />
     </Link>
   );
 }
 
 function SettingsExternalCard(props: {
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: string;
   title: string;
   detail?: string;
 }) {
   return (
     <a href={props.href} className="dashboard-link-card settings-link-card">
       <span className="note-action-card-icon">
-        <props.icon className="h-5 w-5" />
+        <EmojiIcon symbol={props.icon} size="1.2rem" />
       </span>
       <span className="note-action-card-copy">
         <span className="note-action-card-label">{props.title}</span>
         {props.detail ? <span className="note-action-card-detail">{props.detail}</span> : null}
       </span>
-      <ChevronRight className="note-action-card-chevron h-4 w-4" />
+      <EmojiIcon className="note-action-card-chevron" symbol="›" size="1.1rem" />
     </a>
   );
 }
@@ -77,7 +77,7 @@ export default async function SettingsPage() {
 
           <form action="/auth/logout" method="post">
             <button type="submit" className="settings-inline-action">
-              <Power className="h-4 w-4" />
+              <EmojiIcon symbol="🚪" size="0.95rem" />
               Sign out
             </button>
           </form>
@@ -86,12 +86,12 @@ export default async function SettingsPage() {
         <div className="note-action-grid">
           <SettingsLinkCard
             href="/app/support/redeem-code"
-            icon={Ticket}
+            icon="🎟️"
             title="Redeem code"
           />
           <SettingsLinkCard
             href="/app/support/privacy-policy"
-            icon={Lock}
+            icon="🔒"
             title="Privacy"
           />
         </div>
@@ -105,12 +105,12 @@ export default async function SettingsPage() {
         <div className="note-action-grid">
           <SettingsExternalCard
             href={`mailto:?subject=${encodeURIComponent(`Try ${BRAND_NAME}`)}&body=${encodeURIComponent(`I am using ${BRAND_NAME} for lecture notes and thought it might be useful for you too.`)}`}
-            icon={Send}
+            icon="📤"
             title="Share"
           />
           <SettingsLinkCard
             href="/app/support/feature-request"
-            icon={Bell}
+            icon="💡"
             title="Suggest a feature"
           />
         </div>

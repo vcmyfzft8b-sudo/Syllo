@@ -1,18 +1,7 @@
 "use client";
 
 import {
-  AlertCircle,
-  ChevronRight,
-  FileAudio2,
-  FileUp,
-  Link2,
   Loader2,
-  Mic,
-  MoreVertical,
-  Pencil,
-  Search,
-  Trash2,
-  Type,
   X,
 } from "lucide-react";
 import {
@@ -28,6 +17,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { NoteSourceModal, type NoteSourceMode } from "@/components/note-source-modal";
 import { StatusBadge } from "@/components/status-badge";
+import { EmojiIcon } from "@/components/emoji-icon";
 import { LibraryFolderMenu } from "@/components/library-folder-menu";
 import { InstantLink } from "@/components/instant-link";
 import { POLL_INTERVAL_MS } from "@/lib/constants";
@@ -39,28 +29,28 @@ const QUICK_ACTIONS = [
     id: "record" as const,
     label: "Record lecture",
     detail: "Start in one tap",
-    icon: Mic,
+    icon: "🎙️",
     accent: "record",
   },
   {
     id: "upload" as const,
     label: "Upload audio",
     detail: "MP3, M4A, WAV, or WEBM",
-    icon: Mic,
+    icon: "📤",
     accent: "default",
   },
   {
     id: "text" as const,
     label: "Paste text or PDF",
     detail: "Turn source material into structured notes",
-    icon: FileUp,
+    icon: "📄",
     accent: "default",
   },
   {
     id: "link" as const,
     label: "Add link",
     detail: "Web article or source",
-    icon: Link2,
+    icon: "🔗",
     accent: "default",
   },
 ] as const;
@@ -83,14 +73,14 @@ function sourceLabel(sourceType: string) {
 
 function SourceIcon({ sourceType }: { sourceType: string }) {
   if (sourceType === "link") {
-    return <Link2 className="h-4 w-4" />;
+    return <EmojiIcon symbol="🔗" size="1rem" />;
   }
 
   if (sourceType === "text" || sourceType === "pdf") {
-    return <Type className="h-4 w-4" />;
+    return <EmojiIcon symbol="📄" size="1rem" />;
   }
 
-  return <Mic className="h-4 w-4" />;
+  return <EmojiIcon symbol="🎙️" size="1rem" />;
 }
 
 function shouldPollLectureStatus(status: AppLectureListItem["status"]) {
@@ -155,7 +145,7 @@ const NoteRow = memo(function NoteRow({
           {isBusy ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <MoreVertical className="h-4 w-4" />
+            <EmojiIcon symbol="⋯" size="1rem" />
           )}
         </button>
 
@@ -168,7 +158,7 @@ const NoteRow = memo(function NoteRow({
               aria-label="Rename note"
               title="Rename note"
             >
-              <Pencil className="h-4 w-4" />
+              <EmojiIcon symbol="✏️" size="0.95rem" />
               <span>Rename</span>
             </button>
             <button
@@ -178,7 +168,7 @@ const NoteRow = memo(function NoteRow({
               aria-label="Delete note"
               title="Delete note"
             >
-              <Trash2 className="h-4 w-4" />
+              <EmojiIcon symbol="🗑️" size="0.95rem" />
               <span>Delete</span>
             </button>
           </div>
@@ -451,13 +441,13 @@ export function HomeDashboard({
                     action.accent === "record" ? "record" : ""
                   }`}
                 >
-                  <action.icon className="h-5 w-5" />
+                  <EmojiIcon symbol={action.icon} size="1.2rem" />
                 </span>
                 <span className="note-action-card-copy">
                   <span className="note-action-card-label">{action.label}</span>
                   <span className="note-action-card-detail">{action.detail}</span>
                 </span>
-                <ChevronRight className="note-action-card-chevron h-4 w-4" />
+                <EmojiIcon className="note-action-card-chevron" symbol="›" size="1.1rem" />
               </button>
             ))}
           </div>
@@ -480,7 +470,7 @@ export function HomeDashboard({
             />
 
             <div className="ios-search notes-search">
-              <Search className="h-4 w-4 text-[var(--secondary-label)]" />
+              <EmojiIcon symbol="🔎" size="0.95rem" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -498,7 +488,7 @@ export function HomeDashboard({
               {failedLectures.map((lecture) => (
                 <div key={lecture.id} className="dashboard-alert-card">
                   <div className="ios-row-icon" style={{ backgroundColor: "var(--red-soft)", color: "var(--red)", width: "2rem", height: "2rem" }}>
-                    <AlertCircle className="h-4 w-4" />
+                    <EmojiIcon symbol="⚠️" size="1rem" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="ios-row-title text-[var(--red)] font-medium">
@@ -560,7 +550,7 @@ export function HomeDashboard({
           ) : (
             <div className="empty-state app-empty-state">
               <div className="app-empty-state-icon">
-                <FileAudio2 className="h-5 w-5" />
+                <EmojiIcon symbol="📝" size="1.25rem" />
               </div>
               <p className="ios-row-title">
                 {search
@@ -583,7 +573,7 @@ export function HomeDashboard({
                   className="app-home-highlight-link"
                 >
                   <span>Create your first note</span>
-                  <ChevronRight className="h-4 w-4" />
+                  <EmojiIcon symbol="›" size="1.1rem" />
                 </button>
               ) : null}
             </div>

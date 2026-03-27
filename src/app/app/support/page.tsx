@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 
+import { EmojiIcon } from "@/components/emoji-icon";
 import { HELP_SECTIONS } from "@/lib/help-center";
 
 export default function SupportPage() {
@@ -28,7 +28,7 @@ export default function SupportPage() {
                 className="dashboard-link-card"
               >
                 <p className="dashboard-link-card-title">{item.title}</p>
-                <ChevronRight className="ios-chevron h-4 w-4" />
+                <EmojiIcon className="ios-chevron" symbol="›" size="1.1rem" />
               </Link>
             ))}
           </div>
