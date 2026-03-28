@@ -1714,7 +1714,9 @@ export function LectureWorkspace({
       const currentFlashcard = studyDeck.find((flashcard) => flashcard.id === currentReviewFlashcardId) ?? null;
       const flashcardsCompleted = totalFlashcards > 0 && currentFlashcard === null;
       const shouldAutoSizeStudyShell =
-        activeStudyView === "quiz" || (activeStudyView === "flashcards" && flashcardsCompleted);
+        activeStudyView === "quiz" ||
+        activeStudyView === "practice_test" ||
+        (activeStudyView === "flashcards" && flashcardsCompleted);
       const activeMaterialError =
         activeStudyView === "flashcards"
           ? detail.studyAsset?.error_message
