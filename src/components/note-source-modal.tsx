@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ChevronLeft,
   ChevronDown,
   Loader2,
 } from "lucide-react";
@@ -158,10 +159,12 @@ export function NoteSourceModal({
   const [textEditorKeyboardOffset, setTextEditorKeyboardOffset] = useState(0);
   const [scannedFileName, setScannedFileName] = useState<string | null>(null);
   const [visualizerStream, setVisualizerStream] = useState<MediaStream | null>(null);
+  const [showAudioImportGuide, setShowAudioImportGuide] = useState(false);
 
   useEffect(() => {
     if (mode) {
       setSelectedMode(mode);
+      setShowAudioImportGuide(false);
     }
   }, [mode]);
 
@@ -270,6 +273,7 @@ export function NoteSourceModal({
     setIsCancelling(false);
     setIsTextEditorOpen(false);
     setScannedFileName(null);
+    setShowAudioImportGuide(false);
     activeRequestControllerRef.current = null;
     createdLectureIdRef.current = null;
     cancelRequestedRef.current = false;
@@ -489,6 +493,11 @@ export function NoteSourceModal({
   }, []);
 
   const requestClose = useCallback(() => {
+    if (showAudioImportGuide) {
+      setShowAudioImportGuide(false);
+      return;
+    }
+
     if (isTextEditorOpen) {
       setIsTextEditorOpen(false);
       return;
@@ -505,7 +514,15 @@ export function NoteSourceModal({
     }
 
     onClose();
-  }, [busyLabel, handleCancelBusyAction, isRecording, isTextEditorOpen, onClose, stopRecording]);
+  }, [
+    busyLabel,
+    handleCancelBusyAction,
+    isRecording,
+    isTextEditorOpen,
+    onClose,
+    showAudioImportGuide,
+    stopRecording,
+  ]);
 
   useEffect(() => {
     requestCloseRef.current = requestClose;
@@ -903,9 +920,23 @@ export function NoteSourceModal({
         <div className="ios-sheet-stack note-source-modal-stack">
           <section className="ios-sheet note-source-sheet note-source-modal">
             <div className="ios-sheet-header note-source-header">
-              <h2 className="ios-sheet-title">
-                {sheetTitle(selectedMode)}
-              </h2>
+              <div className="note-source-header-main">
+                {showAudioImportGuide ? (
+                  <button
+                    type="button"
+                    className="note-source-back-button"
+                    onClick={() => setShowAudioImportGuide(false)}
+                    disabled={Boolean(busyLabel) || isCancelling}
+                    aria-label="Back to audio options"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Back
+                  </button>
+                ) : null}
+                <h2 className="ios-sheet-title">
+                  {showAudioImportGuide ? "Import audio from your phone" : sheetTitle(selectedMode)}
+                </h2>
+              </div>
               <button
                 type="button"
                 onClick={requestClose}
@@ -924,6 +955,69 @@ export function NoteSourceModal({
             {busyLabel ? (
               <div className="mt-6 note-source-modal-body note-source-modal-body-loading">
                 {renderLoadingState()}
+              </div>
+            ) : showAudioImportGuide ? (
+              <div className="mt-6 space-y-4 note-source-modal-body">
+                <section className="ios-card note-source-guide-hero">
+                  <p className="note-source-card-label">Why this exists</p>
+                  <p className="note-source-guide-title">
+                    Record the lecture with your phone screen off, then upload it later.
+                  </p>
+                  <p className="note-source-guide-copy">
+                    In-app recording only works while this app stays open. For long lectures, the
+                    easier option is to record in your phone&apos;s native audio app first, move the
+                    recording into your Files app, and then upload that file here.
+                  </p>
+                </section>
+
+                <section className="ios-card note-source-guide-section">
+                  <p className="note-source-card-label">Step 1</p>
+                  <p className="note-source-guide-step-title">Record in your phone&apos;s normal audio app</p>
+                  <p className="note-source-guide-copy">
+                    On iPhone, use Voice Memos. On Android, use your Recorder app or any built-in
+                    audio recorder that saves a file on your device.
+                  </p>
+                  <p className="note-source-guide-copy">
+                    Start recording there before class. You can lock your phone, turn the screen
+                    off, or leave this app completely. The recording keeps running in the native
+                    recorder, not in this app.
+                  </p>
+                </section>
+
+                <section className="ios-card note-source-guide-section">
+                  <p className="note-source-card-label">Step 2</p>
+                  <p className="note-source-guide-step-title">Move that recording into your Files app</p>
+                  <p className="note-source-guide-copy">
+                    After the lecture, open the recording in your phone&apos;s recorder app and look for
+                    options like Share, Export, Save to Files, Download, or Copy to Files.
+                  </p>
+                  <p className="note-source-guide-copy">
+                    Save the audio somewhere easy to find, like Downloads, On My iPhone, iCloud
+                    Drive, or your Android Files folder. If your phone shows a different name for
+                    this step, use the option that saves the recording as a file.
+                  </p>
+                </section>
+
+                <section className="ios-card note-source-guide-section">
+                  <p className="note-source-card-label">Step 3</p>
+                  <p className="note-source-guide-step-title">Upload it here from the file picker</p>
+                  <p className="note-source-guide-copy">
+                    Come back to this app, open the audio note flow, switch to <strong>Upload</strong>,
+                    tap <strong>Choose audio file</strong>, and pick the recording you saved in Files.
+                  </p>
+                  <p className="note-source-guide-copy">
+                    Once the file is selected, tap <strong>Generate</strong>. The app will turn that
+                    lecture audio into notes and the rest of your study material.
+                  </p>
+                </section>
+
+                <section className="ios-card note-source-guide-section">
+                  <p className="note-source-card-label">In short</p>
+                  <p className="note-source-guide-copy">
+                    Native recorder for class. Files app to save the audio. Upload tab here to turn
+                    it into notes.
+                  </p>
+                </section>
               </div>
             ) : (
               <>
@@ -962,6 +1056,26 @@ export function NoteSourceModal({
 
                   {selectedMode === "record" ? (
                     <>
+                      <button
+                        type="button"
+                        className="ios-card note-source-guide-entry"
+                        onClick={() => setShowAudioImportGuide(true)}
+                      >
+                        <div className="note-source-guide-entry-copy">
+                          <p className="note-source-card-label">Long lecture tip</p>
+                          <p className="note-source-guide-entry-title">
+                            How to record with your phone off and upload it later
+                          </p>
+                          <p className="note-source-guide-entry-text">
+                            Use Voice Memos or your phone&apos;s recorder, save the audio to Files, then
+                            upload it here.
+                          </p>
+                        </div>
+                        <span className="note-source-guide-entry-arrow" aria-hidden="true">
+                          ›
+                        </span>
+                      </button>
+
                       {preparedRecording ? (
                         <div className="ios-card">
                           <p className="note-source-card-label">Prepared recording</p>

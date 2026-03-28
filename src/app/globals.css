@@ -1285,6 +1285,24 @@ select:disabled {
   border-bottom: 1px solid color-mix(in srgb, var(--separator) 92%, transparent);
 }
 
+.note-source-header-main {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.note-source-back-button {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--secondary-label);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .note-source-description {
   margin: 1rem auto 0;
   max-width: 34rem;
@@ -1380,6 +1398,79 @@ select:disabled {
   width: min(100%, 24rem);
   margin: 0 auto;
   text-align: center;
+}
+
+.note-source-guide-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem 1.05rem;
+  text-align: left;
+}
+
+.note-source-guide-entry-copy {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.note-source-guide-entry-title,
+.note-source-guide-title,
+.note-source-guide-step-title {
+  margin: 0;
+  color: var(--label);
+  letter-spacing: -0.03em;
+}
+
+.note-source-guide-entry-title {
+  font-size: 1rem;
+  font-weight: 640;
+  line-height: 1.28;
+}
+
+.note-source-guide-entry-text,
+.note-source-guide-copy {
+  margin: 0;
+  color: var(--secondary-label);
+  line-height: 1.5;
+}
+
+.note-source-guide-entry-text {
+  font-size: 0.88rem;
+}
+
+.note-source-guide-entry-arrow {
+  color: var(--tertiary-label);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.note-source-guide-hero,
+.note-source-guide-section {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem 1.05rem;
+}
+
+.note-source-guide-hero {
+  gap: 0.65rem;
+}
+
+.note-source-guide-title {
+  font-size: 1.15rem;
+  font-weight: 680;
+  line-height: 1.25;
+}
+
+.note-source-guide-step-title {
+  font-size: 0.98rem;
+  font-weight: 640;
+  line-height: 1.35;
+}
+
+.note-source-guide-copy {
+  font-size: 0.92rem;
 }
 
 .note-source-busy-row {
