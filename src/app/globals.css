@@ -1713,37 +1713,6 @@ select:disabled {
   background-color: var(--surface-muted);
 }
 
-.note-action-panel {
-  display: grid;
-  gap: 1rem;
-  padding: 1.1rem;
-  border-radius: 30px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-solid) 96%, transparent), color-mix(in srgb, var(--surface-muted) 84%, transparent));
-  border: 1px solid color-mix(in srgb, var(--separator) 70%, transparent);
-  box-shadow: var(--shadow-soft);
-}
-
-.note-action-panel-header {
-  display: grid;
-  gap: 0.28rem;
-  padding: 0.2rem 0.15rem 0;
-}
-
-.note-action-panel-title {
-  margin: 0;
-  color: var(--label);
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.note-action-panel-copy {
-  margin: 0;
-  color: var(--secondary-label);
-  font-size: 0.88rem;
-  line-height: 1.4;
-}
-
 .note-action-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

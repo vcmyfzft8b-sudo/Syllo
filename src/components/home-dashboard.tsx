@@ -428,15 +428,7 @@ export function HomeDashboard({
             <h2 className="dashboard-section-title">New note</h2>
           </div>
 
-          <div className="note-action-panel">
-            <div className="note-action-panel-header">
-              <p className="note-action-panel-title">Choose how you want to create it</p>
-              <p className="note-action-panel-copy">
-                Pick a source, then finish the setup in the next screen.
-              </p>
-            </div>
-
-            <div className="note-action-grid">
+          <div className="note-action-grid">
             {QUICK_ACTIONS.map((action) => (
               <button
                 key={action.id}
@@ -458,7 +450,6 @@ export function HomeDashboard({
                 <EmojiIcon className="note-action-card-chevron" symbol="›" size="1.1rem" />
               </button>
             ))}
-            </div>
           </div>
         </section>
 
