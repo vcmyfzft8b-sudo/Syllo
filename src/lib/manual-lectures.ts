@@ -32,6 +32,11 @@ const pdfExtractionSchema = z.object({
   text: z.string().min(120),
 });
 
+const imageExtractionSchema = z.object({
+  title: z.string().min(1),
+  text: z.string().min(1),
+});
+
 const MAX_LINK_FETCH_REDIRECTS = 3;
 const MAX_LINK_FETCH_BYTES = 1_000_000;
 const LINK_FETCH_TIMEOUT_MS = 10_000;
@@ -520,6 +525,51 @@ export async function extractTextFromDocument(file: File) {
   }
 
   throw new Error("Unsupported document type. Use PDF, TXT, Markdown, HTML, RTF, or DOCX.");
+}
+
+export async function extractTextFromImage(file: File) {
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const provider = getAiProvider();
+  const env = getServerEnv();
+  const instructions =
+    "Extract all readable text from this photo of notes or printed material. Do not summarize. Preserve the original language, headings, bullet points, equations, labels, and important details. Ignore decorative background elements. If handwriting is uncertain, make the best faithful reading instead of inventing content. Return a short title and the extracted text.";
+
+  const extracted =
+    provider === "gemini"
+      ? await generateStructuredObjectWithGeminiFile({
+          schema: imageExtractionSchema,
+          instructions,
+          file,
+          model: env.GEMINI_TEXT_MODEL,
+          maxOutputTokens: 6000,
+        })
+      : await generateStructuredObject({
+          schema: imageExtractionSchema,
+          schemaName: "image_extraction",
+          maxOutputTokens: 6000,
+          instructions,
+          input: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "input_text",
+                  text: "Extract the text from this image as faithfully as possible for note generation.",
+                },
+                {
+                  type: "input_image",
+                  image_url: `data:${file.type || "image/jpeg"};base64,${buffer.toString("base64")}`,
+                  detail: "auto",
+                },
+              ],
+            },
+          ],
+        });
+
+  return {
+    title: extracted.title,
+    text: normalizeWhitespace(extracted.text),
+  };
 }
 
 export async function createLectureFromTextSource(params: {

@@ -16,6 +16,8 @@ import {
   MAX_AUDIO_BYTES,
   MAX_AUDIO_SECONDS,
   MAX_DOCUMENT_BYTES,
+  MAX_SCAN_IMAGE_BYTES,
+  SCAN_IMAGE_INPUT_ACCEPT,
 } from "@/lib/constants";
 import {
   createSafeTransportFileName,
@@ -139,6 +141,7 @@ export function NoteSourceModal({
   const router = useRouter();
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
+  const scanInputRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -164,6 +167,7 @@ export function NoteSourceModal({
   const [isCancelling, setIsCancelling] = useState(false);
   const [isTextEditorOpen, setIsTextEditorOpen] = useState(false);
   const [textEditorKeyboardOffset, setTextEditorKeyboardOffset] = useState(0);
+  const [scannedFileName, setScannedFileName] = useState<string | null>(null);
 
   useEffect(() => {
     if (mode) {
@@ -274,6 +278,7 @@ export function NoteSourceModal({
     setBusyLabel(null);
     setIsCancelling(false);
     setIsTextEditorOpen(false);
+    setScannedFileName(null);
     activeRequestControllerRef.current = null;
     createdLectureIdRef.current = null;
     cancelRequestedRef.current = false;
@@ -679,6 +684,53 @@ export function NoteSourceModal({
     }
   }
 
+  async function handleScanImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      if (!file.type.startsWith("image/")) {
+        throw new Error("Use a photo or image for scanning.");
+      }
+
+      if (file.size > MAX_SCAN_IMAGE_BYTES) {
+        throw new Error("The scan image is too large. The limit is 8 MB.");
+      }
+
+      setBusyLabel("Scanning text...");
+      setError(null);
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/lectures/scan", {
+        method: "POST",
+        body: formData,
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "The photo could not be scanned.");
+      }
+
+      setPdfSource(null);
+      setTextValue(payload.text ?? "");
+      setScannedFileName(file.name);
+      setIsTextEditorOpen(true);
+    } catch (scanError) {
+      setError(
+        scanError instanceof Error ? scanError.message : "The photo could not be scanned.",
+      );
+    } finally {
+      setBusyLabel(null);
+      event.target.value = "";
+    }
+  }
+
   async function handlePdfPick(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
@@ -697,6 +749,7 @@ export function NoteSourceModal({
 
       setPdfSource(file);
       setTextValue("");
+      setScannedFileName(null);
       setError(null);
     } catch (submitError) {
       setError(
@@ -1068,6 +1121,16 @@ export function NoteSourceModal({
                       <EmojiIcon symbol="⌨️" size="1rem" />
                       Text
                     </button>
+
+                    <button
+                      type="button"
+                      className="ios-secondary-button note-source-docs-action-button"
+                      disabled={Boolean(busyLabel)}
+                      onClick={() => scanInputRef.current?.click()}
+                    >
+                      <EmojiIcon symbol="📷" size="1rem" />
+                      Scan
+                    </button>
                   </div>
 
                   {pdfSource ? (
@@ -1080,7 +1143,17 @@ export function NoteSourceModal({
                     </div>
                   ) : null}
 
-                  {!pdfSource && trimmedTextValue ? (
+                  {!pdfSource && scannedFileName ? (
+                    <div className="ios-card note-source-docs-file-card">
+                      <p className="note-source-card-label">Scanned text ready</p>
+                      <p className="ios-row-title note-source-docs-file-name">{scannedFileName}</p>
+                      <p className="ios-row-subtitle note-source-docs-file-copy">
+                        Review and edit the extracted text before generating notes.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {!pdfSource && trimmedTextValue && !scannedFileName ? (
                     <div className="ios-card note-source-docs-file-card">
                       <p className="note-source-card-label">Text added</p>
                       <p className="ios-row-title note-source-docs-file-name">
@@ -1100,8 +1173,18 @@ export function NoteSourceModal({
                     className="hidden"
                   />
 
+                  <input
+                    ref={scanInputRef}
+                    type="file"
+                    accept={SCAN_IMAGE_INPUT_ACCEPT}
+                    capture="environment"
+                    onChange={handleScanImageChange}
+                    className="hidden"
+                  />
+
                   <p className="ios-row-subtitle note-source-docs-support-copy">
-                    PDF, TXT, Markdown, HTML, RTF, and DOCX are supported up to 4 MB.
+                    PDF, TXT, Markdown, HTML, RTF, and DOCX are supported up to 4 MB. You can
+                    also scan handwritten or printed notes with your phone camera.
                   </p>
 
                   <button
@@ -1186,7 +1269,7 @@ export function NoteSourceModal({
 
                 <div className="dashboard-note-dialog-body">
                   <p className="ios-subtitle dashboard-note-dialog-copy">
-                    Paste lecture notes, slides, or article text here.
+                    Paste lecture notes, slides, article text, or review scanned text here.
                   </p>
 
                   <textarea
@@ -1196,6 +1279,10 @@ export function NoteSourceModal({
 
                       if (pdfSource && nextValue.trim().length > 0) {
                         setPdfSource(null);
+                      }
+
+                      if (nextValue.trim().length === 0) {
+                        setScannedFileName(null);
                       }
 
                       setTextValue(nextValue);
@@ -1219,7 +1306,10 @@ export function NoteSourceModal({
                         type="button"
                         className="ios-secondary-button"
                         disabled={Boolean(busyLabel)}
-                        onClick={() => setTextValue("")}
+                        onClick={() => {
+                          setTextValue("");
+                          setScannedFileName(null);
+                        }}
                       >
                         Clear text
                       </button>
