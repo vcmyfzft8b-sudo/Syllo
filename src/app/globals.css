@@ -2053,8 +2053,11 @@ select:disabled {
 .library-folder-option-icon {
   display: inline-flex;
   width: 1.1rem;
+  height: 1.1rem;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  line-height: 0;
 }
 
 .library-folder-menu-divider {
