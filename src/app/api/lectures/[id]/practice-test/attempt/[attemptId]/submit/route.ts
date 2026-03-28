@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { ensureUserOwnsLecture } from "@/lib/lectures";
-import { submitPracticeTestAttempt } from "@/lib/practice-test";
+import {
+  describePracticeTestError,
+  submitPracticeTestAttempt,
+} from "@/lib/practice-test";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -95,7 +98,7 @@ export async function POST(
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Practice test could not be graded." },
+      { error: describePracticeTestError(error) },
       { status: 400 },
     );
   }

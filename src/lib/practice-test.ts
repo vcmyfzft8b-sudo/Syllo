@@ -980,109 +980,135 @@ export async function submitPracticeTestAttempt(params: {
     .update({ status: "submitted" } as never)
     .eq("id", params.attemptId);
 
-  const gradedAnswers = await mapWithConcurrency(answerRows, PRACTICE_TEST_CONCURRENCY, async (answer) => {
-    const input = inputByAnswerId.get(answer.id)!;
-    const question = resolveAttemptQuestion(answer);
+  try {
+    const gradedAnswers = await mapWithConcurrency(
+      answerRows,
+      PRACTICE_TEST_CONCURRENCY,
+      async (answer) => {
+        const input = inputByAnswerId.get(answer.id)!;
+        const question = resolveAttemptQuestion(answer);
 
-    if (!question) {
-      throw new Error("Practice-test question not found.");
-    }
+        if (!question) {
+          throw new Error("Practice-test question not found.");
+        }
 
-    if (input.declaredUnknown) {
-      return {
-        id: answer.id,
-        score: 0,
-        expected_answer: question.answer_guide,
-        grading_rationale: "Marked as 'I don't know'.",
-        strengths: "No submitted answer.",
-        missing_points: "A complete answer was not provided.",
-        grading_confidence: "high",
-      };
-    }
+        if (input.declaredUnknown) {
+          return {
+            id: answer.id,
+            attempt_id: answer.attempt_id,
+            practice_test_question_id: answer.practice_test_question_id,
+            idx: answer.idx,
+            question_prompt: answer.question_prompt,
+            answer_guide_snapshot: answer.answer_guide_snapshot,
+            difficulty_snapshot: answer.difficulty_snapshot,
+            source_locator_snapshot: answer.source_locator_snapshot,
+            score: 0,
+            expected_answer: question.answer_guide,
+            grading_rationale: "Marked as 'I don't know'.",
+            strengths: "No submitted answer.",
+            missing_points: "A complete answer was not provided.",
+            grading_confidence: "high",
+          };
+        }
 
-    let extractedPhotoText = "";
+        let extractedPhotoText = "";
 
-    if (input.photoPath) {
-      try {
-        extractedPhotoText = await extractTextFromStoredPracticeAnswer({
-          path: input.photoPath,
-          mimeType: input.photoMimeType,
+        if (input.photoPath) {
+          try {
+            extractedPhotoText = await extractTextFromStoredPracticeAnswer({
+              path: input.photoPath,
+              mimeType: input.photoMimeType,
+            });
+          } catch {
+            extractedPhotoText = "";
+          }
+        }
+
+        const combinedAnswer = [input.typedAnswer.trim(), extractedPhotoText.trim()]
+          .filter((value) => value.length > 0)
+          .join("\n\nPhoto text:\n");
+
+        const graded = await gradeAnswer({
+          prompt: question.prompt,
+          answerGuide: question.answer_guide,
+          typedAnswer: combinedAnswer,
         });
-      } catch {
-        extractedPhotoText = "";
-      }
-    }
 
-    const combinedAnswer = [input.typedAnswer.trim(), extractedPhotoText.trim()]
-      .filter((value) => value.length > 0)
-      .join("\n\nPhoto text:\n");
-
-    const graded = await gradeAnswer({
-      prompt: question.prompt,
-      answerGuide: question.answer_guide,
-      typedAnswer: combinedAnswer,
-    });
-
-    return {
-      id: answer.id,
-      score: graded.score,
-      expected_answer: graded.expectedAnswer,
-      grading_rationale: graded.rationale,
-      strengths: graded.strengths,
-      missing_points: graded.missingPoints,
-      grading_confidence: graded.confidence,
-    };
-  });
-
-  const totalScore = gradedAnswers.reduce((total, answer) => total + answer.score, 0);
-  const maxScore = gradedAnswers.length * 5;
-  const percentage = maxScore > 0 ? Number(((totalScore / maxScore) * 100).toFixed(2)) : 0;
-
-  const { error: updateGradesError } = await supabase
-    .from("practice_test_attempt_answers")
-    .upsert(
-      gradedAnswers.map((answer) => ({
-        id: answer.id,
-        score: answer.score,
-        expected_answer: answer.expected_answer,
-        grading_rationale: answer.grading_rationale,
-        strengths: answer.strengths,
-        missing_points: answer.missing_points,
-        grading_confidence: answer.grading_confidence,
-      })) as never,
-      { onConflict: "id" },
+        return {
+          id: answer.id,
+          attempt_id: answer.attempt_id,
+          practice_test_question_id: answer.practice_test_question_id,
+          idx: answer.idx,
+          question_prompt: answer.question_prompt,
+          answer_guide_snapshot: answer.answer_guide_snapshot,
+          difficulty_snapshot: answer.difficulty_snapshot,
+          source_locator_snapshot: answer.source_locator_snapshot,
+          score: graded.score,
+          expected_answer: graded.expectedAnswer,
+          grading_rationale: graded.rationale,
+          strengths: graded.strengths,
+          missing_points: graded.missingPoints,
+          grading_confidence: graded.confidence,
+        };
+      },
     );
 
-  if (updateGradesError) {
-    throw updateGradesError;
+    const totalScore = gradedAnswers.reduce((total, answer) => total + answer.score, 0);
+    const maxScore = gradedAnswers.length * 5;
+    const percentage = maxScore > 0 ? Number(((totalScore / maxScore) * 100).toFixed(2)) : 0;
+
+    const { error: updateGradesError } = await supabase
+      .from("practice_test_attempt_answers")
+      .upsert(gradedAnswers as never, {
+        onConflict: "id",
+      });
+
+    if (updateGradesError) {
+      throw updateGradesError;
+    }
+
+    const { error: updateAttemptError } = await supabase
+      .from("practice_test_attempts")
+      .update(
+        {
+          status: "graded",
+          total_score: totalScore,
+          max_score: maxScore,
+          percentage,
+          graded_at: new Date().toISOString(),
+          model_metadata: {
+            ...toMetadataRecord(attemptRow.model_metadata),
+            gradedAnswerCount: gradedAnswers.length,
+          },
+        } as never,
+      )
+      .eq("id", params.attemptId);
+
+    if (updateAttemptError) {
+      throw updateAttemptError;
+    }
+
+    return {
+      totalScore,
+      maxScore,
+      percentage,
+    };
+  } catch (error) {
+    await supabase
+      .from("practice_test_attempts")
+      .update(
+        {
+          status: "failed",
+          model_metadata: {
+            ...toMetadataRecord(attemptRow.model_metadata),
+            gradingError: toErrorMessage(error),
+          },
+        } as never,
+      )
+      .eq("id", params.attemptId);
+
+    throw error;
   }
-
-  const { error: updateAttemptError } = await supabase
-    .from("practice_test_attempts")
-    .update(
-      {
-        status: "graded",
-        total_score: totalScore,
-        max_score: maxScore,
-        percentage,
-        graded_at: new Date().toISOString(),
-        model_metadata: {
-          ...toMetadataRecord(attemptRow.model_metadata),
-          gradedAnswerCount: gradedAnswers.length,
-        },
-      } as never,
-    )
-    .eq("id", params.attemptId);
-
-  if (updateAttemptError) {
-    throw updateAttemptError;
-  }
-
-  return {
-    totalScore,
-    maxScore,
-    percentage,
-  };
 }
 
 export async function getPracticeTestAttemptForUser(params: {
