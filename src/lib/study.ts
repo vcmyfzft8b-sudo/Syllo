@@ -220,7 +220,14 @@ function selectAcceptedCards(params: {
         return false;
       }
 
-      if (card.sourceType !== unit.sourceType || card.sourceLocator !== unit.locatorLabel) {
+      if (card.sourceType !== unit.sourceType) {
+        return false;
+      }
+
+      if (
+        card.sourceType !== "audio" &&
+        card.sourceLocator !== unit.locatorLabel
+      ) {
         return false;
       }
 
@@ -573,14 +580,38 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
       cards: acceptedCards,
     });
 
+    let finalCards = acceptedCards;
+    let finalValidation = acceptedValidation;
+    let coverageWarning: string | null = null;
+
     if (
-      acceptedValidation.coverageRatio < COVERAGE_TARGET ||
-      acceptedValidation.criticalCoverageRatio < CRITICAL_COVERAGE_TARGET ||
-      acceptedValidation.failedConceptKeys.length > 0
+      finalValidation.coverageRatio < COVERAGE_TARGET ||
+      finalValidation.criticalCoverageRatio < CRITICAL_COVERAGE_TARGET ||
+      finalValidation.failedConceptKeys.length > 0
     ) {
-      throw new Error(
-        `Coverage validation failed (${acceptedValidation.coverageRatio} overall, ${acceptedValidation.criticalCoverageRatio} critical).`,
-      );
+      const generatedValidation = validateCoverage({
+        units: effectiveUnits,
+        plans: plannedCoverage,
+        cards: generatedCards,
+      });
+
+      if (
+        generatedCards.length > 0 &&
+        (
+          generatedValidation.coverageRatio > finalValidation.coverageRatio ||
+          generatedValidation.criticalCoverageRatio > finalValidation.criticalCoverageRatio ||
+          (finalCards.length === 0 && generatedCards.length > 0)
+        )
+      ) {
+        finalCards = dedupeAcceptedCards(generatedCards);
+        finalValidation = generatedValidation;
+      }
+
+      if (finalCards.length === 0) {
+        throw new Error("Flashcard generation produced no usable cards.");
+      }
+
+      coverageWarning = `Coverage validation fell below target (${finalValidation.coverageRatio} overall, ${finalValidation.criticalCoverageRatio} critical). Published the best available deck instead of failing.`;
     }
 
     await setStudyAssetStatus({
@@ -590,17 +621,18 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
         stage: "publishing_deck",
         pipeline: "flashcards-v4",
         storageMode: storage.mode,
-        coverageRatio: acceptedValidation.coverageRatio,
-        criticalCoverageRatio: acceptedValidation.criticalCoverageRatio,
+        coverageRatio: finalValidation.coverageRatio,
+        criticalCoverageRatio: finalValidation.criticalCoverageRatio,
         generatedCardCount: generatedCards.length,
-        acceptedCardCount: acceptedCards.length,
+        acceptedCardCount: finalCards.length,
+        coverageWarning,
       },
     });
 
     const sectionRows = buildSectionRows({
       lectureId: params.lectureId,
       sections,
-      cards: acceptedCards,
+      cards: finalCards,
     });
 
     const { error: deleteFlashcardsError } = await supabase
@@ -646,13 +678,13 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
       storage.mode === "comprehensive"
         ? buildFlashcardsToInsert({
             lectureId: params.lectureId,
-            cards: acceptedCards,
+            cards: finalCards,
             units: effectiveUnits,
             insertedSections,
           })
         : buildLegacyFlashcardsToInsert({
             lectureId: params.lectureId,
-            cards: acceptedCards,
+            cards: finalCards,
           });
 
     const { error: flashcardInsertError } = await supabase
@@ -669,7 +701,7 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
       throw new Error(flashcardInsertError.message);
     }
 
-    const difficultyCounts = acceptedCards.reduce<Record<FlashcardDifficulty, number>>(
+    const difficultyCounts = finalCards.reduce<Record<FlashcardDifficulty, number>>(
       (counts, flashcard) => {
         counts[flashcard.difficulty] += 1;
         return counts;
@@ -698,11 +730,12 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
         sectionCount: sections.length,
         plannedConceptCount: plannedCoverage.reduce((total, plan) => total + plan.concepts.length, 0),
         generatedCardCount: generatedCards.length,
-        acceptedCardCount: acceptedCards.length,
-        coverageRatio: acceptedValidation.coverageRatio,
-        criticalCoverageRatio: acceptedValidation.criticalCoverageRatio,
-        uncoveredUnitIndexes: acceptedValidation.uncoveredUnitIndexes,
-        failedConceptKeys: acceptedValidation.failedConceptKeys,
+        acceptedCardCount: finalCards.length,
+        coverageRatio: finalValidation.coverageRatio,
+        criticalCoverageRatio: finalValidation.criticalCoverageRatio,
+        uncoveredUnitIndexes: finalValidation.uncoveredUnitIndexes,
+        failedConceptKeys: finalValidation.failedConceptKeys,
+        coverageWarning,
         generationDurationMs: Date.now() - startedAt,
         difficultyCounts,
         sourceWordCount,
