@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { cn } from "@/lib/utils";
 
 export function LiveAudioWave({
@@ -10,6 +12,14 @@ export function LiveAudioWave({
   active: boolean;
   className?: string;
 }) {
+  const [pulseKey, setPulseKey] = useState(0);
+
+  useEffect(() => {
+    if (active) {
+      setPulseKey((current) => current + 1);
+    }
+  }, [active]);
+
   return (
     <div
       aria-hidden="true"
@@ -18,6 +28,7 @@ export function LiveAudioWave({
       <div className="inline-flex min-h-20 items-center justify-center rounded-full px-6 py-4">
         <span className="relative flex h-8 w-8 items-center justify-center">
           <span
+            key={pulseKey}
             className={cn(
               "absolute h-8 w-8 rounded-full bg-red-500/22 transition-opacity duration-300",
               active ? "animate-ping opacity-100" : "opacity-0",
