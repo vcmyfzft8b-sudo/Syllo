@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { EmojiIcon } from "@/components/emoji-icon";
-import { SignOutButton } from "@/components/sign-out-button";
 import { ThemeSettings } from "@/components/theme-settings";
 import { requireUser } from "@/lib/auth";
 import { BRAND_NAME } from "@/lib/brand";
@@ -76,7 +75,12 @@ export default async function SettingsPage() {
             <p className="settings-account-value">{email}</p>
           </div>
 
-          <SignOutButton />
+          <form action="/auth/logout" method="post">
+            <button type="submit" className="settings-inline-action">
+              <EmojiIcon symbol="🚪" size="0.95rem" />
+              Sign out
+            </button>
+          </form>
         </div>
 
         <div className="note-action-grid">
