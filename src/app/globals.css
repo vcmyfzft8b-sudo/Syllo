@@ -1367,6 +1367,33 @@ select:disabled {
   line-height: 1.35;
 }
 
+.note-source-busy-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem 1.05rem;
+  border-color: color-mix(in srgb, var(--blue) 24%, var(--separator));
+  background: color-mix(in srgb, var(--blue) 6%, var(--surface-solid));
+}
+
+.note-source-busy-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--blue);
+}
+
+.note-source-busy-title {
+  margin: 0;
+  color: inherit;
+  font-size: 0.95rem;
+}
+
+.note-source-busy-copy {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
 .note-source-subsheet-backdrop {
   z-index: 62;
   background: rgba(12, 15, 25, 0.42);

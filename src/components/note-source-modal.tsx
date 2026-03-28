@@ -849,6 +849,24 @@ export function NoteSourceModal({
     );
   }
 
+  function renderBusyNotice() {
+    if (!busyLabel) {
+      return null;
+    }
+
+    return (
+      <div className="ios-card note-source-busy-card" aria-live="polite">
+        <div className="note-source-busy-row">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <p className="ios-row-title note-source-busy-title">{busyLabel}</p>
+        </div>
+        <p className="ios-row-subtitle note-source-busy-copy">
+          Do not close this screen. It will close automatically when everything is ready.
+        </p>
+      </div>
+    );
+  }
+
   if (!open || !mode) {
     return null;
   }
@@ -919,6 +937,8 @@ export function NoteSourceModal({
 
               {selectedMode === "record" ? (
                 <>
+                  {renderBusyNotice()}
+
                   {preparedRecording ? (
                     <div className="ios-card">
                       <p className="note-source-card-label">Prepared recording</p>
@@ -1003,6 +1023,8 @@ export function NoteSourceModal({
 
               {selectedMode === "upload" ? (
                 <>
+                  {renderBusyNotice()}
+
                   {preparedUpload ? (
                     <div className="ios-card">
                       <p className="note-source-card-label">Selected file</p>
@@ -1041,6 +1063,8 @@ export function NoteSourceModal({
 
               {selectedMode === "link" ? (
                 <>
+                  {renderBusyNotice()}
+
                   <div>
                     <label className="note-source-field-label">
                       Link
@@ -1065,6 +1089,8 @@ export function NoteSourceModal({
 
               {selectedMode === "text" ? (
                 <>
+                  {renderBusyNotice()}
+
                   {pdfSource ? (
                     <div className="ios-card note-source-docs-file-card">
                       <p className="note-source-card-label">Document selected</p>
