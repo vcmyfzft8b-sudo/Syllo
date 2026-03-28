@@ -575,18 +575,64 @@ function getAttemptNumber(attempt: PracticeTestAttemptRow) {
   return parseAttemptQuestionMetadata(attempt.model_metadata)?.attemptNumber ?? 0;
 }
 
+function getBankVersionFromAsset(asset: LecturePracticeTestAssetRow | null) {
+  if (
+    asset?.model_metadata &&
+    typeof asset.model_metadata === "object" &&
+    !Array.isArray(asset.model_metadata) &&
+    "bankVersion" in asset.model_metadata &&
+    typeof asset.model_metadata.bankVersion === "string"
+  ) {
+    return asset.model_metadata.bankVersion;
+  }
+
+  return asset?.updated_at ?? new Date().toISOString();
+}
+
+function getAttemptsForBank(params: {
+  attempts: PracticeTestAttemptRow[];
+  bankVersion: string;
+}) {
+  return params.attempts.filter(
+    (attempt) => parseAttemptQuestionMetadata(attempt.model_metadata)?.bankVersion === params.bankVersion,
+  );
+}
+
+function shouldRefreshPracticeTestBank(params: {
+  questions: PracticeTestQuestionRow[];
+  attempts: PracticeTestAttemptRow[];
+  bankVersion: string;
+}) {
+  if (params.questions.length === 0) {
+    return true;
+  }
+
+  const desiredCount = Math.min(targetQuestionCount(params.questions.length), params.questions.length);
+  const usedQuestionIds = new Set(
+    getAttemptsForBank({
+      attempts: params.attempts,
+      bankVersion: params.bankVersion,
+    }).flatMap((attempt) => getQuestionIdsFromAttempt(attempt)),
+  );
+
+  const unusedQuestionCount = params.questions.filter((question) => !usedQuestionIds.has(question.id)).length;
+  return unusedQuestionCount < desiredCount;
+}
+
 function scoreQuestionForSelection(params: {
   question: PracticeTestQuestionRow;
   recentQuestionCounts: Map<string, number>;
+  lifetimeQuestionCounts: Map<string, number>;
   usedSourceUnitCounts: Map<number, number>;
 }) {
   const recentCount = params.recentQuestionCounts.get(params.question.id) ?? 0;
+  const lifetimeCount = params.lifetimeQuestionCounts.get(params.question.id) ?? 0;
   const sourceCount =
     params.question.source_unit_idx == null
       ? 0
       : (params.usedSourceUnitCounts.get(params.question.source_unit_idx) ?? 0);
 
-  return recentCount * 100 + sourceCount * 10 + Math.random();
+  return lifetimeCount * 1000 + recentCount * 100 + sourceCount * 10 + Math.random();
 }
 
 function setsMatch(left: string[], right: string[]) {
@@ -610,10 +656,17 @@ function selectAttemptQuestions(params: {
     ? getQuestionIdsFromAttempt(params.previousAttempts[params.previousAttempts.length - 1] as PracticeTestAttemptRow)
     : [];
   const recentQuestionCounts = new Map<string, number>();
+  const lifetimeQuestionCounts = new Map<string, number>();
 
   for (const attempt of recentAttempts) {
     for (const questionId of getQuestionIdsFromAttempt(attempt)) {
       recentQuestionCounts.set(questionId, (recentQuestionCounts.get(questionId) ?? 0) + 1);
+    }
+  }
+
+  for (const attempt of params.previousAttempts) {
+    for (const questionId of getQuestionIdsFromAttempt(attempt)) {
+      lifetimeQuestionCounts.set(questionId, (lifetimeQuestionCounts.get(questionId) ?? 0) + 1);
     }
   }
 
@@ -625,11 +678,13 @@ function selectAttemptQuestions(params: {
     const leftScore = scoreQuestionForSelection({
       question: left,
       recentQuestionCounts,
+      lifetimeQuestionCounts,
       usedSourceUnitCounts,
     });
     const rightScore = scoreQuestionForSelection({
       question: right,
       recentQuestionCounts,
+      lifetimeQuestionCounts,
       usedSourceUnitCounts,
     });
 
@@ -678,8 +733,12 @@ export async function createPracticeTestAttempt(params: {
   userId: string;
 }) {
   const supabase = createSupabaseServiceRoleClient();
-  const [{ data: asset, error: assetError }, { data: questions, error: questionsError }, { data: attempts, error: attemptsError }] =
-    await Promise.all([
+  const loadAttemptInputs = async () => {
+    const [
+      { data: asset, error: assetError },
+      { data: questions, error: questionsError },
+      { data: attempts, error: attemptsError },
+    ] = await Promise.all([
       supabase
         .from("lecture_practice_test_assets")
         .select("*")
@@ -698,29 +757,62 @@ export async function createPracticeTestAttempt(params: {
         .order("created_at", { ascending: true }),
     ]);
 
-  if (assetError) {
-    throw assetError;
+    if (assetError) {
+      throw assetError;
+    }
+
+    if (questionsError) {
+      throw questionsError;
+    }
+
+    if (attemptsError) {
+      throw attemptsError;
+    }
+
+    return {
+      asset: asset as LecturePracticeTestAssetRow | null,
+      questions: (questions ?? []) as PracticeTestQuestionRow[],
+      attempts: (attempts ?? []) as PracticeTestAttemptRow[],
+    };
+  };
+
+  let { asset: assetRow, questions: questionRows, attempts: previousAttempts } =
+    await loadAttemptInputs();
+
+  const needsInitialBank = !assetRow || assetRow.status !== "ready" || questionRows.length === 0;
+  if (needsInitialBank) {
+    await generateLecturePracticeTest({
+      lectureId: params.lectureId,
+      regenerate: Boolean(assetRow),
+    });
+    ({ asset: assetRow, questions: questionRows, attempts: previousAttempts } =
+      await loadAttemptInputs());
   }
 
-  if (questionsError) {
-    throw questionsError;
+  if (!assetRow || assetRow.status !== "ready" || questionRows.length === 0) {
+    throw new Error("A practice test could not be prepared right now.");
   }
 
-  if (attemptsError) {
-    throw attemptsError;
-  }
+  let bankVersion = getBankVersionFromAsset(assetRow);
 
-  const assetRow = asset as LecturePracticeTestAssetRow | null;
-  if (!assetRow || assetRow.status !== "ready") {
-    throw new Error("Create the practice-test bank before starting a test.");
+  if (
+    shouldRefreshPracticeTestBank({
+      questions: questionRows,
+      attempts: previousAttempts,
+      bankVersion,
+    })
+  ) {
+    await generateLecturePracticeTest({
+      lectureId: params.lectureId,
+      regenerate: true,
+    });
+    ({ asset: assetRow, questions: questionRows, attempts: previousAttempts } =
+      await loadAttemptInputs());
+    if (!assetRow || assetRow.status !== "ready" || questionRows.length === 0) {
+      throw new Error("A new practice test could not be prepared right now.");
+    }
+    bankVersion = getBankVersionFromAsset(assetRow);
   }
-
-  const questionRows = (questions ?? []) as PracticeTestQuestionRow[];
-  if (questionRows.length === 0) {
-    throw new Error("The practice-test bank is empty.");
-  }
-
-  const previousAttempts = (attempts ?? []) as PracticeTestAttemptRow[];
   const activeAttemptIds = previousAttempts
     .filter((attempt) => attempt.status === "in_progress" || attempt.status === "submitted")
     .map((attempt) => attempt.id);
@@ -736,21 +828,17 @@ export async function createPracticeTestAttempt(params: {
     }
   }
 
+  const attemptsOnCurrentBank = getAttemptsForBank({
+    attempts: previousAttempts,
+    bankVersion,
+  });
   const selectedQuestions = selectAttemptQuestions({
     questions: questionRows,
-    previousAttempts,
+    previousAttempts: attemptsOnCurrentBank,
   });
 
   const attemptId = crypto.randomUUID();
   const attemptNumber = previousAttempts.length + 1;
-  const bankVersion =
-    typeof assetRow.model_metadata === "object" &&
-    assetRow.model_metadata &&
-    !Array.isArray(assetRow.model_metadata) &&
-    "bankVersion" in assetRow.model_metadata &&
-    typeof assetRow.model_metadata.bankVersion === "string"
-      ? assetRow.model_metadata.bankVersion
-      : assetRow.updated_at;
 
   const metadata = {
     questionIds: selectedQuestions.map((question) => question.id),

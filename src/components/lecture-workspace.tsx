@@ -678,7 +678,6 @@ export function LectureWorkspace({
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isRegeneratingStudy, setIsRegeneratingStudy] = useState(false);
   const [isRegeneratingQuiz, setIsRegeneratingQuiz] = useState(false);
-  const [isRegeneratingPracticeTest, setIsRegeneratingPracticeTest] = useState(false);
   const [isStartingPracticeTest, setIsStartingPracticeTest] = useState(false);
   const [isSubmittingPracticeTest, setIsSubmittingPracticeTest] = useState(false);
   const [studyError, setStudyError] = useState<string | null>(null);
@@ -1235,46 +1234,6 @@ export function LectureWorkspace({
       return;
     }
 
-    await refreshLectureDetail();
-  }
-
-  async function handlePracticeTestCreate() {
-    setStudyError(null);
-    setIsRegeneratingPracticeTest(true);
-    const response = await fetch(`/api/lectures/${detail.lecture.id}/practice-test`, {
-      method: "POST",
-    });
-    const payload = await response.json().catch(() => null);
-    setIsRegeneratingPracticeTest(false);
-
-    if (!response.ok) {
-      setStudyError(payload?.error ?? "Practice test could not be created.");
-      return;
-    }
-
-    await refreshLectureDetail();
-  }
-
-  async function handlePracticeTestRegenerate() {
-    setStudyError(null);
-    setIsRegeneratingPracticeTest(true);
-    const response = await fetch(`/api/lectures/${detail.lecture.id}/practice-test/regenerate`, {
-      method: "POST",
-    });
-    const payload = await response.json().catch(() => null);
-    setIsRegeneratingPracticeTest(false);
-
-    if (!response.ok) {
-      setStudyError(payload?.error ?? "Practice-test bank could not be regenerated.");
-      return;
-    }
-
-    setCurrentPracticeAttemptId(null);
-    setPracticeAttemptQuestionIds([]);
-    setPracticeTextAnswers({});
-    setPracticeUnknownQuestionIds([]);
-    setLatestViewedPracticeAttemptId(null);
-    setPracticeSubmittedAt(null);
     await refreshLectureDetail();
   }
 
@@ -2184,26 +2143,26 @@ export function LectureWorkspace({
                       ? "Creating practice test."
                       : detail.practiceTestAsset?.status === "failed"
                         ? "Practice-test creation failed."
-                        : "Create a practice test when you're ready."}
+                        : "Start a practice test when you're ready."}
                 </p>
                 <p className="ios-row-subtitle">
                   {detail.lecture.status !== "ready"
-                    ? "Notes are created first. After that, you can generate a practice test manually."
+                    ? "Notes are created first. After that, you can start a practice test."
                     : shouldPollAsset(detail.practiceTestAsset?.status)
-                      ? "This view refreshes automatically as your question bank is prepared."
-                      : "Generate a reusable bank of open-ended test questions and start a new random test anytime."}
+                      ? "This view refreshes automatically while your next practice test is being prepared."
+                      : "Each new test gives you a fresh random set of open-ended questions."}
                 </p>
-                {detail.lecture.status === "ready" && !shouldPollAsset(detail.practiceTestAsset?.status) ? (
+                {detail.lecture.status === "ready" ? (
                   <button
                     type="button"
-                    onClick={() => void handlePracticeTestCreate()}
-                    disabled={isRegeneratingPracticeTest}
+                    onClick={() => void handlePracticeTestStart()}
+                    disabled={isStartingPracticeTest || shouldPollAsset(detail.practiceTestAsset?.status)}
                     className="lecture-study-refresh lecture-study-create-button"
                   >
-                    {isRegeneratingPracticeTest ? (
+                    {isStartingPracticeTest ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : null}
-                    Create practice test
+                    Start new test
                   </button>
                 ) : null}
               </div>
@@ -2216,16 +2175,6 @@ export function LectureWorkspace({
                     <p>
                       {practiceQuestionsAnsweredCount} / {practiceAttemptAnswers.length} questions ready
                     </p>
-                  </div>
-                  <div className="lecture-practice-summary-actions">
-                    <button
-                      type="button"
-                      onClick={() => void handlePracticeTestRegenerate()}
-                      disabled={isRegeneratingPracticeTest || isSubmittingPracticeTest}
-                      className="lecture-study-action"
-                    >
-                      Regenerate bank
-                    </button>
                   </div>
                 </div>
 
@@ -2286,10 +2235,9 @@ export function LectureWorkspace({
                 <div className="lecture-practice-summary">
                   <div>
                     <p className="lecture-practice-kicker">Practice test</p>
-                    <h3>Generate a new random test whenever you want</h3>
+                    <h3>Start a new random test whenever you want</h3>
                     <p>
-                      Bank: {detail.practiceTestQuestions.length} questions. Attempts:{" "}
-                      {detail.practiceTestHistorySummary.attemptCount}
+                      Attempts completed: {detail.practiceTestHistorySummary.attemptCount}
                     </p>
                   </div>
                   <div className="lecture-practice-summary-actions">
@@ -2302,15 +2250,7 @@ export function LectureWorkspace({
                       className="lecture-study-refresh"
                     >
                       {isStartingPracticeTest ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      {detail.practiceTestHistorySummary.attemptCount > 0 ? "Start new test" : "Start practice test"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handlePracticeTestRegenerate()}
-                      disabled={isRegeneratingPracticeTest}
-                      className="lecture-study-action"
-                    >
-                      Regenerate bank
+                      Start new test
                     </button>
                   </div>
                 </div>
