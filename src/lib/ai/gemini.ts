@@ -35,6 +35,15 @@ function toErrorMessage(error: unknown) {
   return String(error);
 }
 
+function isGeminiSchemaTooComplexError(error: unknown) {
+  const message = toErrorMessage(error).toLowerCase();
+
+  return (
+    message.includes("too many states for serving") ||
+    (message.includes("invalid_argument") && message.includes("specified schema"))
+  );
+}
+
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
@@ -73,6 +82,8 @@ export async function generateStructuredObjectWithGemini<TSchema extends z.ZodTy
 }) {
   const ai = getGeminiClient();
   let lastError: unknown = null;
+  let useResponseSchema = true;
+  const responseSchema = z.toJSONSchema(params.schema);
 
   for (let attempt = 0; attempt < GEMINI_GENERATION_MAX_ATTEMPTS; attempt += 1) {
     const retryInstruction =
@@ -92,13 +103,13 @@ export async function generateStructuredObjectWithGemini<TSchema extends z.ZodTy
           contents: `${params.instructions}${retryInstruction}
 
 Return exactly one JSON object that matches this JSON schema:
-${JSON.stringify(z.toJSONSchema(params.schema))}
+${JSON.stringify(responseSchema)}
 
 Source input:
 ${params.input}`,
           config: {
             responseMimeType: "application/json",
-            responseSchema: z.toJSONSchema(params.schema),
+            ...(useResponseSchema ? { responseSchema } : {}),
             maxOutputTokens,
           },
         }),
@@ -114,6 +125,10 @@ ${params.input}`,
 
       return parseStructuredText(params.schema, outputText);
     } catch (error) {
+      if (useResponseSchema && isGeminiSchemaTooComplexError(error)) {
+        useResponseSchema = false;
+      }
+
       lastError = error;
     }
   }
@@ -134,6 +149,8 @@ export async function generateStructuredObjectWithGeminiFile<TSchema extends z.Z
   const fs = await import("node:fs/promises");
   let uploadedFileName: string | null = null;
   let lastError: unknown = null;
+  let useResponseSchema = true;
+  const responseSchema = z.toJSONSchema(params.schema);
 
   await fs.writeFile(tempPath, bytes);
 
@@ -166,7 +183,7 @@ export async function generateStructuredObjectWithGeminiFile<TSchema extends z.Z
               `${params.instructions}${retryInstruction}
 
 Return exactly one JSON object that matches this JSON schema:
-${JSON.stringify(z.toJSONSchema(params.schema))}`,
+${JSON.stringify(responseSchema)}`,
               createPartFromUri(
                 uploaded.uri ?? "",
                 uploaded.mimeType ?? params.file.type ?? "application/octet-stream",
@@ -174,7 +191,7 @@ ${JSON.stringify(z.toJSONSchema(params.schema))}`,
             ],
             config: {
               responseMimeType: "application/json",
-              responseSchema: z.toJSONSchema(params.schema),
+              ...(useResponseSchema ? { responseSchema } : {}),
               maxOutputTokens,
             },
           }),
@@ -190,6 +207,10 @@ ${JSON.stringify(z.toJSONSchema(params.schema))}`,
 
         return parseStructuredText(params.schema, outputText);
       } catch (error) {
+        if (useResponseSchema && isGeminiSchemaTooComplexError(error)) {
+          useResponseSchema = false;
+        }
+
         lastError = error;
       }
     }
