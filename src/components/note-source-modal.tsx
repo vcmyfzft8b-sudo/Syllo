@@ -9,7 +9,6 @@ import { useRouter } from "next/navigation";
 
 import { EmojiIcon } from "@/components/emoji-icon";
 import { createAudioLectureWithProcessingChunks } from "@/lib/audio-lecture-upload";
-import { BRAND_NAME } from "@/lib/brand";
 import {
   AUDIO_FILE_INPUT_ACCEPT,
   DOCUMENT_FILE_INPUT_ACCEPT,
@@ -113,19 +112,7 @@ function sheetTitle(mode: NoteSourceMode) {
   return "Paste text or document";
 }
 
-function sheetDescription(mode: NoteSourceMode) {
-  if (mode === "record") {
-    return `Capture audio and let ${BRAND_NAME} turn it into a transcript, summary, and notes.`;
-  }
-
-  if (mode === "upload") {
-    return "Turn an existing recording into organized notes.";
-  }
-
-  if (mode === "link") {
-    return "Create notes from a web article or source.";
-  }
-
+function sheetDescription() {
   return "";
 }
 
@@ -830,6 +817,38 @@ export function NoteSourceModal({
     }
   }
 
+  function renderBusyOrGenerateButton(params: {
+    canGenerate: boolean;
+    onGenerate: () => void;
+    generateIcon: string;
+  }) {
+    if (busyLabel) {
+      return (
+        <button
+          type="button"
+          className="ios-secondary-button"
+          disabled={isCancelling}
+          onClick={() => void handleCancelBusyAction()}
+        >
+          {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          Cancel
+        </button>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        className="ios-primary-button"
+        disabled={!params.canGenerate}
+        onClick={params.onGenerate}
+      >
+        <EmojiIcon symbol={params.generateIcon} size="1rem" />
+        Generate
+      </button>
+    );
+  }
+
   if (!open || !mode) {
     return null;
   }
@@ -860,8 +879,8 @@ export function NoteSourceModal({
               </button>
             </div>
 
-            {sheetDescription(selectedMode) ? (
-              <p className="note-source-description">{sheetDescription(selectedMode)}</p>
+            {sheetDescription() ? (
+              <p className="note-source-description">{sheetDescription()}</p>
             ) : null}
 
             <div className="mt-6 ios-segmented note-source-segmented">
@@ -944,30 +963,11 @@ export function NoteSourceModal({
 
                   {!isRecording && preparedRecording ? (
                     <>
-                      <button
-                        type="button"
-                        disabled={Boolean(busyLabel)}
-                        className="ios-primary-button"
-                        onClick={() => void createAudioLecture()}
-                      >
-                        {busyLabel ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <EmojiIcon symbol="📄" size="1rem" />
-                        )}
-                        {busyLabel ?? "Generate"}
-                      </button>
-                      {busyLabel ? (
-                        <button
-                          type="button"
-                          className="ios-secondary-button"
-                          disabled={isCancelling}
-                          onClick={() => void handleCancelBusyAction()}
-                        >
-                          {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                          Cancel
-                        </button>
-                      ) : null}
+                      {renderBusyOrGenerateButton({
+                        canGenerate: true,
+                        onGenerate: () => void createAudioLecture(),
+                        generateIcon: "📄",
+                      })}
 
                       <button
                         type="button"
@@ -1024,37 +1024,18 @@ export function NoteSourceModal({
                   <button
                     type="button"
                     disabled={Boolean(busyLabel)}
-                  className="ios-secondary-button"
-                  onClick={() => uploadInputRef.current?.click()}
-                >
-                  <EmojiIcon symbol="📤" size="1rem" />
+                    className="ios-secondary-button"
+                    onClick={() => uploadInputRef.current?.click()}
+                  >
+                    <EmojiIcon symbol="📤" size="1rem" />
                     {preparedUpload ? "Choose another audio file" : "Choose audio file"}
                   </button>
 
-                  <button
-                    type="button"
-                    disabled={Boolean(busyLabel) || !preparedUpload}
-                    className="ios-primary-button"
-                    onClick={() => void createAudioLecture()}
-                  >
-                    {busyLabel ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <EmojiIcon symbol="📄" size="1rem" />
-                    )}
-                    {busyLabel ?? "Generate"}
-                  </button>
-                  {busyLabel ? (
-                    <button
-                      type="button"
-                      className="ios-secondary-button"
-                      disabled={isCancelling}
-                      onClick={() => void handleCancelBusyAction()}
-                    >
-                      {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      Cancel
-                    </button>
-                  ) : null}
+                  {renderBusyOrGenerateButton({
+                    canGenerate: Boolean(preparedUpload),
+                    onGenerate: () => void createAudioLecture(),
+                    generateIcon: "📄",
+                  })}
                 </>
               ) : null}
 
@@ -1074,30 +1055,11 @@ export function NoteSourceModal({
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    className="ios-primary-button"
-                    disabled={Boolean(busyLabel) || !canGenerateLink}
-                    onClick={() => void createLinkLecture()}
-                  >
-                    {busyLabel ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <EmojiIcon symbol="🔗" size="1rem" />
-                    )}
-                    {busyLabel ?? "Generate"}
-                  </button>
-                  {busyLabel ? (
-                    <button
-                      type="button"
-                      className="ios-secondary-button"
-                      disabled={isCancelling}
-                      onClick={() => void handleCancelBusyAction()}
-                    >
-                      {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      Cancel
-                    </button>
-                  ) : null}
+                  {renderBusyOrGenerateButton({
+                    canGenerate: canGenerateLink,
+                    onGenerate: () => void createLinkLecture(),
+                    generateIcon: "🔗",
+                  })}
                 </>
               ) : null}
 
@@ -1183,37 +1145,18 @@ export function NoteSourceModal({
                     </button>
                   </div>
 
-                  <button
-                    type="button"
-                    className="ios-primary-button"
-                    disabled={Boolean(busyLabel) || !canGenerateText}
-                    onClick={() => {
+                  {renderBusyOrGenerateButton({
+                    canGenerate: canGenerateText,
+                    onGenerate: () => {
                       if (pdfSource) {
                         void createPdfLecture();
                         return;
                       }
 
                       void createTextLecture();
-                    }}
-                  >
-                    {busyLabel ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <EmojiIcon symbol="📄" size="1rem" />
-                    )}
-                    {busyLabel ?? "Generate"}
-                  </button>
-                  {busyLabel ? (
-                    <button
-                      type="button"
-                      className="ios-secondary-button"
-                      disabled={isCancelling}
-                      onClick={() => void handleCancelBusyAction()}
-                    >
-                      {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      Cancel
-                    </button>
-                  ) : null}
+                    },
+                    generateIcon: "📄",
+                  })}
                 </>
               ) : null}
 
