@@ -1157,6 +1157,7 @@ export function LectureWorkspace({
       ? practiceAttemptsById.get(latestViewedPracticeAttemptId) ?? null
       : null) ?? latestGradedPracticeAttempt;
   const practiceHistory = detail.practiceTestHistorySummary.scoresByAttempt;
+  const visiblePracticeAttemptPercentage = Math.round(visiblePracticeAttempt?.percentage ?? 0);
   const practiceAttemptAnswers = currentPracticeAttempt?.answers ?? [];
   const practiceQuestionsAnsweredCount = practiceAttemptAnswers.filter((answer) => {
     const questionId = answer.practice_test_question_id ?? `snapshot-${answer.id}`;
@@ -2234,64 +2235,89 @@ export function LectureWorkspace({
               </div>
             ) : (
               <div className="lecture-practice-shell">
-                <div className="lecture-practice-summary">
-                  <div className="lecture-practice-summary-actions">
-                    <button
-                      type="button"
-                      onClick={() => void handlePracticeTestStart()}
-                      disabled={
-                        isStartingPracticeTest || shouldPollAsset(detail.practiceTestAsset?.status)
-                      }
-                      className="lecture-study-refresh"
-                    >
-                      {isStartingPracticeTest ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      Start new test
-                    </button>
-                  </div>
-                </div>
-
                 {visiblePracticeAttempt && visiblePracticeAttempt.status === "graded" ? (
                   <div className="lecture-practice-results">
-                    <div className="lecture-practice-score-card">
-                      <p className="lecture-practice-kicker">Latest result</p>
-                      <strong>
-                        {visiblePracticeAttempt.total_score ?? 0}/{visiblePracticeAttempt.max_score ?? 0}
-                      </strong>
-                      <span>{Math.round(visiblePracticeAttempt.percentage ?? 0)}%</span>
-                    </div>
-                    <div className="lecture-practice-metrics">
-                      <div className="lecture-practice-metric">
-                        <span>Average</span>
-                        <strong>
-                          {detail.practiceTestHistorySummary.averagePercentage == null
-                            ? "-"
-                            : `${Math.round(detail.practiceTestHistorySummary.averagePercentage)}%`}
-                        </strong>
+                    <StudyCompletionCard
+                      eyebrow="Latest result"
+                      title={`Practice test ${visiblePracticeAttemptPercentage}%`}
+                      subtitle={`Attempt ${practiceHistory.find((entry) => entry.attemptId === visiblePracticeAttempt.id)?.attemptNumber ?? detail.practiceTestHistorySummary.attemptCount}`}
+                      percentage={visiblePracticeAttemptPercentage}
+                      percentageLabel="Score"
+                      primaryMetric={{
+                        label: "Points earned",
+                        value: `${visiblePracticeAttempt.total_score ?? 0}/${visiblePracticeAttempt.max_score ?? 0}`,
+                      }}
+                      secondaryMetrics={[
+                        {
+                          label: "Average",
+                          value:
+                            detail.practiceTestHistorySummary.averagePercentage == null
+                              ? "-"
+                              : `${Math.round(detail.practiceTestHistorySummary.averagePercentage)}%`,
+                        },
+                        {
+                          label: "Best",
+                          value:
+                            detail.practiceTestHistorySummary.bestPercentage == null
+                              ? "-"
+                              : `${Math.round(detail.practiceTestHistorySummary.bestPercentage)}%`,
+                        },
+                        {
+                          label: "Lowest",
+                          value:
+                            detail.practiceTestHistorySummary.lowestPercentage == null
+                              ? "-"
+                              : `${Math.round(detail.practiceTestHistorySummary.lowestPercentage)}%`,
+                        },
+                        {
+                          label: "Attempts",
+                          value: String(detail.practiceTestHistorySummary.attemptCount),
+                        },
+                      ]}
+                      actions={
+                        <button
+                          type="button"
+                          onClick={() => void handlePracticeTestStart()}
+                          disabled={
+                            isStartingPracticeTest || shouldPollAsset(detail.practiceTestAsset?.status)
+                          }
+                          className="lecture-study-refresh lecture-practice-start-button"
+                        >
+                          {isStartingPracticeTest ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : null}
+                          Start new test
+                        </button>
+                      }
+                    />
+
+                    <div className="lecture-practice-trend-card">
+                      <div className="lecture-practice-trend-header">
+                        <h4>Score history</h4>
+                        <span>{detail.practiceTestHistorySummary.attemptCount} attempts</span>
                       </div>
-                      <div className="lecture-practice-metric">
-                        <span>Best</span>
-                        <strong>
-                          {detail.practiceTestHistorySummary.bestPercentage == null
-                            ? "-"
-                            : `${Math.round(detail.practiceTestHistorySummary.bestPercentage)}%`}
-                        </strong>
-                      </div>
-                      <div className="lecture-practice-metric">
-                        <span>Lowest</span>
-                        <strong>
-                          {detail.practiceTestHistorySummary.lowestPercentage == null
-                            ? "-"
-                            : `${Math.round(detail.practiceTestHistorySummary.lowestPercentage)}%`}
-                        </strong>
-                      </div>
-                      <div className="lecture-practice-metric">
-                        <span>Attempts</span>
-                        <strong>{detail.practiceTestHistorySummary.attemptCount}</strong>
+                      <div className="lecture-practice-trend-bars">
+                        {practiceHistory.map((entry) => (
+                          <button
+                            key={entry.attemptId}
+                            type="button"
+                            onClick={() => setLatestViewedPracticeAttemptId(entry.attemptId)}
+                            className={`lecture-practice-trend-bar ${
+                              latestViewedPracticeAttemptId === entry.attemptId ? "active" : ""
+                            }`}
+                          >
+                            <span
+                              className="lecture-practice-trend-bar-fill"
+                              style={{ height: `${Math.max(10, Math.round(entry.percentage))}%` }}
+                            />
+                            <strong>{Math.round(entry.percentage)}%</strong>
+                            <small>#{entry.attemptNumber}</small>
+                          </button>
+                        ))}
                       </div>
                     </div>
 
                     <div className="lecture-practice-history">
-                      <h4>Score history</h4>
                       <div className="lecture-practice-history-list">
                         {practiceHistory.length > 0 ? (
                           practiceHistory.map((entry) => (
@@ -2314,30 +2340,50 @@ export function LectureWorkspace({
                       </div>
                     </div>
 
-                    <div className="lecture-practice-feedback-list">
-                      {visiblePracticeAttempt.answers.map((answer, index) => (
-                        <div key={answer.id} className="lecture-practice-feedback-card">
-                          <div className="lecture-practice-card-header">
-                            <span>Question {index + 1}</span>
-                            <span>{answer.score ?? 0}/5</span>
-                          </div>
-                          <p className="lecture-practice-prompt">{answer.question?.prompt}</p>
-                          {answer.typed_answer ? (
-                            <p className="lecture-practice-feedback-copy">
-                              <strong>Your answer:</strong> {answer.typed_answer}
-                            </p>
-                          ) : null}
-                          <p className="lecture-practice-feedback-copy">
-                            <strong>Rationale:</strong> {answer.grading_rationale ?? "No feedback."}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+                    <details className="lecture-practice-breakdown">
+                      <summary>
+                        Review attempt details
+                        <span>{visiblePracticeAttempt.answers.length} questions</span>
+                      </summary>
+                      <div className="lecture-practice-feedback-list">
+                        {visiblePracticeAttempt.answers.map((answer, index) => (
+                          <details key={answer.id} className="lecture-practice-feedback-card">
+                            <summary className="lecture-practice-feedback-summary">
+                              <span>Question {index + 1}</span>
+                              <span>{answer.score ?? 0}/5</span>
+                            </summary>
+                            <div className="lecture-practice-feedback-body">
+                              <p className="lecture-practice-prompt">{answer.question?.prompt}</p>
+                              {answer.typed_answer ? (
+                                <p className="lecture-practice-feedback-copy">
+                                  <strong>Your answer:</strong> {answer.typed_answer}
+                                </p>
+                              ) : null}
+                              <p className="lecture-practice-feedback-copy">
+                                <strong>Rationale:</strong> {answer.grading_rationale ?? "No feedback."}
+                              </p>
+                            </div>
+                          </details>
+                        ))}
+                      </div>
+                    </details>
                   </div>
                 ) : (
-                  <p className="ios-row-subtitle">
-                    Start your first practice test to build score history and track improvement.
-                  </p>
+                  <div className="lecture-practice-summary lecture-practice-summary-centered">
+                    <div className="lecture-practice-summary-actions">
+                      <button
+                        type="button"
+                        onClick={() => void handlePracticeTestStart()}
+                        disabled={
+                          isStartingPracticeTest || shouldPollAsset(detail.practiceTestAsset?.status)
+                        }
+                        className="lecture-study-refresh lecture-practice-start-button"
+                      >
+                        {isStartingPracticeTest ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                        Start new test
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
