@@ -126,7 +126,7 @@ function sheetDescription(mode: NoteSourceMode) {
     return "Create notes from a web article or source.";
   }
 
-  return `Paste source material or use a document and let ${BRAND_NAME} structure it for you.`;
+  return "";
 }
 
 export function NoteSourceModal({
@@ -720,7 +720,7 @@ export function NoteSourceModal({
       setPdfSource(null);
       setTextValue(payload.text ?? "");
       setScannedFileName(file.name);
-      setIsTextEditorOpen(true);
+      setIsTextEditorOpen(false);
     } catch (scanError) {
       setError(
         scanError instanceof Error ? scanError.message : "The photo could not be scanned.",
@@ -860,7 +860,9 @@ export function NoteSourceModal({
               </button>
             </div>
 
-            <p className="note-source-description">{sheetDescription(selectedMode)}</p>
+            {sheetDescription(selectedMode) ? (
+              <p className="note-source-description">{sheetDescription(selectedMode)}</p>
+            ) : null}
 
             <div className="mt-6 ios-segmented note-source-segmented">
               {MODES.map((item) => (
@@ -1101,38 +1103,6 @@ export function NoteSourceModal({
 
               {selectedMode === "text" ? (
                 <>
-                  <div className="note-source-docs-actions">
-                    <button
-                      type="button"
-                      className="ios-secondary-button note-source-docs-action-button"
-                      disabled={Boolean(busyLabel)}
-                      onClick={() => pdfInputRef.current?.click()}
-                    >
-                      <EmojiIcon symbol="📤" size="1rem" />
-                      File
-                    </button>
-
-                    <button
-                      type="button"
-                      className="ios-secondary-button note-source-docs-action-button"
-                      disabled={Boolean(busyLabel)}
-                      onClick={() => setIsTextEditorOpen(true)}
-                    >
-                      <EmojiIcon symbol="⌨️" size="1rem" />
-                      Text
-                    </button>
-
-                    <button
-                      type="button"
-                      className="ios-secondary-button note-source-docs-action-button"
-                      disabled={Boolean(busyLabel)}
-                      onClick={() => scanInputRef.current?.click()}
-                    >
-                      <EmojiIcon symbol="📷" size="1rem" />
-                      Scan
-                    </button>
-                  </div>
-
                   {pdfSource ? (
                     <div className="ios-card note-source-docs-file-card">
                       <p className="note-source-card-label">Document selected</p>
@@ -1153,17 +1123,26 @@ export function NoteSourceModal({
                     </div>
                   ) : null}
 
-                  {!pdfSource && trimmedTextValue && !scannedFileName ? (
-                    <div className="ios-card note-source-docs-file-card">
-                      <p className="note-source-card-label">Text added</p>
-                      <p className="ios-row-title note-source-docs-file-name">
-                        {trimmedTextValue.split(/\s+/).filter(Boolean).length} words ready
-                      </p>
-                      <p className="ios-row-subtitle note-source-docs-file-copy">
-                        Open Paste text to review or replace it.
-                      </p>
-                    </div>
-                  ) : null}
+                  <div className="note-source-docs-textarea-wrap">
+                    <textarea
+                      value={textValue}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+
+                        if (pdfSource && nextValue.trim().length > 0) {
+                          setPdfSource(null);
+                        }
+
+                        if (nextValue.trim().length === 0) {
+                          setScannedFileName(null);
+                        }
+
+                        setTextValue(nextValue);
+                      }}
+                      className="ios-textarea note-source-inline-textarea"
+                      placeholder="Paste notes or text here..."
+                    />
+                  </div>
 
                   <input
                     ref={pdfInputRef}
@@ -1182,10 +1161,27 @@ export function NoteSourceModal({
                     className="hidden"
                   />
 
-                  <p className="ios-row-subtitle note-source-docs-support-copy">
-                    PDF, TXT, Markdown, HTML, RTF, and DOCX are supported up to 4 MB. You can
-                    also scan handwritten or printed notes with your phone camera.
-                  </p>
+                  <div className="note-source-docs-actions note-source-docs-actions-bottom">
+                    <button
+                      type="button"
+                      className="ios-secondary-button note-source-docs-action-button"
+                      disabled={Boolean(busyLabel)}
+                      onClick={() => pdfInputRef.current?.click()}
+                    >
+                      <EmojiIcon symbol="📤" size="1rem" />
+                      File
+                    </button>
+
+                    <button
+                      type="button"
+                      className="ios-secondary-button note-source-docs-action-button"
+                      disabled={Boolean(busyLabel)}
+                      onClick={() => scanInputRef.current?.click()}
+                    >
+                      <EmojiIcon symbol="📷" size="1rem" />
+                      Scan
+                    </button>
+                  </div>
 
                   <button
                     type="button"

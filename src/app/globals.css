@@ -1261,18 +1261,18 @@ select:disabled {
 }
 
 .note-source-modal-stack {
-  width: min(100%, 54rem);
+  width: min(100%, 60rem);
   max-width: none;
 }
 
 .note-source-modal {
-  width: min(100%, 54rem);
+  width: min(100%, 60rem);
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 0;
   max-width: none;
-  max-height: min(calc(100vh - 3rem), 50rem);
-  padding: 1.8rem;
+  max-height: min(calc(100vh - 2rem), 56rem);
+  padding: 2rem;
   border-radius: 30px;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--surface-solid) 99%, transparent), color-mix(in srgb, var(--surface-muted) 72%, transparent));
@@ -1318,6 +1318,8 @@ select:disabled {
   padding-inline: 0.35rem;
   overflow-y: auto;
   scrollbar-width: thin;
+  display: grid;
+  align-content: start;
 }
 
 .note-source-select-wrap {
@@ -1330,9 +1332,22 @@ select:disabled {
   gap: 0.75rem;
 }
 
+.note-source-docs-actions-bottom {
+  margin-top: 0.25rem;
+}
+
 .note-source-docs-action-button {
   min-height: 3.1rem;
   border-radius: 14px;
+}
+
+.note-source-docs-textarea-wrap {
+  padding-inline: 4px;
+}
+
+.note-source-inline-textarea {
+  min-height: 15.5rem;
+  resize: vertical;
 }
 
 .note-source-docs-file-card {
@@ -1349,12 +1364,6 @@ select:disabled {
 
 .note-source-docs-file-copy {
   font-size: 0.8rem;
-  line-height: 1.35;
-}
-
-.note-source-docs-support-copy {
-  margin-top: -0.1rem;
-  font-size: 0.78rem;
   line-height: 1.35;
 }
 
