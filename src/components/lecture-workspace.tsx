@@ -625,12 +625,14 @@ function sanitizePracticeTestSessionState(
   ) as Record<string, PersistedPracticeTestPhotoDraft>;
 
   for (const answer of currentAttempt?.answers ?? []) {
-    if (!textAnswers[answer.practice_test_question_id] && answer.typed_answer) {
-      textAnswers[answer.practice_test_question_id] = answer.typed_answer;
+    const questionKey = answer.practice_test_question_id ?? `snapshot-${answer.id}`;
+
+    if (!textAnswers[questionKey] && answer.typed_answer) {
+      textAnswers[questionKey] = answer.typed_answer;
     }
 
-    if (!photoDrafts[answer.practice_test_question_id] && answer.photo_path) {
-      photoDrafts[answer.practice_test_question_id] = {
+    if (!photoDrafts[questionKey] && answer.photo_path) {
+      photoDrafts[questionKey] = {
         fileName: answer.photo_path.split("/").pop() ?? "answer",
         previewUrl: answer.photoUrl,
         uploadedPath: answer.photo_path,
@@ -1174,14 +1176,16 @@ export function LectureWorkspace({
     detail.practiceTestAttempts.length > 0
       ? detail.practiceTestAttempts[detail.practiceTestAttempts.length - 1] ?? null
       : null;
+  const latestGradedPracticeAttempt =
+    [...detail.practiceTestAttempts].reverse().find((attempt) => attempt.status === "graded") ?? null;
   const visiblePracticeAttempt =
     (latestViewedPracticeAttemptId
       ? practiceAttemptsById.get(latestViewedPracticeAttemptId) ?? null
-      : null) ?? latestPracticeAttempt;
+      : null) ?? latestGradedPracticeAttempt;
   const practiceHistory = detail.practiceTestHistorySummary.scoresByAttempt;
   const practiceAttemptAnswers = currentPracticeAttempt?.answers ?? [];
   const practiceQuestionsAnsweredCount = practiceAttemptAnswers.filter((answer) => {
-    const questionId = answer.practice_test_question_id;
+    const questionId = answer.practice_test_question_id ?? `snapshot-${answer.id}`;
     return (
       practiceUnknownQuestionIds.includes(questionId) ||
       Boolean(practicePhotoDrafts[questionId]?.uploadedPath) ||
@@ -1404,7 +1408,7 @@ export function LectureWorkspace({
 
     setPracticePhotoDrafts((current) => ({
       ...current,
-      [targetAnswer.practice_test_question_id]: {
+      [(targetAnswer.practice_test_question_id ?? `snapshot-${targetAnswer.id}`)]: {
         fileName: file.name,
         previewUrl: payload?.photoUrl ?? null,
         uploadedPath: payload?.path ?? null,
@@ -1419,7 +1423,7 @@ export function LectureWorkspace({
     }
 
     const answers = currentPracticeAttempt.answers.map((answer) => {
-      const questionId = answer.practice_test_question_id;
+      const questionId = answer.practice_test_question_id ?? `snapshot-${answer.id}`;
       return {
         answerId: answer.id,
         typedAnswer: practiceTextAnswers[questionId] ?? "",
@@ -2328,7 +2332,7 @@ export function LectureWorkspace({
                 <div className="lecture-practice-list">
                   {practiceAttemptAnswers.map((answer, index) => {
                     const question = answer.question;
-                    const questionId = answer.practice_test_question_id;
+                    const questionId = answer.practice_test_question_id ?? `snapshot-${answer.id}`;
                     const isUnknown = practiceUnknownQuestionIds.includes(questionId);
                     const draft = practicePhotoDrafts[questionId];
 
@@ -2411,7 +2415,9 @@ export function LectureWorkspace({
                     <button
                       type="button"
                       onClick={() => void handlePracticeTestStart()}
-                      disabled={isStartingPracticeTest}
+                      disabled={
+                        isStartingPracticeTest || shouldPollAsset(detail.practiceTestAsset?.status)
+                      }
                       className="lecture-study-refresh"
                     >
                       {isStartingPracticeTest ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -2428,7 +2434,7 @@ export function LectureWorkspace({
                   </div>
                 </div>
 
-                {visiblePracticeAttempt ? (
+                {visiblePracticeAttempt && visiblePracticeAttempt.status === "graded" ? (
                   <div className="lecture-practice-results">
                     <div className="lecture-practice-score-card">
                       <p className="lecture-practice-kicker">Latest result</p>

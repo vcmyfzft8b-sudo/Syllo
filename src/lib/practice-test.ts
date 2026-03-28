@@ -783,6 +783,10 @@ export async function createPracticeTestAttempt(params: {
         attempt_id: attemptId,
         practice_test_question_id: question.id,
         idx: index,
+        question_prompt: question.prompt,
+        answer_guide_snapshot: question.answer_guide,
+        difficulty_snapshot: question.difficulty,
+        source_locator_snapshot: question.source_locator,
       })) as never,
     );
 
@@ -852,6 +856,41 @@ MissingPoints should mention what was absent or incorrect.`,
   });
 }
 
+function resolveAttemptQuestion(
+  answer:
+    | (PracticeTestAttemptAnswerRow & { practice_test_questions: PracticeTestQuestionRow | null })
+    | PracticeTestAttemptAnswerRow,
+): PracticeTestQuestionRow | null {
+  const linkedQuestion =
+    "practice_test_questions" in answer ? answer.practice_test_questions : null;
+
+  if (linkedQuestion) {
+    return linkedQuestion;
+  }
+
+  if (!answer.question_prompt || !answer.answer_guide_snapshot || !answer.difficulty_snapshot) {
+    return null;
+  }
+
+  return {
+    id: answer.practice_test_question_id ?? `snapshot-${answer.id}`,
+    lecture_id: "",
+    idx: answer.idx,
+    prompt: answer.question_prompt,
+    answer_guide: answer.answer_guide_snapshot,
+    difficulty:
+      answer.difficulty_snapshot === "easy" ||
+      answer.difficulty_snapshot === "medium" ||
+      answer.difficulty_snapshot === "hard"
+        ? answer.difficulty_snapshot
+        : "medium",
+    source_locator: answer.source_locator_snapshot,
+    source_unit_idx: null,
+    concept_key: null,
+    created_at: answer.created_at,
+  };
+}
+
 export async function submitPracticeTestAttempt(params: {
   lectureId: string;
   userId: string;
@@ -892,6 +931,12 @@ export async function submitPracticeTestAttempt(params: {
   const answerRows = (storedAnswers ?? []) as Array<
     PracticeTestAttemptAnswerRow & { practice_test_questions: PracticeTestQuestionRow | null }
   >;
+
+  if (answerRows.length === 0) {
+    throw new Error(
+      "This practice-test attempt no longer has question data. Start a new practice test.",
+    );
+  }
 
   const inputByAnswerId = new Map(params.answers.map((answer) => [answer.answerId, answer]));
 
@@ -937,7 +982,7 @@ export async function submitPracticeTestAttempt(params: {
 
   const gradedAnswers = await mapWithConcurrency(answerRows, PRACTICE_TEST_CONCURRENCY, async (answer) => {
     const input = inputByAnswerId.get(answer.id)!;
-    const question = answer.practice_test_questions;
+    const question = resolveAttemptQuestion(answer);
 
     if (!question) {
       throw new Error("Practice-test question not found.");
@@ -1102,9 +1147,10 @@ export async function mapAttemptWithAnswers(
   const mappedAnswers: PracticeTestAttemptAnswer[] = [];
 
   for (const answer of answers) {
+    const question = resolveAttemptQuestion(answer);
     mappedAnswers.push({
       ...answer,
-      question: answer.practice_test_questions,
+      question,
       photoUrl: await createSignedPracticePhotoUrl(answer.photo_path),
     });
   }

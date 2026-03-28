@@ -529,8 +529,12 @@ export type Database = {
         Row: {
           id: string;
           attempt_id: string;
-          practice_test_question_id: string;
+          practice_test_question_id: string | null;
           idx: number;
+          question_prompt: string | null;
+          answer_guide_snapshot: string | null;
+          difficulty_snapshot: string | null;
+          source_locator_snapshot: string | null;
           typed_answer: string | null;
           photo_path: string | null;
           photo_mime_type: string | null;
@@ -547,8 +551,12 @@ export type Database = {
         Insert: {
           id?: string;
           attempt_id: string;
-          practice_test_question_id: string;
+          practice_test_question_id?: string | null;
           idx: number;
+          question_prompt?: string | null;
+          answer_guide_snapshot?: string | null;
+          difficulty_snapshot?: string | null;
+          source_locator_snapshot?: string | null;
           typed_answer?: string | null;
           photo_path?: string | null;
           photo_mime_type?: string | null;
@@ -563,6 +571,11 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          practice_test_question_id?: string | null;
+          question_prompt?: string | null;
+          answer_guide_snapshot?: string | null;
+          difficulty_snapshot?: string | null;
+          source_locator_snapshot?: string | null;
           typed_answer?: string | null;
           photo_path?: string | null;
           photo_mime_type?: string | null;
