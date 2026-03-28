@@ -1034,6 +1034,26 @@ export function NoteSourceModal({
                   ))}
                 </div>
                 <div className="mt-6 space-y-4 note-source-modal-body">
+                  {selectedMode === "record" ? (
+                    <button
+                      type="button"
+                      className="ios-card note-source-guide-entry"
+                      onClick={() => setShowAudioImportGuide(true)}
+                    >
+                      <div className="note-source-guide-entry-copy">
+                        <p className="note-source-guide-entry-title">
+                          Record with your phone off
+                        </p>
+                        <p className="note-source-guide-entry-text">
+                          Save it, then upload it here later.
+                        </p>
+                      </div>
+                      <span className="note-source-guide-entry-arrow" aria-hidden="true">
+                        ›
+                      </span>
+                    </button>
+                  ) : null}
+
                   <div>
                     <label className="note-source-field-label">
                       Language
@@ -1056,26 +1076,6 @@ export function NoteSourceModal({
 
                   {selectedMode === "record" ? (
                     <>
-                      <button
-                        type="button"
-                        className="ios-card note-source-guide-entry"
-                        onClick={() => setShowAudioImportGuide(true)}
-                      >
-                        <div className="note-source-guide-entry-copy">
-                          <p className="note-source-card-label">Long lecture tip</p>
-                          <p className="note-source-guide-entry-title">
-                            How to record with your phone off and upload it later
-                          </p>
-                          <p className="note-source-guide-entry-text">
-                            Use Voice Memos or your phone&apos;s recorder, save the audio to Files, then
-                            upload it here.
-                          </p>
-                        </div>
-                        <span className="note-source-guide-entry-arrow" aria-hidden="true">
-                          ›
-                        </span>
-                      </button>
-
                       {preparedRecording ? (
                         <div className="ios-card">
                           <p className="note-source-card-label">Prepared recording</p>
