@@ -4,13 +4,23 @@ import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-const BAR_COUNT = 20;
+const BAR_COUNT = 10;
+const BAR_SHAPE = [0.34, 0.46, 0.62, 0.8, 0.98, 0.98, 0.8, 0.62, 0.46, 0.34];
+const SILENT_HEIGHT = 3.9;
 
-function createFallbackLevels(seed: number) {
-  return Array.from({ length: BAR_COUNT }, (_, index) => {
-    const phase = seed / 220 + index * 0.85;
-    return 0.3 + ((Math.sin(phase) + 1) / 2) * 0.5;
-  });
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function smoothstep(start: number, end: number, value: number) {
+  const t = clamp((value - start) / (end - start), 0, 1);
+  return t * t * (3 - 2 * t);
+}
+
+function fallbackLevel(phase: number) {
+  const wave = (Math.sin(phase * 3.2) + 1) * 0.5;
+  const pulse = (Math.sin(phase * 1.15) + 1) * 0.5;
+  return clamp((wave * 0.72 + pulse * 0.28) * 0.18, 0, 0.2);
 }
 
 export function LiveAudioWave({
@@ -22,115 +32,140 @@ export function LiveAudioWave({
   active: boolean;
   className?: string;
 }) {
-  const [levels, setLevels] = useState<number[]>(() => Array(BAR_COUNT).fill(0.12));
+  const [phase, setPhase] = useState(0);
+  const [displayedLevel, setDisplayedLevel] = useState(0);
   const frameRef = useRef<number | null>(null);
-  const renderedLevels = active ? levels : Array(BAR_COUNT).fill(0.12);
+  const targetLevelRef = useRef(0);
+  const renderedLevel = active ? displayedLevel : 0;
 
   useEffect(() => {
     if (!active) {
+      targetLevelRef.current = 0;
       return;
     }
 
-    if (!stream) {
-      let fallbackTick = 0;
-
-      const renderFallback = () => {
-        fallbackTick += 1;
-        setLevels(createFallbackLevels(fallbackTick));
-        frameRef.current = window.requestAnimationFrame(renderFallback);
-      };
-
-      frameRef.current = window.requestAnimationFrame(renderFallback);
-
-      return () => {
-        if (frameRef.current) {
-          window.cancelAnimationFrame(frameRef.current);
-          frameRef.current = null;
-        }
-      };
-    }
+    let audioContext: AudioContext | null = null;
+    let analyser: AnalyserNode | null = null;
+    let source: MediaStreamAudioSourceNode | null = null;
+    let frequencyData: Uint8Array | null = null;
 
     const AudioContextCtor =
-      window.AudioContext ||
-      ((window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext ??
-        null);
+      typeof window === "undefined"
+        ? null
+        : window.AudioContext ||
+          ((window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext ??
+            null);
 
-    if (!AudioContextCtor) {
-      return;
+    if (stream && AudioContextCtor) {
+      audioContext = new AudioContextCtor();
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.55;
+      source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+      frequencyData = new Uint8Array(new ArrayBuffer(analyser.fftSize));
     }
 
-    const audioContext = new AudioContextCtor();
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = 0.82;
+    let mounted = true;
 
-    const source = audioContext.createMediaStreamSource(stream);
-    source.connect(analyser);
+    const renderFrame = (now: number) => {
+      if (!mounted) {
+        return;
+      }
 
-    const frequencyData = new Uint8Array(analyser.frequencyBinCount);
+      const nextPhase = now / 1000;
+      setPhase(nextPhase);
 
-    const renderFrame = () => {
-      analyser.getByteFrequencyData(frequencyData);
+      let sampledLevel = fallbackLevel(nextPhase);
 
-      const bucketSize = Math.max(1, Math.floor(frequencyData.length / BAR_COUNT));
-      const nextLevels = Array.from({ length: BAR_COUNT }, (_, index) => {
-        const start = index * bucketSize;
-        const end =
-          index === BAR_COUNT - 1
-            ? frequencyData.length
-            : Math.min(frequencyData.length, start + bucketSize);
+      if (analyser && frequencyData) {
+        analyser.getByteTimeDomainData(frequencyData as Uint8Array<ArrayBuffer>);
 
-        let total = 0;
-
-        for (let cursor = start; cursor < end; cursor += 1) {
-          total += frequencyData[cursor] ?? 0;
+        let sum = 0;
+        for (let index = 0; index < frequencyData.length; index += 1) {
+          const sample = ((frequencyData[index] ?? 128) - 128) / 128;
+          sum += sample * sample;
         }
 
-        const average = total / Math.max(1, end - start);
-        return 0.16 + Math.min(0.84, average / 255);
+        const rms = Math.sqrt(sum / frequencyData.length);
+        sampledLevel = clamp((rms - 0.01) / 0.16, 0, 1);
+      }
+
+      targetLevelRef.current = sampledLevel;
+
+      setDisplayedLevel((current) => {
+        const target = targetLevelRef.current;
+        const delta = target - current;
+        const easing = delta >= 0 ? 0.26 : 0.08;
+        return clamp(current + delta * easing, 0, 1);
       });
 
-      setLevels(nextLevels);
       frameRef.current = window.requestAnimationFrame(renderFrame);
     };
 
     const start = async () => {
-      if (audioContext.state === "suspended") {
+      if (audioContext?.state === "suspended") {
         await audioContext.resume().catch(() => undefined);
       }
 
-      renderFrame();
+      frameRef.current = window.requestAnimationFrame(renderFrame);
     };
 
     void start();
 
     return () => {
+      mounted = false;
       if (frameRef.current) {
         window.cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
       }
 
-      source.disconnect();
-      void audioContext.close().catch(() => undefined);
+      source?.disconnect();
+      if (audioContext) {
+        void audioContext.close().catch(() => undefined);
+      }
     };
   }, [active, stream]);
 
   return (
-    <div
-      aria-hidden="true"
-      className={cn("flex h-16 items-end justify-center gap-1.5", className)}
-    >
-      {renderedLevels.map((level, index) => (
-        <span
-          key={index}
-          className="block w-1.5 rounded-full bg-current shadow-[0_0_18px_rgba(255,255,255,0.18)] transition-[height,transform,opacity] duration-75 ease-out will-change-[height,transform]"
-          style={{
-            height: `${Math.round(level * 100)}%`,
-            opacity: 0.42 + level * 0.58,
-            transform: `scaleY(${0.92 + level * 0.2})`,
-          }}
-        />
-      ))}
+    <div aria-hidden="true" className={cn("flex items-center justify-center", className)}>
+      <div className="flex h-10 w-[4.6rem] items-center justify-center gap-[2.4px] rounded-[13px] border border-white/10 bg-[#050505] px-[7px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+        {Array.from({ length: BAR_COUNT }, (_, index) => {
+          const normalizedLevel = clamp(renderedLevel, 0, 1);
+          const activeProgress = smoothstep(0.008, 0.055, normalizedLevel);
+          const silentBlend = 1 - activeProgress;
+          const shape = BAR_SHAPE[index] ?? BAR_SHAPE[0];
+          const activeLevel = clamp((normalizedLevel - 0.015) / 0.985, 0, 1);
+          const boostedLevel = Math.min(1, Math.pow(activeLevel, 0.5) * 1.48);
+          const timeWave = (Math.sin(phase * 16 + index * 0.7) + 1) * 0.5;
+          const voiceHeight = boostedLevel * 10.8 * shape;
+          const motionHeight = boostedLevel * (0.6 + shape) * timeWave * 1.2;
+          const activeHeight = SILENT_HEIGHT + voiceHeight + motionHeight;
+          const height = SILENT_HEIGHT + (activeHeight - SILENT_HEIGHT) * activeProgress;
+          const width = 1.85 + (2.2 - 1.85) * activeProgress;
+          const shimmer = (Math.sin(phase * 8.4 + index * 0.9) + 1) * 0.5;
+          const pulse = (Math.sin(phase * 2.2 + index * 0.2) + 1) * 0.5;
+          const blended = shimmer * 0.76 + pulse * 0.24;
+          const silentOpacity = 0.62 + 0.3 * blended;
+          const opacity = silentOpacity * silentBlend + 0.98 * activeProgress;
+          const shadowOpacity = (0.06 + 0.08 * (1 - shimmer)) * silentBlend;
+          const cornerRadius = 1.4 * silentBlend + 2 * activeProgress;
+
+          return (
+            <span
+              key={index}
+              className="block transition-[width,height,border-radius] duration-75 ease-linear"
+              style={{
+                width: `${width}px`,
+                height: `${height}px`,
+                borderRadius: `${cornerRadius}px`,
+                backgroundColor: `rgba(255,255,255,${opacity})`,
+                boxShadow: `0 0.35px 0.65px rgba(0,0,0,${shadowOpacity})`,
+              }}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
