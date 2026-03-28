@@ -22,12 +22,14 @@ function smoothstep(start: number, end: number, value: number) {
 function fallbackLevel(phase: number) {
   const wave = (Math.sin(phase * 3.2) + 1) * 0.5;
   const pulse = (Math.sin(phase * 1.15) + 1) * 0.5;
-  return clamp((wave * 0.72 + pulse * 0.28) * 0.18, 0, 0.2);
+  return clamp((wave * 0.72 + pulse * 0.28) * 0.22, 0, 0.24);
 }
 
-function normalizeMicLevel(rms: number) {
-  const gated = clamp((rms - 0.006) / 0.07, 0, 1);
-  return clamp(Math.pow(gated, 0.48) * 1.55, 0, 1);
+function normalizeMicLevel(rms: number, peak: number) {
+  const rmsBoost = clamp((rms - 0.004) / 0.05, 0, 1);
+  const peakBoost = clamp((peak - 0.018) / 0.32, 0, 1);
+  const combined = Math.max(rmsBoost * 0.82, peakBoost * 0.65);
+  return clamp(Math.pow(combined, 0.42) * 1.9, 0, 1);
 }
 
 export function LiveAudioWave({
@@ -40,11 +42,9 @@ export function LiveAudioWave({
   className?: string;
 }) {
   const [phase, setPhase] = useState(0);
-  const [displayedBars, setDisplayedBars] = useState<number[]>(() =>
-    Array(BAR_COUNT).fill(0),
-  );
+  const [displayedLevel, setDisplayedLevel] = useState(0);
   const frameRef = useRef<number | null>(null);
-  const renderedBars = active ? displayedBars : Array(BAR_COUNT).fill(0);
+  const renderedLevel = active ? displayedLevel : 0;
 
   useEffect(() => {
     if (!active) {
@@ -55,7 +55,6 @@ export function LiveAudioWave({
     let analyser: AnalyserNode | null = null;
     let source: MediaStreamAudioSourceNode | null = null;
     let timeDomainData: Uint8Array | null = null;
-    let frequencyData: Uint8Array | null = null;
 
     const AudioContextCtor =
       typeof window === "undefined"
@@ -67,12 +66,11 @@ export function LiveAudioWave({
     if (stream && AudioContextCtor) {
       audioContext = new AudioContextCtor();
       analyser = audioContext.createAnalyser();
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.68;
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.32;
       source = audioContext.createMediaStreamSource(stream);
       source.connect(analyser);
       timeDomainData = new Uint8Array(new ArrayBuffer(analyser.fftSize));
-      frequencyData = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount));
     }
 
     let mounted = true;
@@ -86,60 +84,29 @@ export function LiveAudioWave({
       setPhase(nextPhase);
 
       let sampledLevel = fallbackLevel(nextPhase);
-      let sampledBars = Array.from({ length: BAR_COUNT }, (_, index) => {
-        const centerBias = BAR_SHAPE[index] ?? BAR_SHAPE[0];
-        return sampledLevel * centerBias;
-      });
 
-      if (analyser && timeDomainData && frequencyData) {
+      if (analyser && timeDomainData) {
         analyser.getByteTimeDomainData(timeDomainData as Uint8Array<ArrayBuffer>);
-        analyser.getByteFrequencyData(frequencyData as Uint8Array<ArrayBuffer>);
 
         let sum = 0;
+        let peak = 0;
         for (let index = 0; index < timeDomainData.length; index += 1) {
           const sample = ((timeDomainData[index] ?? 128) - 128) / 128;
           sum += sample * sample;
+          const amplitude = Math.abs(sample);
+          if (amplitude > peak) {
+            peak = amplitude;
+          }
         }
 
-        const rms = Math.sqrt(sum / frequencyData.length);
-        sampledLevel = normalizeMicLevel(rms);
-
-        const bucketSize = Math.max(1, Math.floor(frequencyData.length / BAR_COUNT));
-        sampledBars = Array.from({ length: BAR_COUNT }, (_, index) => {
-          const start = index * bucketSize;
-          const end =
-            index === BAR_COUNT - 1
-              ? frequencyData.length
-              : Math.min(frequencyData.length, start + bucketSize);
-
-          let total = 0;
-          for (let cursor = start; cursor < end; cursor += 1) {
-            total += frequencyData[cursor] ?? 0;
-          }
-
-          const average = total / Math.max(1, end - start);
-          const frequencyLevel = clamp(average / 160, 0, 1);
-          const centerBias = BAR_SHAPE[index] ?? BAR_SHAPE[0];
-          const animatedLift = ((Math.sin(nextPhase * 13 + index * 0.72) + 1) * 0.5) * 0.22;
-
-          return clamp(
-            sampledLevel * (0.55 + centerBias * 0.85) +
-              frequencyLevel * (0.42 + centerBias * 0.68) +
-              animatedLift * sampledLevel,
-            0,
-            1,
-          );
-        });
+        const rms = Math.sqrt(sum / timeDomainData.length);
+        sampledLevel = normalizeMicLevel(rms, peak);
       }
 
-      setDisplayedBars((current) => {
-        const sourceBars = current.length === BAR_COUNT ? current : Array(BAR_COUNT).fill(0);
-        return sampledBars.map((target, index) => {
-          const currentValue = sourceBars[index] ?? 0;
-          const delta = target - currentValue;
-          const easing = delta >= 0 ? 0.46 : 0.18;
-          return clamp(currentValue + delta * easing, 0, 1);
-        });
+      setDisplayedLevel((current) => {
+        const delta = sampledLevel - current;
+        const easing = delta >= 0 ? 0.58 : 0.16;
+        return clamp(current + delta * easing, 0, 1);
       });
 
       frameRef.current = window.requestAnimationFrame(renderFrame);
@@ -173,15 +140,22 @@ export function LiveAudioWave({
     <div aria-hidden="true" className={cn("flex items-center justify-center", className)}>
       <div className="flex h-12 w-[5.8rem] items-center justify-center gap-[2.6px] px-[5px] text-[var(--label)]">
         {Array.from({ length: BAR_COUNT }, (_, index) => {
-          const normalizedLevel = clamp(renderedBars[index] ?? 0, 0, 1);
-          const activeProgress = smoothstep(0.025, 0.16, normalizedLevel);
+          const normalizedLevel = clamp(renderedLevel, 0, 1);
+          const shapedLevel = clamp(
+            normalizedLevel * (0.58 + (BAR_SHAPE[index] ?? 0.3) * 0.9),
+            0,
+            1,
+          );
+          const activeProgress = smoothstep(0.02, 0.12, shapedLevel);
           const silentBlend = 1 - activeProgress;
           const shape = BAR_SHAPE[index] ?? BAR_SHAPE[0];
-          const activeLevel = clamp((normalizedLevel - 0.02) / 0.98, 0, 1);
-          const boostedLevel = Math.min(1, Math.pow(activeLevel, 0.52) * 1.35);
-          const timeWave = (Math.sin(phase * 18 + index * 0.78) + 1) * 0.5;
-          const voiceHeight = boostedLevel * 19 * shape;
-          const motionHeight = boostedLevel * (1.5 + shape * 1.8) * timeWave;
+          const activeLevel = clamp((shapedLevel - 0.015) / 0.985, 0, 1);
+          const boostedLevel = Math.min(1, Math.pow(activeLevel, 0.48) * 1.45);
+          const timeWave = (Math.sin(phase * 21 + index * 0.82) + 1) * 0.5;
+          const ripple = (Math.sin(phase * 9 + index * 0.34) + 1) * 0.5;
+          const voiceHeight = boostedLevel * 20.5 * shape;
+          const motionHeight =
+            boostedLevel * (2.4 + shape * 3.4) * ((timeWave * 0.72) + (ripple * 0.28));
           const activeHeight = SILENT_HEIGHT + voiceHeight + motionHeight;
           const height = SILENT_HEIGHT + (activeHeight - SILENT_HEIGHT) * activeProgress;
           const width = SILENT_WIDTH + (ACTIVE_WIDTH - SILENT_WIDTH) * activeProgress;
