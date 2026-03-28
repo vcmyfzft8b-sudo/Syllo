@@ -1,21 +1,15 @@
 "use client";
 
 import {
-  Camera,
   ChevronDown,
-  ChevronLeft,
-  ChevronsUpDown,
-  FileText,
-  Info,
   Loader2,
-  Mic,
-  Upload,
-  X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { EmojiIcon } from "@/components/emoji-icon";
 import { createAudioLectureWithProcessingChunks } from "@/lib/audio-lecture-upload";
+import { BRAND_NAME } from "@/lib/brand";
 import {
   AUDIO_FILE_INPUT_ACCEPT,
   DOCUMENT_FILE_INPUT_ACCEPT,
@@ -27,12 +21,6 @@ import {
   createSafeTransportFileName,
   isSupportedDocumentFile,
 } from "@/lib/document-files";
-import {
-  assignLectureToFolder,
-  readStoredFolders,
-  readStoredSelectedFolderId,
-  type LibraryFolder,
-} from "@/lib/library-folders";
 import { NOTE_LANGUAGE_OPTIONS } from "@/lib/languages";
 import { getExtensionForMimeType, normalizeMimeType } from "@/lib/storage";
 import { formatTimestamp } from "@/lib/utils";
@@ -46,37 +34,15 @@ type AudioSource = {
   origin: "upload" | "recording";
 };
 
-type UploadRecordingType = "lecture" | "meeting" | "other";
-
-const MODE_COPY: Record<
-  NoteSourceMode,
-  {
-    title: string;
-    eyebrow: string;
-    description: string;
-  }
-> = {
-  record: {
-    title: "Record audio",
-    eyebrow: "Live capture",
-    description: "Start recording to create a note from your lecture in one pass.",
-  },
-  upload: {
-    title: "Upload audio",
-    eyebrow: "Import file",
-    description: "Bring in an existing lecture recording and turn it into notes.",
-  },
-  text: {
-    title: "Upload text or PDF",
-    eyebrow: "Text import",
-    description: "Paste text, scan pages from your phone, or import a document.",
-  },
-  link: {
-    title: "Web link",
-    eyebrow: "Link import",
-    description: "Paste a webpage or media link and turn it into study notes.",
-  },
-};
+const MODES: Array<{
+  id: NoteSourceMode;
+  label: string;
+}> = [
+  { id: "record", label: "Record" },
+  { id: "upload", label: "Upload" },
+  { id: "text", label: "Docs" },
+  { id: "link", label: "Link" },
+];
 
 function pickRecorderMimeType() {
   if (typeof window === "undefined" || typeof MediaRecorder === "undefined") {
@@ -129,25 +95,50 @@ function validateAudio(file: File, durationSeconds: number) {
   }
 }
 
-function modeTitle(mode: NoteSourceMode) {
-  return MODE_COPY[mode].title;
+function sheetTitle(mode: NoteSourceMode) {
+  if (mode === "record") {
+    return "Record lecture";
+  }
+
+  if (mode === "upload") {
+    return "Upload audio";
+  }
+
+  if (mode === "link") {
+    return "Add link";
+  }
+
+  return "Paste text or document";
+}
+
+function sheetDescription(mode: NoteSourceMode) {
+  if (mode === "record") {
+    return `Capture audio and let ${BRAND_NAME} turn it into a transcript, summary, and notes.`;
+  }
+
+  if (mode === "upload") {
+    return "Turn an existing recording into organized notes.";
+  }
+
+  if (mode === "link") {
+    return "Create notes from a web article or source.";
+  }
+
+  return `Paste source material or use a document and let ${BRAND_NAME} structure it for you.`;
 }
 
 export function NoteSourceModal({
   mode,
   open,
   onClose,
-  userId,
 }: {
   mode: NoteSourceMode | null;
   open: boolean;
   onClose: () => void;
-  userId: string;
 }) {
   const router = useRouter();
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
-  const scanInputRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -165,17 +156,14 @@ export function NoteSourceModal({
   const [textValue, setTextValue] = useState("");
   const [linkValue, setLinkValue] = useState("");
   const [languageHint, setLanguageHint] = useState("sl");
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [availableFolders, setAvailableFolders] = useState<LibraryFolder[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [recordingSupported, setRecordingSupported] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyLabel, setBusyLabel] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [uploadRecordingType, setUploadRecordingType] =
-    useState<UploadRecordingType>("lecture");
-  const [hasMultipleSpeakers, setHasMultipleSpeakers] = useState(false);
+  const [isTextEditorOpen, setIsTextEditorOpen] = useState(false);
+  const [textEditorKeyboardOffset, setTextEditorKeyboardOffset] = useState(0);
 
   useEffect(() => {
     if (mode) {
@@ -184,29 +172,51 @@ export function NoteSourceModal({
   }, [mode]);
 
   useEffect(() => {
-    setRecordingSupported(typeof window !== "undefined" && "MediaRecorder" in window);
-  }, []);
+    if (selectedMode !== "text" && isTextEditorOpen) {
+      setIsTextEditorOpen(false);
+    }
+  }, [isTextEditorOpen, selectedMode]);
 
   useEffect(() => {
-    if (!open) {
+    if (!isTextEditorOpen || typeof window === "undefined") {
+      setTextEditorKeyboardOffset(0);
       return;
     }
 
-    const folders = readStoredFolders(userId);
-    const storedSelectedFolderId = readStoredSelectedFolderId(userId);
-    const resolvedFolderId = folders.some((folder) => folder.id === storedSelectedFolderId)
-      ? storedSelectedFolderId
-      : null;
+    const viewport = window.visualViewport;
 
-    setAvailableFolders(folders);
-    setSelectedFolderId(resolvedFolderId);
-  }, [open, userId]);
+    if (!viewport) {
+      setTextEditorKeyboardOffset(0);
+      return;
+    }
+
+    const updateKeyboardOffset = () => {
+      const keyboardOffset = Math.max(
+        0,
+        Math.round(window.innerHeight - viewport.height - viewport.offsetTop),
+      );
+
+      setTextEditorKeyboardOffset(keyboardOffset > 120 ? keyboardOffset : 0);
+    };
+
+    updateKeyboardOffset();
+    viewport.addEventListener("resize", updateKeyboardOffset);
+    viewport.addEventListener("scroll", updateKeyboardOffset);
+    window.addEventListener("orientationchange", updateKeyboardOffset);
+
+    return () => {
+      viewport.removeEventListener("resize", updateKeyboardOffset);
+      viewport.removeEventListener("scroll", updateKeyboardOffset);
+      window.removeEventListener("orientationchange", updateKeyboardOffset);
+    };
+  }, [isTextEditorOpen]);
 
   const preparedRecording = audioSource?.origin === "recording" ? audioSource : null;
   const preparedUpload = audioSource?.origin === "upload" ? audioSource : null;
   const trimmedTextValue = textValue.trim();
   const trimmedLinkValue = linkValue.trim();
   const canGenerateText = Boolean(pdfSource) || trimmedTextValue.length >= 120;
+  const canGenerateLink = trimmedLinkValue.length > 0;
 
   async function replaceAudioSource(nextSource: AudioSource) {
     try {
@@ -263,8 +273,7 @@ export function NoteSourceModal({
     setError(null);
     setBusyLabel(null);
     setIsCancelling(false);
-    setUploadRecordingType("lecture");
-    setHasMultipleSpeakers(false);
+    setIsTextEditorOpen(false);
     activeRequestControllerRef.current = null;
     createdLectureIdRef.current = null;
     cancelRequestedRef.current = false;
@@ -282,17 +291,6 @@ export function NoteSourceModal({
     }).catch(() => null);
     createdLectureIdRef.current = null;
   }, []);
-
-  const finalizeLectureCreation = useCallback(
-    (lectureId: string) => {
-      assignLectureToFolder(userId, selectedFolderId, lectureId);
-      createdLectureIdRef.current = null;
-      onClose();
-      router.push(`/app/lectures/${lectureId}`);
-      router.refresh();
-    },
-    [onClose, router, selectedFolderId, userId],
-  );
 
   const createManualLecture = useCallback(
     async (sourceType: "text" | "pdf" | "link") => {
@@ -335,23 +333,26 @@ export function NoteSourceModal({
   }, [deleteCreatedLecture]);
 
   const requestClose = useCallback(() => {
+    if (isTextEditorOpen) {
+      setIsTextEditorOpen(false);
+      return;
+    }
+
+    if (isRecording) {
+      stopRecording();
+    }
+
     if (busyLabel) {
       void handleCancelBusyAction();
       return;
     }
 
-    if (timerRef.current) {
-      window.clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-
     onClose();
-  }, [busyLabel, handleCancelBusyAction, onClose]);
+  }, [busyLabel, handleCancelBusyAction, isRecording, isTextEditorOpen, onClose]);
+
+  useEffect(() => {
+    setRecordingSupported(typeof window !== "undefined" && "MediaRecorder" in window);
+  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -417,7 +418,9 @@ export function NoteSourceModal({
       });
     } catch (uploadError) {
       setError(
-        uploadError instanceof Error ? uploadError.message : "The file could not be prepared.",
+        uploadError instanceof Error
+          ? uploadError.message
+          : "The file could not be prepared.",
       );
     } finally {
       event.target.value = "";
@@ -487,7 +490,9 @@ export function NoteSourceModal({
       }, 1000);
     } catch (recordError) {
       setError(
-        recordError instanceof Error ? recordError.message : "Recording could not be started.",
+        recordError instanceof Error
+          ? recordError.message
+          : "Recording could not be started.",
       );
     }
   }
@@ -531,7 +536,10 @@ export function NoteSourceModal({
       });
 
       processingStarted = true;
-      finalizeLectureCreation(result.lectureId);
+      createdLectureIdRef.current = null;
+      onClose();
+      router.push(`/app/lectures/${result.lectureId}`);
+      router.refresh();
     } catch (submitError) {
       if (!processingStarted) {
         await deleteCreatedLecture();
@@ -591,7 +599,10 @@ export function NoteSourceModal({
         throw new Error(payload.error ?? "The text could not be processed.");
       }
 
-      finalizeLectureCreation(lectureId);
+      onClose();
+      createdLectureIdRef.current = null;
+      router.push(`/app/lectures/${lectureId}`);
+      router.refresh();
     } catch (submitError) {
       await deleteCreatedLecture();
       if (!cancelRequestedRef.current) {
@@ -648,12 +659,17 @@ export function NoteSourceModal({
         throw new Error(payload.error ?? "The link could not be processed.");
       }
 
-      finalizeLectureCreation(lectureId);
+      onClose();
+      createdLectureIdRef.current = null;
+      router.push(`/app/lectures/${lectureId}`);
+      router.refresh();
     } catch (submitError) {
       await deleteCreatedLecture();
       if (!cancelRequestedRef.current) {
         setError(
-          submitError instanceof Error ? submitError.message : "The web note could not be created.",
+          submitError instanceof Error
+            ? submitError.message
+            : "The web note could not be created.",
         );
       }
     } finally {
@@ -680,6 +696,7 @@ export function NoteSourceModal({
       }
 
       setPdfSource(file);
+      setTextValue("");
       setError(null);
     } catch (submitError) {
       setError(
@@ -740,7 +757,10 @@ export function NoteSourceModal({
         throw new Error(payload.error ?? "The document could not be processed.");
       }
 
-      finalizeLectureCreation(lectureId);
+      onClose();
+      createdLectureIdRef.current = null;
+      router.push(`/app/lectures/${lectureId}`);
+      router.refresh();
     } catch (submitError) {
       await deleteCreatedLecture();
       if (!cancelRequestedRef.current) {
@@ -757,458 +777,6 @@ export function NoteSourceModal({
     }
   }
 
-  async function handleScanTextImageChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    try {
-      setBusyLabel("Scanning text...");
-      setError(null);
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("/api/lectures/scan-text", {
-        method: "POST",
-        body: formData,
-      });
-
-      const payload = (await response.json()) as {
-        error?: string;
-        text?: string;
-      };
-
-      if (!response.ok || !payload.text) {
-        throw new Error(payload.error ?? "The text could not be scanned.");
-      }
-
-      setPdfSource(null);
-      setTextValue(payload.text);
-    } catch (scanError) {
-      setError(
-        scanError instanceof Error ? scanError.message : "The text could not be scanned.",
-      );
-    } finally {
-      setBusyLabel(null);
-      event.target.value = "";
-    }
-  }
-
-  async function handleLinkPrimaryAction() {
-    if (trimmedLinkValue) {
-      await createLinkLecture();
-      return;
-    }
-
-    if (!navigator.clipboard?.readText) {
-      setError("Clipboard access is not available in this browser.");
-      return;
-    }
-
-    try {
-      const clipboardValue = (await navigator.clipboard.readText()).trim();
-
-      if (!clipboardValue) {
-        throw new Error("Your clipboard is empty.");
-      }
-
-      setLinkValue(clipboardValue);
-      setError(null);
-    } catch (clipboardError) {
-      setError(
-        clipboardError instanceof Error
-          ? clipboardError.message
-          : "The link could not be pasted from the clipboard.",
-      );
-    }
-  }
-
-  function renderFolderField() {
-    return (
-      <div className="note-source-panel-block">
-        <label className="note-source-panel-label" htmlFor="note-folder-select">
-          Folder
-        </label>
-        <div className="note-source-panel-select-wrap">
-          <select
-            id="note-folder-select"
-            value={selectedFolderId ?? ""}
-            onChange={(event) => setSelectedFolderId(event.target.value || null)}
-            className="note-source-panel-select"
-          >
-            <option value="">All notes</option>
-            {availableFolders.map((folder) => (
-              <option key={folder.id} value={folder.id}>
-                {folder.name}
-              </option>
-            ))}
-          </select>
-          <ChevronsUpDown className="note-source-panel-select-icon" />
-        </div>
-      </div>
-    );
-  }
-
-  function renderLanguageField(label: string) {
-    return (
-      <div className="note-source-panel-block">
-        <label className="note-source-panel-label" htmlFor={`note-language-${selectedMode}`}>
-          {label}
-        </label>
-        <div className="note-source-panel-select-wrap">
-          <select
-            id={`note-language-${selectedMode}`}
-            value={languageHint}
-            onChange={(event) => setLanguageHint(event.target.value)}
-            className="note-source-panel-select"
-          >
-            {NOTE_LANGUAGE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="note-source-panel-select-icon" />
-        </div>
-      </div>
-    );
-  }
-
-  function renderHeader() {
-    return (
-      <div className="note-source-panel-header">
-        <button type="button" className="note-source-panel-icon-button ghost" onClick={onClose}>
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <div className="note-source-panel-header-copy">
-          <span className="note-source-panel-eyebrow">{MODE_COPY[selectedMode].eyebrow}</span>
-          <h2 className="note-source-panel-title">{modeTitle(selectedMode)}</h2>
-        </div>
-        <button
-          type="button"
-          className="note-source-panel-icon-button"
-          onClick={requestClose}
-          disabled={isCancelling}
-          aria-label="Close"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
-    );
-  }
-
-  function renderFooterActions(primaryLabel: string, onPrimaryAction: () => void, disabled: boolean) {
-    return (
-      <div className="note-source-panel-footer">
-        <button
-          type="button"
-          className="note-source-panel-primary-button"
-          disabled={disabled}
-          onClick={onPrimaryAction}
-        >
-          {busyLabel ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-          <span>{busyLabel ?? primaryLabel}</span>
-        </button>
-        {busyLabel ? (
-          <button
-            type="button"
-            className="note-source-panel-secondary-button"
-            onClick={() => void handleCancelBusyAction()}
-            disabled={isCancelling}
-          >
-            {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Cancel
-          </button>
-        ) : null}
-      </div>
-    );
-  }
-
-  function renderRecordMode() {
-    return (
-      <>
-        <div className="note-source-record-hero">
-          <div className="note-source-record-hero-icon">
-            <Mic className="h-12 w-12" />
-          </div>
-          <h3>Start recording to create a note</h3>
-          <p>Tap below to capture your lecture, then we&apos;ll turn it into organized notes.</p>
-        </div>
-
-        <div className="note-source-record-grid">
-          {renderLanguageField("Language")}
-          {renderFolderField()}
-        </div>
-
-        {preparedRecording ? (
-          <div className="note-source-panel-card">
-            <div className="note-source-panel-card-header">
-              <span className="note-source-panel-card-title">Ready to upload</span>
-              <span className="note-source-panel-card-meta">
-                {formatTimestamp(preparedRecording.durationSeconds * 1000)}
-              </span>
-            </div>
-            <p className="note-source-panel-card-value">{preparedRecording.file.name}</p>
-          </div>
-        ) : null}
-
-        {isRecording ? (
-          <div className="note-source-panel-card record-live">
-            <div className="note-source-panel-card-header">
-              <span className="note-source-panel-card-title">Recording now</span>
-              <span className="note-source-panel-live-pill">Live</span>
-            </div>
-            <p className="note-source-panel-card-value">
-              {formatTimestamp(elapsedSeconds * 1000)}
-            </p>
-          </div>
-        ) : null}
-
-        <p className="note-source-record-legal">
-          By recording, you confirm you have permission to record in accordance with our Privacy
-          Policy and Terms of Use.
-        </p>
-
-        {isRecording
-          ? renderFooterActions("Stop Recording", stopRecording, false)
-          : preparedRecording
-            ? (
-              <div className="note-source-panel-footer">
-                <button
-                  type="button"
-                  className="note-source-panel-primary-button"
-                  disabled={Boolean(busyLabel)}
-                  onClick={() => void createAudioLecture()}
-                >
-                  {busyLabel ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                  <span>{busyLabel ?? "Create notes"}</span>
-                </button>
-                <button
-                  type="button"
-                  className="note-source-panel-secondary-button"
-                  disabled={Boolean(busyLabel)}
-                  onClick={() => {
-                    clearAudioSource();
-                    void startRecording();
-                  }}
-                >
-                  Record again
-                </button>
-              </div>
-            )
-            : renderFooterActions("Start Recording", () => void startRecording(), Boolean(busyLabel))}
-      </>
-    );
-  }
-
-  function renderUploadMode() {
-    return (
-      <>
-        <div className="note-source-panel-tip">
-          <Info className="h-5 w-5" />
-          <span>How to import from Voice Memos</span>
-        </div>
-
-        <input
-          ref={uploadInputRef}
-          type="file"
-          accept={AUDIO_FILE_INPUT_ACCEPT}
-          onChange={handleUploadFileChange}
-          className="hidden"
-        />
-
-        <div className="note-source-panel-grid">
-          <div className="note-source-panel-block">
-            <span className="note-source-panel-label">Audio file</span>
-            <button
-              type="button"
-              className="note-source-panel-picker"
-              onClick={() => uploadInputRef.current?.click()}
-            >
-              <span className="note-source-panel-picker-copy">
-                <span className="note-source-panel-picker-title">
-                  {preparedUpload ? preparedUpload.file.name : "Select a file"}
-                </span>
-                <span className="note-source-panel-picker-meta">
-                  {preparedUpload
-                    ? formatTimestamp(preparedUpload.durationSeconds * 1000)
-                    : "MP3, M4A, WAV, or WEBM"}
-                </span>
-              </span>
-              <Upload className="h-5 w-5" />
-            </button>
-          </div>
-
-          {renderLanguageField("Audio language")}
-          {renderFolderField()}
-        </div>
-
-        <div className="note-source-panel-block">
-          <span className="note-source-panel-label">Recording type</span>
-          <div className="note-source-toggle-group">
-            {(["lecture", "meeting", "other"] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={`note-source-toggle-chip ${
-                  uploadRecordingType === value ? "active" : ""
-                }`}
-                onClick={() => setUploadRecordingType(value)}
-              >
-                {value[0]?.toUpperCase()}
-                {value.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <label className="note-source-switch-row">
-          <span>
-            <span className="note-source-switch-title">Multiple people speaking?</span>
-            <span className="note-source-switch-copy">
-              Helps keep the upload setup aligned with your lecture recording style.
-            </span>
-          </span>
-          <span className={`note-source-switch ${hasMultipleSpeakers ? "active" : ""}`}>
-            <input
-              type="checkbox"
-              checked={hasMultipleSpeakers}
-              onChange={(event) => setHasMultipleSpeakers(event.target.checked)}
-            />
-            <span className="note-source-switch-thumb" />
-          </span>
-        </label>
-
-        {renderFooterActions("Create notes", () => void createAudioLecture(), !preparedUpload)}
-      </>
-    );
-  }
-
-  function renderTextMode() {
-    return (
-      <>
-        <input
-          ref={pdfInputRef}
-          type="file"
-          accept={DOCUMENT_FILE_INPUT_ACCEPT}
-          onChange={handlePdfPick}
-          className="hidden"
-        />
-        <input
-          ref={scanInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handleScanTextImageChange}
-          className="hidden"
-        />
-
-        <div className="note-source-panel-grid compact">
-          {renderLanguageField("Language")}
-          {renderFolderField()}
-        </div>
-
-        <div className="note-source-panel-block grow">
-          <label className="note-source-panel-label" htmlFor="note-text-input">
-            Text
-          </label>
-          <textarea
-            id="note-text-input"
-            value={textValue}
-            onChange={(event) => {
-              if (pdfSource && event.target.value.trim().length > 0) {
-                setPdfSource(null);
-              }
-
-              setTextValue(event.target.value);
-            }}
-            className="note-source-panel-textarea"
-            placeholder="Paste lecture notes, article text, or scanned content here..."
-          />
-        </div>
-
-        {pdfSource ? (
-          <div className="note-source-panel-card">
-            <div className="note-source-panel-card-header">
-              <span className="note-source-panel-card-title">Imported document</span>
-              <span className="note-source-panel-card-meta">Ready</span>
-            </div>
-            <p className="note-source-panel-card-value">{pdfSource.name}</p>
-          </div>
-        ) : null}
-
-        <div className="note-source-dual-actions">
-          <button
-            type="button"
-            className="note-source-panel-secondary-button wide"
-            disabled={Boolean(busyLabel)}
-            onClick={() => scanInputRef.current?.click()}
-          >
-            <Camera className="h-4 w-4" />
-            Scan text
-          </button>
-          <button
-            type="button"
-            className="note-source-panel-secondary-button wide"
-            disabled={Boolean(busyLabel)}
-            onClick={() => pdfInputRef.current?.click()}
-          >
-            <FileText className="h-4 w-4" />
-            Import PDF
-          </button>
-        </div>
-
-        {renderFooterActions(
-          pdfSource ? "Create from document" : "Create notes",
-          () => {
-            if (pdfSource) {
-              void createPdfLecture();
-              return;
-            }
-
-            void createTextLecture();
-          },
-          Boolean(busyLabel) || !canGenerateText,
-        )}
-      </>
-    );
-  }
-
-  function renderLinkMode() {
-    return (
-      <>
-        <div className="note-source-panel-grid compact">
-          {renderLanguageField("Language")}
-          {renderFolderField()}
-        </div>
-
-        <div className="note-source-panel-block">
-          <label className="note-source-panel-label" htmlFor="note-link-input">
-            Paste a web link
-          </label>
-          <input
-            id="note-link-input"
-            value={linkValue}
-            onChange={(event) => setLinkValue(event.target.value)}
-            className="note-source-panel-input"
-            placeholder="https://example.com"
-          />
-          <p className="note-source-panel-helper">
-            Works with websites, audio, video, articles, and other public pages.
-          </p>
-        </div>
-
-        {renderFooterActions(
-          trimmedLinkValue ? "Create notes" : "Paste",
-          () => void handleLinkPrimaryAction(),
-          Boolean(busyLabel),
-        )}
-      </>
-    );
-  }
-
   if (!open || !mode) {
     return null;
   }
@@ -1216,31 +784,453 @@ export function NoteSourceModal({
   return (
     <>
       <div className="ios-sheet-backdrop" onClick={requestClose} aria-hidden="true" />
-      <div className="ios-sheet-wrap note-source-modal-wrap" role="presentation">
+      <div
+        className="ios-sheet-wrap note-source-modal-wrap"
+        role="dialog"
+        aria-modal="true"
+        aria-label="New note"
+      >
         <div className="ios-sheet-stack note-source-modal-stack">
-          <section
-            className={`ios-sheet note-source-panel note-source-panel-${selectedMode}`}
-            role="dialog"
-            aria-modal="true"
-            aria-label={modeTitle(selectedMode)}
-          >
-            <div className="note-source-sheet-handle" />
-            {renderHeader()}
+          <section className="ios-sheet note-source-sheet note-source-modal">
+            <div className="ios-sheet-header note-source-header">
+              <h2 className="ios-sheet-title">
+                {sheetTitle(selectedMode)}
+              </h2>
+              <button
+                type="button"
+                onClick={requestClose}
+                disabled={isCancelling}
+                className="app-close-button ios-sheet-header-close"
+                aria-label="Close"
+              >
+                <EmojiIcon symbol="✖️" size="1rem" />
+              </button>
+            </div>
 
-            <div className="note-source-panel-scroll">
-              <p className="note-source-panel-description">{MODE_COPY[selectedMode].description}</p>
+            <p className="note-source-description">{sheetDescription(selectedMode)}</p>
 
-              {selectedMode === "record" ? renderRecordMode() : null}
-              {selectedMode === "upload" ? renderUploadMode() : null}
-              {selectedMode === "text" ? renderTextMode() : null}
-              {selectedMode === "link" ? renderLinkMode() : null}
+            <div className="mt-6 ios-segmented note-source-segmented">
+              {MODES.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setSelectedMode(item.id)}
+                  className={`ios-segment ${selectedMode === item.id ? "active" : ""}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
 
-              {error ? <p className="ios-info ios-danger note-source-panel-error">{error}</p> : null}
-              <div className="note-source-panel-spacer" />
+            <div className="mt-6 space-y-4 note-source-modal-body">
+              <div>
+                <label className="note-source-field-label">
+                  Language
+                </label>
+                <div className="relative note-source-select-wrap">
+                  <select
+                    value={languageHint}
+                    onChange={(event) => setLanguageHint(event.target.value)}
+                    className="ios-select appearance-none pr-10"
+                  >
+                    {NOTE_LANGUAGE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--secondary-label)]" />
+                </div>
+              </div>
+
+              {selectedMode === "record" ? (
+                <>
+                  {preparedRecording ? (
+                    <div className="ios-card">
+                      <p className="note-source-card-label">Prepared recording</p>
+                      <p className="ios-row-title mt-3">{preparedRecording.file.name}</p>
+                      <p className="ios-row-subtitle">
+                        {formatTimestamp(preparedRecording.durationSeconds * 1000)}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {isRecording ? (
+                    <div className="ios-card">
+                      <p className="note-source-card-label">Recording</p>
+                      <p className="ios-row-title mt-3">Recording in progress</p>
+                      <p className="ios-row-subtitle">
+                        {formatTimestamp(elapsedSeconds * 1000)}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {isRecording ? (
+                    <button
+                      type="button"
+                      disabled={Boolean(busyLabel)}
+                      className="ios-primary-button"
+                      onClick={() => {
+                        if (busyLabel) {
+                          return;
+                        }
+
+                        stopRecording();
+                      }}
+                    >
+                      {busyLabel ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <EmojiIcon symbol="🎙️" size="1rem" />
+                      )}
+                      {busyLabel ?? "Stop recording"}
+                    </button>
+                  ) : null}
+
+                  {!isRecording && preparedRecording ? (
+                    <>
+                      <button
+                        type="button"
+                        disabled={Boolean(busyLabel)}
+                        className="ios-primary-button"
+                        onClick={() => void createAudioLecture()}
+                      >
+                        {busyLabel ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <EmojiIcon symbol="📄" size="1rem" />
+                        )}
+                        {busyLabel ?? "Generate"}
+                      </button>
+                      {busyLabel ? (
+                        <button
+                          type="button"
+                          className="ios-secondary-button"
+                          disabled={isCancelling}
+                          onClick={() => void handleCancelBusyAction()}
+                        >
+                          {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                          Cancel
+                        </button>
+                      ) : null}
+
+                      <button
+                        type="button"
+                        className="ios-secondary-button"
+                        disabled={Boolean(busyLabel)}
+                        onClick={() => {
+                          clearAudioSource();
+                          void startRecording();
+                        }}
+                      >
+                        Record again
+                      </button>
+                    </>
+                  ) : null}
+
+                  {!isRecording && !preparedRecording ? (
+                    <button
+                      type="button"
+                      disabled={Boolean(busyLabel)}
+                      className="ios-primary-button"
+                      onClick={() => void startRecording()}
+                    >
+                      {busyLabel ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <EmojiIcon symbol="🎙️" size="1rem" />
+                      )}
+                      {busyLabel ?? "Start recording"}
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+
+              {selectedMode === "upload" ? (
+                <>
+                  {preparedUpload ? (
+                    <div className="ios-card">
+                      <p className="note-source-card-label">Selected file</p>
+                      <p className="ios-row-title mt-3">{preparedUpload.file.name}</p>
+                      <p className="ios-row-subtitle">
+                        {formatTimestamp(preparedUpload.durationSeconds * 1000)}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept={AUDIO_FILE_INPUT_ACCEPT}
+                    onChange={handleUploadFileChange}
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    disabled={Boolean(busyLabel)}
+                  className="ios-secondary-button"
+                  onClick={() => uploadInputRef.current?.click()}
+                >
+                  <EmojiIcon symbol="📤" size="1rem" />
+                    {preparedUpload ? "Choose another audio file" : "Choose audio file"}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={Boolean(busyLabel) || !preparedUpload}
+                    className="ios-primary-button"
+                    onClick={() => void createAudioLecture()}
+                  >
+                    {busyLabel ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <EmojiIcon symbol="📄" size="1rem" />
+                    )}
+                    {busyLabel ?? "Generate"}
+                  </button>
+                  {busyLabel ? (
+                    <button
+                      type="button"
+                      className="ios-secondary-button"
+                      disabled={isCancelling}
+                      onClick={() => void handleCancelBusyAction()}
+                    >
+                      {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Cancel
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+
+              {selectedMode === "link" ? (
+                <>
+                  <div>
+                    <label className="note-source-field-label">
+                      Link
+                    </label>
+                    <div className="ios-search">
+                      <EmojiIcon symbol="🔎" size="0.95rem" />
+                      <input
+                        value={linkValue}
+                        onChange={(event) => setLinkValue(event.target.value)}
+                        placeholder="https://example.com"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="ios-primary-button"
+                    disabled={Boolean(busyLabel) || !canGenerateLink}
+                    onClick={() => void createLinkLecture()}
+                  >
+                    {busyLabel ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <EmojiIcon symbol="🔗" size="1rem" />
+                    )}
+                    {busyLabel ?? "Generate"}
+                  </button>
+                  {busyLabel ? (
+                    <button
+                      type="button"
+                      className="ios-secondary-button"
+                      disabled={isCancelling}
+                      onClick={() => void handleCancelBusyAction()}
+                    >
+                      {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Cancel
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+
+              {selectedMode === "text" ? (
+                <>
+                  <div className="note-source-docs-actions">
+                    <button
+                      type="button"
+                      className="ios-secondary-button note-source-docs-action-button"
+                      disabled={Boolean(busyLabel)}
+                      onClick={() => pdfInputRef.current?.click()}
+                    >
+                      <EmojiIcon symbol="📤" size="1rem" />
+                      File
+                    </button>
+
+                    <button
+                      type="button"
+                      className="ios-secondary-button note-source-docs-action-button"
+                      disabled={Boolean(busyLabel)}
+                      onClick={() => setIsTextEditorOpen(true)}
+                    >
+                      <EmojiIcon symbol="⌨️" size="1rem" />
+                      Text
+                    </button>
+                  </div>
+
+                  {pdfSource ? (
+                    <div className="ios-card note-source-docs-file-card">
+                      <p className="note-source-card-label">Document selected</p>
+                      <p className="ios-row-title note-source-docs-file-name">{pdfSource.name}</p>
+                      <p className="ios-row-subtitle note-source-docs-file-copy">
+                        Used until you start typing again.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {!pdfSource && trimmedTextValue ? (
+                    <div className="ios-card note-source-docs-file-card">
+                      <p className="note-source-card-label">Text added</p>
+                      <p className="ios-row-title note-source-docs-file-name">
+                        {trimmedTextValue.split(/\s+/).filter(Boolean).length} words ready
+                      </p>
+                      <p className="ios-row-subtitle note-source-docs-file-copy">
+                        Open Paste text to review or replace it.
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <input
+                    ref={pdfInputRef}
+                    type="file"
+                    accept={DOCUMENT_FILE_INPUT_ACCEPT}
+                    onChange={handlePdfPick}
+                    className="hidden"
+                  />
+
+                  <p className="ios-row-subtitle note-source-docs-support-copy">
+                    PDF, TXT, Markdown, HTML, RTF, and DOCX are supported up to 4 MB.
+                  </p>
+
+                  <button
+                    type="button"
+                    className="ios-primary-button"
+                    disabled={Boolean(busyLabel) || !canGenerateText}
+                    onClick={() => {
+                      if (pdfSource) {
+                        void createPdfLecture();
+                        return;
+                      }
+
+                      void createTextLecture();
+                    }}
+                  >
+                    {busyLabel ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <EmojiIcon symbol="📄" size="1rem" />
+                    )}
+                    {busyLabel ?? "Generate"}
+                  </button>
+                  {busyLabel ? (
+                    <button
+                      type="button"
+                      className="ios-secondary-button"
+                      disabled={isCancelling}
+                      onClick={() => void handleCancelBusyAction()}
+                    >
+                      {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      Cancel
+                    </button>
+                  ) : null}
+                </>
+              ) : null}
+
+              {error ? <p className="ios-info ios-danger">{error}</p> : null}
             </div>
           </section>
         </div>
       </div>
+
+      {selectedMode === "text" && isTextEditorOpen ? (
+        <>
+          <div
+            className="ios-sheet-backdrop note-source-subsheet-backdrop"
+            onClick={() => setIsTextEditorOpen(false)}
+            aria-hidden="true"
+          />
+          <div
+            className={`ios-sheet-wrap note-source-subsheet-wrap ${
+              textEditorKeyboardOffset > 0 ? "keyboard-open" : ""
+            }`}
+            style={
+              {
+                "--text-editor-keyboard-offset": `${textEditorKeyboardOffset}px`,
+              } as CSSProperties
+            }
+            role="presentation"
+          >
+            <div className="ios-sheet-stack note-source-subsheet-stack">
+              <section
+                className="ios-sheet dashboard-note-dialog note-source-subsheet"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="paste-text-title"
+              >
+                <div className="ios-sheet-header">
+                  <h2 id="paste-text-title" className="ios-sheet-title">
+                    Paste text
+                  </h2>
+                  <button
+                    type="button"
+                    className="app-close-button ios-sheet-header-close"
+                    onClick={() => setIsTextEditorOpen(false)}
+                    aria-label="Close paste text dialog"
+                    disabled={Boolean(busyLabel)}
+                  >
+                    <EmojiIcon symbol="✖️" size="1rem" />
+                  </button>
+                </div>
+
+                <div className="dashboard-note-dialog-body">
+                  <p className="ios-subtitle dashboard-note-dialog-copy">
+                    Paste lecture notes, slides, or article text here.
+                  </p>
+
+                  <textarea
+                    value={textValue}
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+
+                      if (pdfSource && nextValue.trim().length > 0) {
+                        setPdfSource(null);
+                      }
+
+                      setTextValue(nextValue);
+                    }}
+                    className="ios-textarea note-source-subsheet-textarea"
+                    placeholder="Paste lecture or article content..."
+                    autoFocus
+                  />
+
+                  <div className="dashboard-note-dialog-actions">
+                    <button
+                      type="button"
+                      className="ios-primary-button"
+                      disabled={Boolean(busyLabel)}
+                      onClick={() => setIsTextEditorOpen(false)}
+                    >
+                      Done
+                    </button>
+                    {textValue.trim().length > 0 ? (
+                      <button
+                        type="button"
+                        className="ios-secondary-button"
+                        disabled={Boolean(busyLabel)}
+                        onClick={() => setTextValue("")}
+                      >
+                        Clear text
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </>
+      ) : null}
     </>
   );
 }
