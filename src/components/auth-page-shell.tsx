@@ -77,15 +77,17 @@ export async function AuthPageShell(props: {
     <main className="landing-shell auth-shell">
       <header className="ios-nav landing-nav">
         <div className="ios-nav-inner landing-nav-inner">
-          <Link href="/" className="landing-brand-link" aria-label={`${BRAND_NAME} home`}>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a href="/" className="landing-brand-link" aria-label={`${BRAND_NAME} home`}>
             <BrandLogo compact />
-          </Link>
+          </a>
 
           <div className="landing-nav-actions">
-            <Link href="/" className="app-back-button">
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a href="/" className="app-back-button">
               <ChevronLeft className="h-5 w-5" />
               Back
-            </Link>
+            </a>
           </div>
         </div>
       </header>
@@ -157,9 +159,9 @@ export async function AuthPageShell(props: {
 
             <p className="auth-switch-copy">
               {switchCopy}{" "}
-              <Link href={`${switchHref}?next=${encodeURIComponent(props.next)}`}>
+              <a href={`${switchHref}?next=${encodeURIComponent(props.next)}`}>
                 {switchLabel}
-              </Link>
+              </a>
             </p>
           </div>
         </section>

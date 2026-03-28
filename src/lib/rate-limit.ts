@@ -132,7 +132,13 @@ export async function enforceRateLimit(params: {
     } as never);
 
     if (error) {
-      throw error;
+      console.error("Rate limit check failed; allowing request", {
+        route: params.route,
+        rateKey,
+        rule,
+        error,
+      });
+      return null;
     }
 
     const result = (Array.isArray(data) ? data[0] : data) as RateLimitResult | null;

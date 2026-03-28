@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getAuthProviderAvailability } from "@/lib/auth-providers";
 import { BRAND_NAME } from "@/lib/brand";
-import { getPublicEnv } from "@/lib/public-env";
 import { parseFormDataRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
+import { resolveSiteUrl } from "@/lib/site-url";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { normalizeNextPath, sanitizeUserInput } from "@/lib/validation";
 
@@ -30,10 +30,9 @@ async function startAppleAuth(request: NextRequest, next: string) {
     return NextResponse.redirect(errorUrl, { status: 303 });
   }
 
-  const { siteUrl } = getPublicEnv();
   const { supabase, applyCookies } = await createSupabaseRouteHandlerClient();
 
-  const callbackUrl = new URL("/auth/callback", siteUrl);
+  const callbackUrl = new URL("/auth/callback", resolveSiteUrl(request));
   callbackUrl.searchParams.set("next", next);
 
   const { data, error } = await supabase.auth.signInWithOAuth({

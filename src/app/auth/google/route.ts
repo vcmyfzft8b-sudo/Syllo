@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getPublicEnv } from "@/lib/public-env";
 import { parseFormDataRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
+import { resolveSiteUrl } from "@/lib/site-url";
 import { createSupabaseRouteHandlerClient } from "@/lib/supabase/server";
 import { normalizeNextPath, sanitizeUserInput } from "@/lib/validation";
 
@@ -16,9 +16,8 @@ function resolveNextPath(request: NextRequest, value?: FormDataEntryValue | null
 
 async function startGoogleAuth(request: NextRequest, next: string) {
   const { supabase, applyCookies } = await createSupabaseRouteHandlerClient();
-  const { siteUrl } = getPublicEnv();
 
-  const callbackUrl = new URL("/auth/callback", siteUrl);
+  const callbackUrl = new URL("/auth/callback", resolveSiteUrl(request));
   callbackUrl.searchParams.set("next", next);
 
   const { data, error } = await supabase.auth.signInWithOAuth({

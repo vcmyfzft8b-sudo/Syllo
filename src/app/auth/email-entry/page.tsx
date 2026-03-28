@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
@@ -31,16 +30,18 @@ export default async function EmailEntryPage({
   return (
     <main className="landing-shell landing-auth-page email-entry-page">
       <div className="email-entry-topbar">
-        <Link href="/" className="app-back-button">
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a href="/" className="app-back-button">
           <ChevronLeft className="h-5 w-5" />
           Back
-        </Link>
+        </a>
       </div>
 
       <section className="landing-auth-wrap email-entry-wrap">
-        <Link href="/" className="landing-auth-brand email-entry-brand" aria-label={`${BRAND_NAME} home`}>
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a href="/" className="landing-auth-brand email-entry-brand" aria-label={`${BRAND_NAME} home`}>
           <BrandLogo compact imageSizes="(max-width: 768px) 4.6rem, 7rem" priority />
-        </Link>
+        </a>
 
         <div className="landing-auth-hero email-entry-copy">
           <h1 className="landing-auth-title email-entry-title">What&apos;s your email?</h1>
