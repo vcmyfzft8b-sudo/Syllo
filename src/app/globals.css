@@ -2068,6 +2068,11 @@ select:disabled {
   justify-content: center;
   flex-shrink: 0;
   line-height: 0;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.library-folder-option-folder:hover .library-folder-option-icon {
+  transform: translate3d(0, 0.5px, 0);
 }
 
 .library-folder-menu-divider {

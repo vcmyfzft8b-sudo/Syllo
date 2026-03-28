@@ -353,7 +353,7 @@ export function LibraryFolderMenu({
             <div className="library-folder-actions">
               <button
                 type="button"
-                className={`library-folder-option ${selectedFolderId === null ? "active" : ""}`}
+                className={`library-folder-option library-folder-option-folder ${selectedFolderId === null ? "active" : ""}`}
                 onClick={handleSelectAllNotes}
               >
                 <span className="library-folder-option-copy">
@@ -368,7 +368,7 @@ export function LibraryFolderMenu({
                 <button
                   type="button"
                   key={folder.id}
-                  className={`library-folder-option ${selectedFolderId === folder.id ? "active" : ""}`}
+                  className={`library-folder-option library-folder-option-folder ${selectedFolderId === folder.id ? "active" : ""}`}
                   onClick={() => handleSelectFolder(folder)}
                 >
                   <span className="library-folder-option-copy">
