@@ -2233,13 +2233,6 @@ export function LectureWorkspace({
             ) : (
               <div className="lecture-practice-shell">
                 <div className="lecture-practice-summary">
-                  <div>
-                    <p className="lecture-practice-kicker">Practice test</p>
-                    <h3>Start a new random test whenever you want</h3>
-                    <p>
-                      Attempts completed: {detail.practiceTestHistorySummary.attemptCount}
-                    </p>
-                  </div>
                   <div className="lecture-practice-summary-actions">
                     <button
                       type="button"
