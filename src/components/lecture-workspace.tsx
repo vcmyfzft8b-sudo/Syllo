@@ -1156,7 +1156,6 @@ export function LectureWorkspace({
     (latestViewedPracticeAttemptId
       ? practiceAttemptsById.get(latestViewedPracticeAttemptId) ?? null
       : null) ?? latestGradedPracticeAttempt;
-  const practiceHistory = detail.practiceTestHistorySummary.scoresByAttempt;
   const visiblePracticeAttemptPercentage = Math.round(visiblePracticeAttempt?.percentage ?? 0);
   const practiceAttemptAnswers = currentPracticeAttempt?.answers ?? [];
   const practiceQuestionsAnsweredCount = practiceAttemptAnswers.filter((answer) => {
@@ -2240,7 +2239,7 @@ export function LectureWorkspace({
                     <StudyCompletionCard
                       eyebrow="Latest result"
                       title={`Practice test ${visiblePracticeAttemptPercentage}%`}
-                      subtitle={`Attempt ${practiceHistory.find((entry) => entry.attemptId === visiblePracticeAttempt.id)?.attemptNumber ?? detail.practiceTestHistorySummary.attemptCount}`}
+                      subtitle={`Attempt ${detail.practiceTestHistorySummary.attemptCount}`}
                       percentage={visiblePracticeAttemptPercentage}
                       percentageLabel="Score"
                       primaryMetric={{
@@ -2290,55 +2289,6 @@ export function LectureWorkspace({
                         </button>
                       }
                     />
-
-                    <div className="lecture-practice-trend-card">
-                      <div className="lecture-practice-trend-header">
-                        <h4>Score history</h4>
-                        <span>{detail.practiceTestHistorySummary.attemptCount} attempts</span>
-                      </div>
-                      <div className="lecture-practice-trend-bars">
-                        {practiceHistory.map((entry) => (
-                          <button
-                            key={entry.attemptId}
-                            type="button"
-                            onClick={() => setLatestViewedPracticeAttemptId(entry.attemptId)}
-                            className={`lecture-practice-trend-bar ${
-                              latestViewedPracticeAttemptId === entry.attemptId ? "active" : ""
-                            }`}
-                          >
-                            <span
-                              className="lecture-practice-trend-bar-fill"
-                              style={{ height: `${Math.max(10, Math.round(entry.percentage))}%` }}
-                            />
-                            <strong>{Math.round(entry.percentage)}%</strong>
-                            <small>#{entry.attemptNumber}</small>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="lecture-practice-history">
-                      <div className="lecture-practice-history-list">
-                        {practiceHistory.length > 0 ? (
-                          practiceHistory.map((entry) => (
-                            <button
-                              key={entry.attemptId}
-                              type="button"
-                              onClick={() => setLatestViewedPracticeAttemptId(entry.attemptId)}
-                              className={`lecture-practice-history-row ${
-                                latestViewedPracticeAttemptId === entry.attemptId ? "active" : ""
-                              }`}
-                            >
-                              <span>Attempt {entry.attemptNumber}</span>
-                              <span>{entry.totalScore}/{entry.maxScore}</span>
-                              <span>{Math.round(entry.percentage)}%</span>
-                            </button>
-                          ))
-                        ) : (
-                          <p className="ios-row-subtitle">No graded attempts yet.</p>
-                        )}
-                      </div>
-                    </div>
 
                     <details className="lecture-practice-breakdown">
                       <summary>
