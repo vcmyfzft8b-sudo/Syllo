@@ -4,32 +4,45 @@ import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-const BAR_COUNT = 12;
-const BAR_SHAPE = [0.26, 0.36, 0.5, 0.68, 0.86, 1, 1, 0.86, 0.68, 0.5, 0.36, 0.26];
-const SILENT_HEIGHT = 4.2;
-const SILENT_WIDTH = 2.2;
-const ACTIVE_WIDTH = 3.3;
+const BAR_COUNT = 18;
+const HALF_BAR_COUNT = BAR_COUNT / 2;
+const FFT_SIZE = 256;
+const MIN_BAR_HEIGHT = 3;
+const MAX_BAR_HEIGHT = 34;
+const ENERGY_ATTACK = 0.34;
+const ENERGY_RELEASE = 0.12;
+const SPEECH_START_THRESHOLD = 0.11;
+const SPEECH_STOP_THRESHOLD = 0.06;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function smoothstep(start: number, end: number, value: number) {
-  const t = clamp((value - start) / (end - start), 0, 1);
-  return t * t * (3 - 2 * t);
+function createEmptyBars() {
+  return Array.from({ length: BAR_COUNT }, () => 0);
 }
 
-function fallbackLevel(phase: number) {
-  const wave = (Math.sin(phase * 3.2) + 1) * 0.5;
-  const pulse = (Math.sin(phase * 1.15) + 1) * 0.5;
-  return clamp((wave * 0.72 + pulse * 0.28) * 0.22, 0, 0.24);
+const EMPTY_BARS = createEmptyBars();
+
+function averageRange(data: Uint8Array, start: number, end: number) {
+  const from = clamp(start, 0, data.length - 1);
+  const to = clamp(end, from + 1, data.length);
+  let total = 0;
+
+  for (let index = from; index < to; index += 1) {
+    total += data[index] ?? 0;
+  }
+
+  return total / Math.max(1, to - from);
 }
 
-function normalizeMicLevel(rms: number, peak: number) {
-  const rmsBoost = clamp((rms - 0.004) / 0.05, 0, 1);
-  const peakBoost = clamp((peak - 0.018) / 0.32, 0, 1);
-  const combined = Math.max(rmsBoost * 0.82, peakBoost * 0.65);
-  return clamp(Math.pow(combined, 0.42) * 1.9, 0, 1);
+function normalizeEnergy(value: number) {
+  return clamp((value - 0.085) / 0.42, 0, 1);
+}
+
+function smoothValue(current: number, target: number, rise: number, fall: number) {
+  const easing = target > current ? rise : fall;
+  return current + (target - current) * easing;
 }
 
 export function LiveAudioWave({
@@ -41,20 +54,23 @@ export function LiveAudioWave({
   active: boolean;
   className?: string;
 }) {
-  const [phase, setPhase] = useState(0);
-  const [displayedLevel, setDisplayedLevel] = useState(0);
+  const [barLevels, setBarLevels] = useState<number[]>(() => createEmptyBars());
+  const [presence, setPresence] = useState(0);
   const frameRef = useRef<number | null>(null);
-  const renderedLevel = active ? displayedLevel : 0;
+  const smoothedBarsRef = useRef<number[]>(createEmptyBars());
+  const smoothedEnergyRef = useRef(0);
+  const speakingRef = useRef(false);
+  const isLive = active && Boolean(stream);
+  const renderedBars = isLive ? barLevels : EMPTY_BARS;
+  const renderedPresence = isLive ? presence : 0;
 
   useEffect(() => {
-    if (!active) {
+    if (!active || !stream) {
+      speakingRef.current = false;
+      smoothedEnergyRef.current = 0;
+      smoothedBarsRef.current = createEmptyBars();
       return;
     }
-
-    let audioContext: AudioContext | null = null;
-    let analyser: AnalyserNode | null = null;
-    let source: MediaStreamAudioSourceNode | null = null;
-    let timeDomainData: Uint8Array | null = null;
 
     const AudioContextCtor =
       typeof window === "undefined"
@@ -63,57 +79,90 @@ export function LiveAudioWave({
           ((window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext ??
             null);
 
-    if (stream && AudioContextCtor) {
-      audioContext = new AudioContextCtor();
-      analyser = audioContext.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = 0.32;
-      source = audioContext.createMediaStreamSource(stream);
-      source.connect(analyser);
-      timeDomainData = new Uint8Array(new ArrayBuffer(analyser.fftSize));
+    if (!AudioContextCtor) {
+      speakingRef.current = false;
+      smoothedEnergyRef.current = 0;
+      smoothedBarsRef.current = createEmptyBars();
+      return;
     }
 
     let mounted = true;
+    const audioContext = new AudioContextCtor();
+    const analyser = audioContext.createAnalyser();
+    const source = audioContext.createMediaStreamSource(stream);
+    const frequencyData = new Uint8Array(analyser.frequencyBinCount);
 
-    const renderFrame = (now: number) => {
+    analyser.fftSize = FFT_SIZE;
+    analyser.smoothingTimeConstant = 0.68;
+    analyser.minDecibels = -92;
+    analyser.maxDecibels = -18;
+    source.connect(analyser);
+
+    const renderFrame = () => {
       if (!mounted) {
         return;
       }
 
-      const nextPhase = now / 1000;
-      setPhase(nextPhase);
+      analyser.getByteFrequencyData(frequencyData);
 
-      let sampledLevel = fallbackLevel(nextPhase);
+      const speechBandStart = 2;
+      const speechBandEnd = Math.min(frequencyData.length, 52);
+      const overallEnergy = averageRange(frequencyData, speechBandStart, speechBandEnd) / 255;
 
-      if (analyser && timeDomainData) {
-        analyser.getByteTimeDomainData(timeDomainData as Uint8Array<ArrayBuffer>);
+      smoothedEnergyRef.current = smoothValue(
+        smoothedEnergyRef.current,
+        overallEnergy,
+        ENERGY_ATTACK,
+        ENERGY_RELEASE,
+      );
 
-        let sum = 0;
-        let peak = 0;
-        for (let index = 0; index < timeDomainData.length; index += 1) {
-          const sample = ((timeDomainData[index] ?? 128) - 128) / 128;
-          sum += sample * sample;
-          const amplitude = Math.abs(sample);
-          if (amplitude > peak) {
-            peak = amplitude;
-          }
-        }
-
-        const rms = Math.sqrt(sum / timeDomainData.length);
-        sampledLevel = normalizeMicLevel(rms, peak);
+      if (speakingRef.current) {
+        speakingRef.current = smoothedEnergyRef.current > SPEECH_STOP_THRESHOLD;
+      } else {
+        speakingRef.current = smoothedEnergyRef.current > SPEECH_START_THRESHOLD;
       }
 
-      setDisplayedLevel((current) => {
-        const delta = sampledLevel - current;
-        const easing = delta >= 0 ? 0.58 : 0.16;
-        return clamp(current + delta * easing, 0, 1);
+      const halfBars = Array.from({ length: HALF_BAR_COUNT }, (_, index) => {
+        const startProgress = Math.pow(index / HALF_BAR_COUNT, 1.65);
+        const endProgress = Math.pow((index + 1) / HALF_BAR_COUNT, 1.65);
+        const bandStart =
+          speechBandStart + Math.floor((speechBandEnd - speechBandStart) * startProgress);
+        const bandEnd =
+          speechBandStart +
+          Math.max(
+            bandStart + 1,
+            Math.floor((speechBandEnd - speechBandStart) * endProgress),
+          );
+        const bandEnergy = averageRange(frequencyData, bandStart, bandEnd) / 255;
+        const normalizedBand = normalizeEnergy(bandEnergy);
+        const centerWeight = 1 - index / Math.max(1, HALF_BAR_COUNT - 1);
+
+        if (!speakingRef.current) {
+          return 0;
+        }
+
+        return clamp(
+          Math.pow(normalizedBand, 0.82) * (0.52 + centerWeight * 0.88) +
+            smoothedEnergyRef.current * (0.18 + centerWeight * 0.34),
+          0,
+          1,
+        );
       });
+
+      const targetBars = [...halfBars.slice().reverse(), ...halfBars];
+      const nextBars = smoothedBarsRef.current.map((current, index) =>
+        smoothValue(current, targetBars[index] ?? 0, 0.42, speakingRef.current ? 0.16 : 0.24),
+      );
+
+      smoothedBarsRef.current = nextBars;
+      setBarLevels(nextBars);
+      setPresence(speakingRef.current ? clamp(smoothedEnergyRef.current * 1.4, 0, 1) : 0);
 
       frameRef.current = window.requestAnimationFrame(renderFrame);
     };
 
     const start = async () => {
-      if (audioContext?.state === "suspended") {
+      if (audioContext.state === "suspended") {
         await audioContext.resume().catch(() => undefined);
       }
 
@@ -124,65 +173,61 @@ export function LiveAudioWave({
 
     return () => {
       mounted = false;
-      if (frameRef.current) {
+
+      if (frameRef.current !== null) {
         window.cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
       }
 
-      source?.disconnect();
-      if (audioContext) {
-        void audioContext.close().catch(() => undefined);
-      }
+      source.disconnect();
+      void audioContext.close().catch(() => undefined);
     };
   }, [active, stream]);
 
   return (
     <div aria-hidden="true" className={cn("flex items-center justify-center", className)}>
-      <div className="flex h-12 w-[5.8rem] items-center justify-center gap-[2.6px] px-[5px] text-[var(--label)]">
-        {Array.from({ length: BAR_COUNT }, (_, index) => {
-          const normalizedLevel = clamp(renderedLevel, 0, 1);
-          const shapedLevel = clamp(
-            normalizedLevel * (0.58 + (BAR_SHAPE[index] ?? 0.3) * 0.9),
-            0,
-            1,
-          );
-          const activeProgress = smoothstep(0.02, 0.12, shapedLevel);
-          const silentBlend = 1 - activeProgress;
-          const shape = BAR_SHAPE[index] ?? BAR_SHAPE[0];
-          const activeLevel = clamp((shapedLevel - 0.015) / 0.985, 0, 1);
-          const boostedLevel = Math.min(1, Math.pow(activeLevel, 0.48) * 1.45);
-          const timeWave = (Math.sin(phase * 21 + index * 0.82) + 1) * 0.5;
-          const ripple = (Math.sin(phase * 9 + index * 0.34) + 1) * 0.5;
-          const voiceHeight = boostedLevel * 20.5 * shape;
-          const motionHeight =
-            boostedLevel * (2.4 + shape * 3.4) * ((timeWave * 0.72) + (ripple * 0.28));
-          const activeHeight = SILENT_HEIGHT + voiceHeight + motionHeight;
-          const height = SILENT_HEIGHT + (activeHeight - SILENT_HEIGHT) * activeProgress;
-          const width = SILENT_WIDTH + (ACTIVE_WIDTH - SILENT_WIDTH) * activeProgress;
-          const shimmer = (Math.sin(phase * 9.2 + index * 0.9) + 1) * 0.5;
-          const pulse = (Math.sin(phase * 2.6 + index * 0.2) + 1) * 0.5;
-          const blended = shimmer * 0.76 + pulse * 0.24;
-          const silentOpacity = 0.48 + 0.2 * blended;
-          const opacity = silentOpacity * silentBlend + 0.98 * activeProgress;
-          const shadowOpacity = (0.04 + 0.06 * (1 - shimmer)) * (0.2 + activeProgress * 0.8);
-          const cornerRadius = 1.6 * silentBlend + 2.6 * activeProgress;
+      <div className="relative flex h-16 w-full max-w-[13rem] items-center justify-center overflow-hidden rounded-full px-4 text-[var(--label)]">
+        <div
+          className="pointer-events-none absolute inset-0 rounded-full transition-opacity duration-150"
+          style={{
+            opacity: 0.2 + renderedPresence * 0.55,
+            background: `radial-gradient(circle at 50% 50%, color-mix(in srgb, currentColor ${
+              Math.round(14 + renderedPresence * 24)
+            }%, transparent) 0%, transparent 72%)`,
+          }}
+        />
+        <div
+          className="pointer-events-none absolute inset-x-5 top-1/2 h-px -translate-y-1/2"
+          style={{
+            backgroundColor: "color-mix(in srgb, currentColor 14%, transparent)",
+            opacity: 0.18 + (1 - renderedPresence) * 0.22,
+          }}
+        />
+        <div className="relative flex h-10 w-full items-end justify-center gap-[5px]">
+          {renderedBars.map((level, index) => {
+            const height = MIN_BAR_HEIGHT + level * (MAX_BAR_HEIGHT - MIN_BAR_HEIGHT);
+            const opacity = 0.12 + level * 0.88;
+            const highlight = 22 + Math.round(level * 46);
 
-          return (
-            <span
-              key={index}
-              className="block origin-center transition-[width,height,border-radius,opacity] duration-75 ease-linear will-change-[width,height]"
-              style={{
-                width: `${width}px`,
-                height: `${height}px`,
-                borderRadius: `${cornerRadius}px`,
-                backgroundColor: `color-mix(in srgb, currentColor ${Math.round(opacity * 100)}%, transparent)`,
-                boxShadow: `0 0.35px 0.65px color-mix(in srgb, currentColor ${Math.round(
-                  shadowOpacity * 55,
-                )}%, transparent)`,
-              }}
-            />
-          );
-        })}
+            return (
+              <span
+                key={index}
+                className="block w-[5px] rounded-full transition-[height,opacity,transform] duration-75 ease-out"
+                style={{
+                  height: `${height}px`,
+                  opacity,
+                  transform: `scaleX(${0.88 + level * 0.16})`,
+                  background: `linear-gradient(180deg, color-mix(in srgb, currentColor ${highlight}%, white) 0%, color-mix(in srgb, currentColor ${
+                    40 + Math.round(level * 58)
+                  }%, transparent) 100%)`,
+                  boxShadow: `0 0 ${4 + level * 9}px color-mix(in srgb, currentColor ${
+                    10 + Math.round(level * 30)
+                  }%, transparent)`,
+                }}
+              />
+            );
+          })}
+        </div>
       </div>
     </div>
   );
