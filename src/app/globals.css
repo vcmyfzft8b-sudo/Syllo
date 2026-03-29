@@ -3600,7 +3600,7 @@ select:disabled {
   align-items: center;
   gap: 0.65rem;
   width: 100%;
-  padding: 0.2rem 0.05rem 0.2rem 0;
+  padding: 0.2rem 0 0.2rem 0;
   color: var(--label);
   font-size: 0.92rem;
   font-weight: 700;
@@ -3618,6 +3618,7 @@ select:disabled {
   gap: 0.2rem;
   justify-self: end;
   margin-left: auto;
+  margin-right: -0.55rem;
   color: var(--secondary-label);
 }
 
