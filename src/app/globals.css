@@ -3694,7 +3694,7 @@ select:disabled {
   --completion-accent-strong: var(--tint-strong);
   display: grid;
   gap: 1.35rem;
-  width: min(100%, 42rem);
+  width: min(100%, 43rem);
   max-width: 100%;
   margin: auto;
   padding: 1.75rem 1.55rem 1.55rem;
