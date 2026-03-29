@@ -3618,7 +3618,7 @@ select:disabled {
   gap: 0.2rem;
   justify-self: end;
   margin-left: auto;
-  margin-right: -0.55rem;
+  margin-right: -1.175rem;
   color: var(--secondary-label);
 }
 
