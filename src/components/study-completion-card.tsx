@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Sparkles } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 
 interface StudyCompletionMetric {
@@ -50,10 +50,7 @@ export function StudyCompletionCard({
   return (
     <div className={`lecture-study-completion lecture-study-completion-${tone}`}>
       <div className="lecture-study-completion-header">
-        <span className="lecture-study-completion-badge">
-          <Sparkles className="h-4 w-4" />
-          {eyebrow}
-        </span>
+        {eyebrow ? <span className="lecture-study-completion-badge">{eyebrow}</span> : null}
         <div className="lecture-study-completion-copy">
           <h3 className="lecture-study-completion-title">{title}</h3>
           {subtitle ? (
