@@ -855,13 +855,14 @@ export async function createPracticeTestAttempt(params: {
   const hasInvalidStoredQuestions = questionRows.some((question) =>
     dependsOnExternalContext(question.prompt),
   );
+  const assetMetadata = toMetadataRecord(assetRow?.model_metadata);
   const needsInitialBank =
     !assetRow ||
     assetRow.status !== "ready" ||
     questionRows.length === 0 ||
     hasInvalidStoredQuestions ||
-    (typeof assetRow.model_metadata?.pipeline === "string"
-      ? assetRow.model_metadata.pipeline !== PRACTICE_TEST_GENERATION_VERSION
+    (typeof assetMetadata.pipeline === "string"
+      ? assetMetadata.pipeline !== PRACTICE_TEST_GENERATION_VERSION
       : true);
   if (needsInitialBank) {
     await generateLecturePracticeTest({

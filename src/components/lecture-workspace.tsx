@@ -2175,16 +2175,6 @@ export function LectureWorkspace({
               </div>
             ) : currentPracticeAttempt ? (
               <div className="lecture-practice-shell">
-                <div className="lecture-practice-summary">
-                  <div>
-                    <p className="lecture-practice-kicker">Practice test</p>
-                    <h3>Answer all questions and submit once at the end</h3>
-                    <p>
-                      {practiceQuestionsAnsweredCount} / {practiceAttemptAnswers.length} questions ready
-                    </p>
-                  </div>
-                </div>
-
                 <div className="lecture-practice-list">
                   {practiceAttemptAnswers.map((answer, index) => {
                     const question = answer.question;
@@ -2195,7 +2185,6 @@ export function LectureWorkspace({
                       <div key={answer.id} className="lecture-practice-card">
                         <div className="lecture-practice-card-header">
                           <span>Question {index + 1}</span>
-                          {question?.difficulty ? <span>{question.difficulty}</span> : null}
                         </div>
                         <p className="lecture-practice-prompt">{question?.prompt ?? "Question unavailable."}</p>
                         <textarea
