@@ -2304,8 +2304,21 @@ export function LectureWorkspace({
                         {visiblePracticeAttempt.answers.map((answer, index) => (
                           <details key={answer.id} className="lecture-practice-feedback-card">
                             <summary className="lecture-practice-feedback-summary">
-                              <span>Question {index + 1}</span>
-                              <span>{answer.score ?? 0}/5</span>
+                              <span className="lecture-practice-feedback-icon" aria-hidden="true">
+                                📝
+                              </span>
+                              <span className="lecture-practice-feedback-label">
+                                Question {index + 1}
+                              </span>
+                              <span className="lecture-practice-feedback-meta">
+                                <span>{answer.score ?? 0}/5</span>
+                                <span
+                                  className="lecture-practice-feedback-chevron"
+                                  aria-hidden="true"
+                                >
+                                  ▾
+                                </span>
+                              </span>
                             </summary>
                             <div className="lecture-practice-feedback-body">
                               <p className="lecture-practice-prompt">{answer.question?.prompt}</p>
