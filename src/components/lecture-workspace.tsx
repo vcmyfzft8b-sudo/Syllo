@@ -2304,9 +2304,6 @@ export function LectureWorkspace({
                         {visiblePracticeAttempt.answers.map((answer, index) => (
                           <details key={answer.id} className="lecture-practice-feedback-card">
                             <summary className="lecture-practice-feedback-summary">
-                              <span className="lecture-practice-feedback-icon" aria-hidden="true">
-                                📝
-                              </span>
                               <span className="lecture-practice-feedback-label">
                                 Question {index + 1}
                               </span>
