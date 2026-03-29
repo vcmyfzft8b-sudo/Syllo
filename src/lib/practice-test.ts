@@ -280,6 +280,9 @@ Do not use multiple-choice options.
 Spread questions across the requested concepts and avoid duplicates.
 Prefer prompts that require recall, explanation, listing, comparison, process description, or short synthesis grounded in the source.
 Keep prompts specific and answerable from the source material.
+Every question must be fully self-contained so a student can solve it without seeing the original lecture, notes, table, diagram, or example.
+Do not refer to "the lecture", "the notes", "the table above", "the example shown", or any missing context outside the prompt itself.
+If a question depends on source-specific data, definitions, categories, scenarios, or examples, include that context directly in the prompt.
 Provide a concise but complete answerGuide that a grader can use for partial credit.
 Use the provided conceptKey exactly.
 Do not invent facts beyond the source.`,

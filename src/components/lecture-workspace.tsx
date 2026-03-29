@@ -1158,6 +1158,7 @@ export function LectureWorkspace({
       : null) ?? latestGradedPracticeAttempt;
   const visiblePracticeAttemptPercentage = Math.round(visiblePracticeAttempt?.percentage ?? 0);
   const practiceAttemptAnswers = currentPracticeAttempt?.answers ?? [];
+  const hasCompletedPracticeTest = detail.practiceTestHistorySummary.attemptCount > 0;
   const practiceQuestionsAnsweredCount = practiceAttemptAnswers.filter((answer) => {
     const questionId = answer.practice_test_question_id ?? `snapshot-${answer.id}`;
     return (
@@ -2145,14 +2146,18 @@ export function LectureWorkspace({
                       ? "Creating practice test."
                       : detail.practiceTestAsset?.status === "failed"
                         ? "Practice-test creation failed."
-                        : "Start a practice test when you're ready."}
+                        : hasCompletedPracticeTest
+                          ? "Start a practice test when you're ready."
+                          : "Generate your first practice test."}
                 </p>
                 <p className="ios-row-subtitle">
                   {detail.lecture.status !== "ready"
                     ? "Notes are created first. After that, you can start a practice test."
                     : shouldPollAsset(detail.practiceTestAsset?.status)
                       ? "This view refreshes automatically while your next practice test is being prepared."
-                      : "Each new test gives you a fresh random set of open-ended questions."}
+                      : hasCompletedPracticeTest
+                        ? "Each new test gives you a fresh random set of open-ended questions."
+                        : "Generate a first set of self-contained open-ended questions, then review your results and start new tests after you finish."}
                 </p>
                 {detail.lecture.status === "ready" ? (
                   <button
@@ -2164,7 +2169,7 @@ export function LectureWorkspace({
                     {isStartingPracticeTest ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : null}
-                    Start new test
+                    {hasCompletedPracticeTest ? "Start new test" : "Generate test"}
                   </button>
                 ) : null}
               </div>
