@@ -3552,6 +3552,56 @@ select:disabled {
 .lecture-practice-breakdown summary {
   color: var(--label);
   font-weight: 700;
+  padding: 0.1rem 0;
+}
+
+.lecture-practice-breakdown-copy {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.lecture-practice-breakdown-copy strong,
+.lecture-practice-breakdown-copy small {
+  margin: 0;
+}
+
+.lecture-practice-breakdown-copy strong {
+  color: var(--label);
+  font-size: 1rem;
+  line-height: 1.15;
+}
+
+.lecture-practice-breakdown-copy small {
+  color: var(--secondary-label);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.lecture-practice-breakdown-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+.lecture-practice-breakdown-chevron {
+  display: inline-flex;
+  width: 1.8rem;
+  height: 1.8rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--separator) 58%, transparent);
+  background: color-mix(in srgb, var(--surface-muted) 78%, var(--surface-solid));
+  color: var(--secondary-label);
+  font-size: 0.9rem;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+
+.lecture-practice-breakdown[open] .lecture-practice-breakdown-chevron {
+  transform: rotate(180deg);
 }
 
 .lecture-practice-feedback-summary {

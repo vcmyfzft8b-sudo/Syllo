@@ -2292,8 +2292,16 @@ export function LectureWorkspace({
 
                     <details className="lecture-practice-breakdown">
                       <summary>
-                        Review attempt details
-                        <span>{visiblePracticeAttempt.answers.length} questions</span>
+                        <div className="lecture-practice-breakdown-copy">
+                          <strong>Review attempt details</strong>
+                          <small>Tap to open question-by-question grading</small>
+                        </div>
+                        <div className="lecture-practice-breakdown-meta">
+                          <span>{visiblePracticeAttempt.answers.length} questions</span>
+                          <span className="lecture-practice-breakdown-chevron" aria-hidden="true">
+                            ▾
+                          </span>
+                        </div>
                       </summary>
                       <div className="lecture-practice-feedback-list">
                         {visiblePracticeAttempt.answers.map((answer, index) => (
