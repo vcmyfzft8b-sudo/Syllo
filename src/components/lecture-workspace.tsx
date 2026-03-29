@@ -2237,8 +2237,8 @@ export function LectureWorkspace({
                 {visiblePracticeAttempt && visiblePracticeAttempt.status === "graded" ? (
                   <div className="lecture-practice-results">
                     <StudyCompletionCard
-                      eyebrow="Latest result"
-                      title={`Practice test ${visiblePracticeAttemptPercentage}%`}
+                      eyebrow=""
+                      title=""
                       subtitle={`Attempt ${detail.practiceTestHistorySummary.attemptCount}`}
                       percentage={visiblePracticeAttemptPercentage}
                       percentageLabel="Score"

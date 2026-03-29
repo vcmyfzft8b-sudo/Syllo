@@ -6338,73 +6338,73 @@ select:disabled {
   }
 
   .lecture-study-completion {
-    gap: 0.65rem;
-    padding: 0.8rem 0.75rem 0.7rem;
-    border-radius: 18px;
+    gap: 0.5rem;
+    padding: 0.64rem 0.6rem 0.56rem;
+    border-radius: 16px;
   }
 
   .lecture-study-completion-badge {
-    min-height: 1.45rem;
-    padding: 0 0.55rem;
-    font-size: 0.64rem;
-  }
-
-  .lecture-study-completion-title {
-    font-size: clamp(0.95rem, 3.9vw, 1.2rem);
-  }
-
-  .lecture-study-completion-subtitle {
-    font-size: 0.72rem;
-    line-height: 1.3;
-  }
-
-  .lecture-study-completion-body {
-    gap: 0.55rem;
-  }
-
-  .lecture-study-completion-ring {
-    width: min(100%, 6.4rem);
-    padding: 0.42rem;
-  }
-
-  .lecture-study-completion-ring::after {
-    inset: 0.42rem;
-  }
-
-  .lecture-study-completion-ring-inner {
-    gap: 0.16rem;
-  }
-
-  .lecture-study-completion-ring-inner strong {
-    font-size: 1.35rem;
-  }
-
-  .lecture-study-completion-ring-inner span {
-    font-size: 0.55rem;
-  }
-
-  .lecture-study-completion-primary-metric span {
+    min-height: 1.2rem;
+    padding: 0 0.45rem;
     font-size: 0.58rem;
   }
 
+  .lecture-study-completion-title {
+    font-size: clamp(0.8rem, 3.1vw, 0.96rem);
+  }
+
+  .lecture-study-completion-subtitle {
+    font-size: 0.62rem;
+    line-height: 1.2;
+  }
+
+  .lecture-study-completion-body {
+    gap: 0.42rem;
+  }
+
+  .lecture-study-completion-ring {
+    width: min(100%, 5.1rem);
+    padding: 0.34rem;
+  }
+
+  .lecture-study-completion-ring::after {
+    inset: 0.34rem;
+  }
+
+  .lecture-study-completion-ring-inner {
+    gap: 0.12rem;
+  }
+
+  .lecture-study-completion-ring-inner strong {
+    font-size: 1.08rem;
+  }
+
+  .lecture-study-completion-ring-inner span {
+    font-size: 0.48rem;
+  }
+
+  .lecture-study-completion-primary-metric span {
+    font-size: 0.5rem;
+  }
+
   .lecture-study-completion-primary-metric strong {
-    font-size: 1.45rem;
+    font-size: 1.16rem;
   }
 
   .lecture-study-completion-metrics {
-    gap: 0.45rem;
+    gap: 0.36rem;
   }
 
   .lecture-study-completion-metric {
-    padding: 0.58rem 0.65rem;
+    padding: 0.46rem 0.52rem;
   }
 
   .lecture-study-completion-metric strong {
-    font-size: 0.95rem;
+    font-size: 0.76rem;
   }
 
   .lecture-study-completion-metric span {
-    font-size: 0.62rem;
+    font-size: 0.54rem;
   }
 
   .lecture-study-mode-switch {
