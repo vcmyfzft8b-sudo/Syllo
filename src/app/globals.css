@@ -3599,7 +3599,8 @@ select:disabled {
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 0.65rem;
-  padding: 0.2rem 0.1rem;
+  width: 100%;
+  padding: 0.2rem 0;
   color: var(--label);
   font-size: 0.92rem;
   font-weight: 700;
@@ -3615,6 +3616,8 @@ select:disabled {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
+  justify-self: end;
+  margin-left: auto;
   color: var(--secondary-label);
 }
 
