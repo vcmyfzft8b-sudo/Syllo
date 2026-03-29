@@ -3600,7 +3600,7 @@ select:disabled {
   align-items: center;
   gap: 0.65rem;
   width: 100%;
-  padding: 0.2rem 0.85rem 0.2rem 0;
+  padding: 0.2rem 0.3rem 0.2rem 0;
   color: var(--label);
   font-size: 0.92rem;
   font-weight: 700;
@@ -3615,7 +3615,7 @@ select:disabled {
 .lecture-practice-feedback-meta {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.35rem;
   justify-self: end;
   margin-left: auto;
   color: var(--secondary-label);
@@ -3623,7 +3623,7 @@ select:disabled {
 
 .lecture-practice-feedback-chevron {
   display: inline-flex;
-  width: 1.8rem;
+  width: 1.4rem;
   height: 1.8rem;
   align-items: center;
   justify-content: center;
