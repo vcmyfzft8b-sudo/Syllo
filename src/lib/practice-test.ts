@@ -30,6 +30,8 @@ import { getAiProvider, getServerEnv } from "@/lib/server-env";
 
 const PRACTICE_TEST_CONCURRENCY = 3;
 const RECENT_ATTEMPT_MEMORY = 3;
+const PRACTICE_TEST_GENERATION_VERSION = "practice-test-v2";
+const PRACTICE_TEST_GENERATION_ATTEMPTS = 3;
 
 type PracticeTestQuestionDraft = {
   prompt: string;
@@ -119,6 +121,53 @@ function normalizeDifficulty(value: string): FlashcardDifficulty {
 function normalizeText(value: string, maxLength: number) {
   const normalized = value.replace(/\s+/g, " ").trim();
   return normalized.length <= maxLength ? normalized : normalized.slice(0, maxLength).trim();
+}
+
+const EXTERNAL_CONTEXT_PATTERNS = [
+  /\bthe lecture\b/i,
+  /\bthe notes\b/i,
+  /\bthe source material\b/i,
+  /\bthe source\b/i,
+  /\bthe text above\b/i,
+  /\bthe text below\b/i,
+  /\bthe table above\b/i,
+  /\bthe table below\b/i,
+  /\bthe figure above\b/i,
+  /\bthe figure below\b/i,
+  /\bthe diagram above\b/i,
+  /\bthe diagram below\b/i,
+  /\bthe illustration above\b/i,
+  /\bthe illustration below\b/i,
+  /\bas shown\b/i,
+  /\bas illustrated\b/i,
+  /\bas depicted\b/i,
+  /\bshown in the\b/i,
+  /\bdepicted in the\b/i,
+  /\baccording to the source\b/i,
+  /\bbased on the source\b/i,
+  /\baccording to the material\b/i,
+  /\bbased on the material\b/i,
+  /\bpredavanj[aeuom]?\b/i,
+  /\bzapisk(?:i|ih|e|om|a)?\b/i,
+  /\bgradiv[aoeuim]?\b/i,
+  /\bvir[auoem]?\b/i,
+  /\bslik[aeiou]?\b/i,
+  /\btabel[aeiou]?\b/i,
+  /\bdiagram[aeiou]?\b/i,
+  /\bgraf[aeiou]?\b/i,
+  /\bilustracij[aeiou]?\b/i,
+  /\bprikazan[oaie]?\b/i,
+  /\bponazorjen[oaie]?\b/i,
+  /\bzgoraj\b/i,
+  /\bspodaj\b/i,
+  /\bkot je prikazano\b/i,
+  /\bkot je ponazorjeno\b/i,
+  /\bv prikazu\b/i,
+  /\bv ilustraciji\b/i,
+];
+
+function dependsOnExternalContext(prompt: string) {
+  return EXTERNAL_CONTEXT_PATTERNS.some((pattern) => pattern.test(prompt));
 }
 
 function dedupeQuestions(questions: PracticeTestQuestionDraft[]) {
@@ -218,7 +267,9 @@ function parseAttemptQuestionMetadata(value: unknown): AttemptQuestionMetadata |
       : null;
   const bankVersion = typeof record.bankVersion === "string" ? record.bankVersion : null;
   const generationVersion =
-    typeof record.generationVersion === "string" ? record.generationVersion : "practice-test-v1";
+    typeof record.generationVersion === "string"
+      ? record.generationVersion
+      : PRACTICE_TEST_GENERATION_VERSION;
 
   if (!attemptNumber || !bankVersion) {
     return null;
@@ -266,12 +317,23 @@ async function generateQuestionsForUnit(params: {
     8,
   );
   const languageInstruction = buildGeneratedContentLanguageInstruction(params.outputLanguage);
+  const targetMinimum = Math.min(targetCount, Math.max(params.concepts.length, 1));
+  let generatedQuestions: PracticeTestQuestionDraft[] = [];
 
-  const batch = await generateStructuredObject({
-    schema: practiceQuestionBatchSchema,
-    schemaName: `practice_test_questions_unit_${params.unit.unitIndex}`,
-    maxOutputTokens: Math.max(2200, targetCount * 600),
-    instructions: `${languageInstruction}
+  for (
+    let attemptIndex = 0;
+    attemptIndex < PRACTICE_TEST_GENERATION_ATTEMPTS && generatedQuestions.length < targetMinimum;
+    attemptIndex += 1
+  ) {
+    const retryInstruction =
+      attemptIndex === 0
+        ? ""
+        : "\nPrevious output included prompts that depended on missing context. Regenerate only standalone prompts with all needed context inside the question itself.";
+    const batch = await generateStructuredObject({
+      schema: practiceQuestionBatchSchema,
+      schemaName: `practice_test_questions_unit_${params.unit.unitIndex}`,
+      maxOutputTokens: Math.max(2200, targetCount * 600),
+      instructions: `${languageInstruction}
 ${params.repairOnly ? "Repair missing practice-test coverage." : "Generate source-grounded open-ended practice-test questions."}
 Use only the supplied source material.
 Return ${targetCount} questions for this unit.
@@ -283,47 +345,55 @@ Keep prompts specific and answerable from the source material.
 Every question must be fully self-contained so a student can solve it without seeing the original lecture, notes, table, diagram, or example.
 Do not refer to "the lecture", "the notes", "the table above", "the example shown", or any missing context outside the prompt itself.
 If a question depends on source-specific data, definitions, categories, scenarios, or examples, include that context directly in the prompt.
+Do not mention the source, material, lecture, notes, illustration, figure, table, graph, diagram, or example in the wording of the question.
+Write prompts as direct knowledge questions that can be answered from memory after studying the topic.${retryInstruction}
 Provide a concise but complete answerGuide that a grader can use for partial credit.
 Use the provided conceptKey exactly.
 Do not invent facts beyond the source.`,
-    input: JSON.stringify(
-      {
-        title: params.title,
-        summary: params.summary,
-        keyTopics: params.keyTopics,
-        repairOnly: Boolean(params.repairOnly),
-        unit: {
-          unitIndex: params.unit.unitIndex,
-          sectionTitle: params.unit.sectionTitle,
-          locatorLabel: params.unit.locatorLabel,
-          sourceType: params.unit.sourceType,
-          text: params.unit.text,
+      input: JSON.stringify(
+        {
+          title: params.title,
+          summary: params.summary,
+          keyTopics: params.keyTopics,
+          repairOnly: Boolean(params.repairOnly),
+          unit: {
+            unitIndex: params.unit.unitIndex,
+            sectionTitle: params.unit.sectionTitle,
+            locatorLabel: params.unit.locatorLabel,
+            sourceType: params.unit.sourceType,
+            text: params.unit.text,
+          },
+          concepts: params.concepts.map((concept) => ({
+            ...concept,
+            recommendedQuestionCount: Math.min(Math.max(concept.recommendedCardCount, 1), 2),
+          })),
+          contextUnits: params.contextUnits.map((unit) => ({
+            unitIndex: unit.unitIndex,
+            locatorLabel: unit.locatorLabel,
+            text: unit.text,
+          })),
         },
-        concepts: params.concepts.map((concept) => ({
-          ...concept,
-          recommendedQuestionCount: Math.min(Math.max(concept.recommendedCardCount, 1), 2),
-        })),
-        contextUnits: params.contextUnits.map((unit) => ({
-          unitIndex: unit.unitIndex,
-          locatorLabel: unit.locatorLabel,
-          text: unit.text,
-        })),
-      },
-      null,
-      2,
-    ),
-  });
+        null,
+        2,
+      ),
+    });
 
-  return dedupeQuestions(
-    batch.questions.map((question) => ({
-      prompt: normalizeText(question.prompt, 220),
-      answerGuide: normalizeText(question.answerGuide, 1000),
-      difficulty: normalizeDifficulty(question.difficulty),
-      conceptKey: question.conceptKey,
-      sourceUnitIdx: params.unit.unitIndex,
-      sourceLocator: params.unit.locatorLabel,
-    })),
-  );
+    generatedQuestions = dedupeQuestions([
+      ...generatedQuestions,
+      ...batch.questions
+        .map((question) => ({
+          prompt: normalizeText(question.prompt, 220),
+          answerGuide: normalizeText(question.answerGuide, 1000),
+          difficulty: normalizeDifficulty(question.difficulty),
+          conceptKey: question.conceptKey,
+          sourceUnitIdx: params.unit.unitIndex,
+          sourceLocator: params.unit.locatorLabel,
+        }))
+        .filter((question) => !dependsOnExternalContext(question.prompt)),
+    ]);
+  }
+
+  return generatedQuestions;
 }
 
 function findMissingConcepts(params: {
@@ -457,7 +527,7 @@ export async function generateLecturePracticeTest(params: {
     status: "generating",
     modelMetadata: {
       stage: "generating_question_bank",
-      pipeline: "practice-test-v1",
+      pipeline: PRACTICE_TEST_GENERATION_VERSION,
       regenerate: Boolean(params.regenerate),
     },
   });
@@ -544,7 +614,7 @@ export async function generateLecturePracticeTest(params: {
       status: "ready",
       modelMetadata: {
         stage: "ready",
-        pipeline: "practice-test-v1",
+        pipeline: PRACTICE_TEST_GENERATION_VERSION,
         questionCount: questionsToInsert.length,
         sourceUnitCount: coverage.units.length,
         plannedConceptCount: coverage.plannedCoverage.reduce(
@@ -561,7 +631,7 @@ export async function generateLecturePracticeTest(params: {
       errorMessage: toErrorMessage(error),
       modelMetadata: {
         stage: "failed",
-        pipeline: "practice-test-v1",
+        pipeline: PRACTICE_TEST_GENERATION_VERSION,
         regenerate: Boolean(params.regenerate),
       },
     });
@@ -782,7 +852,17 @@ export async function createPracticeTestAttempt(params: {
   let { asset: assetRow, questions: questionRows, attempts: previousAttempts } =
     await loadAttemptInputs();
 
-  const needsInitialBank = !assetRow || assetRow.status !== "ready" || questionRows.length === 0;
+  const hasInvalidStoredQuestions = questionRows.some((question) =>
+    dependsOnExternalContext(question.prompt),
+  );
+  const needsInitialBank =
+    !assetRow ||
+    assetRow.status !== "ready" ||
+    questionRows.length === 0 ||
+    hasInvalidStoredQuestions ||
+    (typeof assetRow.model_metadata?.pipeline === "string"
+      ? assetRow.model_metadata.pipeline !== PRACTICE_TEST_GENERATION_VERSION
+      : true);
   if (needsInitialBank) {
     await generateLecturePracticeTest({
       lectureId: params.lectureId,
@@ -847,7 +927,7 @@ export async function createPracticeTestAttempt(params: {
     questionIds: selectedQuestions.map((question) => question.id),
     attemptNumber,
     bankVersion,
-    generationVersion: "practice-test-v1",
+    generationVersion: PRACTICE_TEST_GENERATION_VERSION,
   };
 
   const { error: insertAttemptError } = await supabase.from("practice_test_attempts").insert(
