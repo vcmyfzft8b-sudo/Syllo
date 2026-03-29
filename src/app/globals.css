@@ -3694,7 +3694,7 @@ select:disabled {
   --completion-accent-strong: var(--tint-strong);
   display: grid;
   gap: 1.35rem;
-  width: min(100%, 40rem);
+  width: min(100%, 48rem);
   max-width: 100%;
   margin: auto;
   padding: 1.75rem 1.55rem 1.55rem;
@@ -3857,7 +3857,7 @@ select:disabled {
 
 .lecture-study-completion-metrics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
   gap: 0.75rem;
   width: 100%;
 }
@@ -3866,7 +3866,8 @@ select:disabled {
   display: grid;
   gap: 0.3rem;
   min-width: 0;
-  padding: 0.95rem 1rem;
+  min-height: 6rem;
+  padding: 1rem 1.2rem;
   border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--separator) 55%, transparent);
   background: color-mix(in srgb, var(--surface-solid) 94%, transparent);
