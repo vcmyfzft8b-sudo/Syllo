@@ -6337,6 +6337,72 @@ select:disabled {
     width: 100%;
   }
 
+  .lecture-study-completion {
+    gap: 1rem;
+    padding: 1.2rem 1rem 1rem;
+    border-radius: 22px;
+  }
+
+  .lecture-study-completion-badge {
+    min-height: 1.7rem;
+    padding: 0 0.68rem;
+    font-size: 0.72rem;
+  }
+
+  .lecture-study-completion-title {
+    font-size: clamp(1.15rem, 4.6vw, 1.55rem);
+  }
+
+  .lecture-study-completion-subtitle {
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  .lecture-study-completion-body {
+    gap: 0.85rem;
+  }
+
+  .lecture-study-completion-ring {
+    width: min(100%, 11.25rem);
+    padding: 0.75rem;
+  }
+
+  .lecture-study-completion-ring::after {
+    inset: 0.75rem;
+  }
+
+  .lecture-study-completion-ring-inner {
+    gap: 0.28rem;
+  }
+
+  .lecture-study-completion-ring-inner strong {
+    font-size: 2.35rem;
+  }
+
+  .lecture-study-completion-ring-inner span {
+    font-size: 0.7rem;
+  }
+
+  .lecture-study-completion-primary-metric span {
+    font-size: 0.72rem;
+  }
+
+  .lecture-study-completion-primary-metric strong {
+    font-size: 2.45rem;
+  }
+
+  .lecture-study-completion-metrics {
+    gap: 0.65rem;
+  }
+
+  .lecture-study-completion-metric {
+    padding: 0.8rem 0.85rem;
+  }
+
+  .lecture-study-completion-metric strong {
+    font-size: 1.2rem;
+  }
+
   .lecture-study-mode-switch {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
