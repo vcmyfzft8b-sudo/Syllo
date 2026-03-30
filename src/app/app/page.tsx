@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
-
 import { HomeDashboard } from "@/components/home-dashboard";
 import { getViewerAppState } from "@/lib/billing";
 import { requireUser } from "@/lib/auth";
@@ -17,14 +15,7 @@ export default async function AppHomePage({
   const appState = await getViewerAppState();
   const user = appState?.user ?? (await requireUser());
   const lectures = await listLecturesForUser(user.id);
-  const params = await searchParams;
-
-  if (
-    params?.mode &&
-    !appState?.hasPaidAccess
-  ) {
-    redirect("/app/start");
-  }
+  await searchParams;
 
   return (
     <HomeDashboard

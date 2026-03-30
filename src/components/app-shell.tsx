@@ -75,7 +75,7 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const chrome = getChrome(pathname);
-  const createHref = canCreateNotes ? "/app?mode=record" : "/app/start";
+  const createHref = "/app?mode=record";
   const showCreateCta = pathname !== "/app/start";
 
   useEffect(() => {

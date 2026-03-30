@@ -297,15 +297,6 @@ export function HomeDashboard({
     }
   }
 
-  function openCreateFlow(mode: NoteSourceMode) {
-    if (!canCreateNotes) {
-      router.push("/app/start");
-      return;
-    }
-
-    setManualModal(mode);
-  }
-
   function openRenameModal(lecture: AppLectureListItem) {
     setOpenMenuLectureId(null);
     setRenameTarget(lecture);
@@ -444,7 +435,7 @@ export function HomeDashboard({
               <button
                 key={action.id}
                 type="button"
-                onClick={() => openCreateFlow(action.id)}
+                onClick={() => setManualModal(action.id)}
                 className="note-action-card"
               >
                 <span
@@ -580,7 +571,7 @@ export function HomeDashboard({
               {!search && !selectedFolderId ? (
                 <button
                   type="button"
-                  onClick={() => openCreateFlow("record")}
+                  onClick={() => setManualModal("record")}
                   className="app-home-highlight-link"
                 >
                   <span>Create your first note</span>
@@ -592,7 +583,12 @@ export function HomeDashboard({
         </section>
       </div>
 
-      <NoteSourceModal mode={activeModal} open={Boolean(activeModal)} onClose={closeModal} />
+      <NoteSourceModal
+        mode={activeModal}
+        open={Boolean(activeModal)}
+        onClose={closeModal}
+        canCreateNotes={canCreateNotes}
+      />
 
       {renameTarget ? (
         <>
@@ -738,3 +734,4 @@ export function HomeDashboard({
     </>
   );
 }
+  const canCreateNotes = false;

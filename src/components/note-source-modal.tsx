@@ -123,10 +123,12 @@ export function NoteSourceModal({
   mode,
   open,
   onClose,
+  canCreateNotes,
 }: {
   mode: NoteSourceMode | null;
   open: boolean;
   onClose: () => void;
+  canCreateNotes?: boolean;
 }) {
   const router = useRouter();
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -216,6 +218,11 @@ export function NoteSourceModal({
   const trimmedLinkValue = linkValue.trim();
   const canGenerateText = Boolean(pdfSource) || trimmedTextValue.length >= 120;
   const canGenerateLink = trimmedLinkValue.length > 0;
+
+  function redirectToPaywall() {
+    onClose();
+    router.push("/app/start");
+  }
 
   const replaceAudioSource = useCallback(async (nextSource: AudioSource) => {
     try {
@@ -409,6 +416,11 @@ export function NoteSourceModal({
   }
 
   async function startRecording() {
+    if (!canCreateNotes) {
+      redirectToPaywall();
+      return;
+    }
+
     if (!recordingSupported) {
       setError("This browser does not support in-app recording.");
       return;
@@ -742,6 +754,12 @@ export function NoteSourceModal({
   }
 
   async function handleScanImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    if (!canCreateNotes) {
+      event.target.value = "";
+      redirectToPaywall();
+      return;
+    }
+
     const file = event.target.files?.[0];
 
     if (!file) {
@@ -790,6 +808,12 @@ export function NoteSourceModal({
   }
 
   async function handlePdfPick(event: React.ChangeEvent<HTMLInputElement>) {
+    if (!canCreateNotes) {
+      event.target.value = "";
+      redirectToPaywall();
+      return;
+    }
+
     const file = event.target.files?.[0];
 
     if (!file) {
@@ -913,7 +937,14 @@ export function NoteSourceModal({
         type="button"
         className="ios-primary-button"
         disabled={!params.canGenerate}
-        onClick={params.onGenerate}
+        onClick={() => {
+          if (!canCreateNotes) {
+            redirectToPaywall();
+            return;
+          }
+
+          params.onGenerate();
+        }}
       >
         <EmojiIcon symbol={params.generateIcon} size="1rem" />
         Generate
@@ -1262,7 +1293,14 @@ export function NoteSourceModal({
                         type="button"
                         disabled={Boolean(busyLabel)}
                         className="ios-secondary-button"
-                        onClick={() => uploadInputRef.current?.click()}
+                          onClick={() => {
+                            if (!canCreateNotes) {
+                              redirectToPaywall();
+                              return;
+                            }
+
+                            uploadInputRef.current?.click();
+                          }}
                       >
                         <EmojiIcon symbol="📤" size="1rem" />
                         {preparedUpload ? "Choose another audio file" : "Choose audio file"}
@@ -1365,7 +1403,14 @@ export function NoteSourceModal({
                           type="button"
                           className="ios-secondary-button note-source-docs-action-button"
                           disabled={Boolean(busyLabel)}
-                          onClick={() => pdfInputRef.current?.click()}
+                          onClick={() => {
+                            if (!canCreateNotes) {
+                              redirectToPaywall();
+                              return;
+                            }
+
+                            pdfInputRef.current?.click();
+                          }}
                         >
                           <EmojiIcon symbol="📤" size="1rem" />
                           File
@@ -1375,7 +1420,14 @@ export function NoteSourceModal({
                           type="button"
                           className="ios-secondary-button note-source-docs-action-button"
                           disabled={Boolean(busyLabel)}
-                          onClick={() => scanInputRef.current?.click()}
+                          onClick={() => {
+                            if (!canCreateNotes) {
+                              redirectToPaywall();
+                              return;
+                            }
+
+                            scanInputRef.current?.click();
+                          }}
                         >
                           <EmojiIcon symbol="📷" size="1rem" />
                           Scan
