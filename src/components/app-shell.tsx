@@ -66,9 +66,11 @@ function getChrome(pathname: string) {
 export function AppShell({
   children,
   canCreateNotes,
+  hideNavigation,
 }: {
   children: React.ReactNode;
   canCreateNotes: boolean;
+  hideNavigation: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -81,6 +83,10 @@ export function AppShell({
       router.prefetch(item.href);
     }
   }, [router]);
+
+  if (hideNavigation) {
+    return <div className="ios-app-shell desktop-shell">{children}</div>;
+  }
 
   return (
     <div className="ios-app-shell desktop-shell">

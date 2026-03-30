@@ -71,6 +71,7 @@ export function OnboardingPaywall({
   const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [isPersonalizing, setIsPersonalizing] = useState(false);
   const [checkoutPlan, setCheckoutPlan] = useState<BillingPlanCard["id"] | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [form, setForm] = useState({
@@ -189,6 +190,9 @@ export function OnboardingPaywall({
         throw new Error("Could not save onboarding.");
       }
 
+      setIsPersonalizing(true);
+      await new Promise((resolve) => window.setTimeout(resolve, 1800));
+
       startTransition(() => {
         router.refresh();
       });
@@ -241,6 +245,27 @@ export function OnboardingPaywall({
   }
 
   if (!onboardingComplete) {
+    if (isPersonalizing) {
+      return (
+        <section className="app-start-panel">
+          <div className="app-start-wizard app-start-personalizing">
+            <div className="app-start-personalizing-orb" aria-hidden="true" />
+            <p className="app-start-kicker">Customizing your app</p>
+            <h2>Building your setup around you.</h2>
+            <p>
+              We&apos;re tuning the app to your age, study level, current grade, and goal so it
+              feels personal from the start.
+            </p>
+            <div className="app-start-personalizing-bars" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
+        </section>
+      );
+    }
+
     const currentStep = onboardingSteps[step];
     const isLastStep = step === onboardingSteps.length - 1;
     const canFinish =

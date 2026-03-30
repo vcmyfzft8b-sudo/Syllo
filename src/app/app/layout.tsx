@@ -42,7 +42,10 @@ export default async function AppLayout({
   }
 
   return (
-    <AppShell canCreateNotes={Boolean(appState?.onboardingComplete && appState?.hasPaidAccess)}>
+    <AppShell
+      canCreateNotes={Boolean(appState?.onboardingComplete && appState?.hasPaidAccess)}
+      hideNavigation={pathname === "/app/start"}
+    >
       {children}
     </AppShell>
   );
