@@ -84,8 +84,8 @@ export function OnboardingPaywall({
   const onboardingSteps = [
     {
       overline: "Step 1",
-      title: "Who is this app for?",
-      copy: "We use this to tune the tone, study pacing, and examples.",
+      title: "How old are you?",
+      copy: "We use this to adjust the tone, pacing, and examples to you.",
       body: (
         <div className="app-start-choice-grid">
           {AGE_OPTIONS.map((option) => (
@@ -103,8 +103,8 @@ export function OnboardingPaywall({
     },
     {
       overline: "Step 2",
-      title: "What stage are they in?",
-      copy: "This shapes the level of explanation and study intensity.",
+      title: "What level of student are you?",
+      copy: "This helps us match the explanation style and study intensity to you.",
       body: (
         <div className="app-start-choice-grid">
           {EDUCATION_OPTIONS.map((option) => (
@@ -122,11 +122,11 @@ export function OnboardingPaywall({
     },
     {
       overline: "Step 3",
-      title: "Where are they now?",
-      copy: "Use the grading format they already think in: GPA, percentage, or verbal scale.",
+      title: "What is your current average grade?",
+      copy: "Use the grading format you already think in: GPA, percentage, or a verbal scale.",
       body: (
         <label className="app-start-field">
-          <span>Current average grade</span>
+          <span>What is your current average grade?</span>
           <input
             value={form.currentAverageGrade}
             onChange={(event) =>
@@ -140,12 +140,12 @@ export function OnboardingPaywall({
     },
     {
       overline: "Step 4",
-      title: "What result are they aiming for?",
-      copy: "We will use this to keep the experience goal-oriented from day one.",
+      title: "What grade do you want, and what is your goal?",
+      copy: "We use this to keep the app focused on the result you want from day one.",
       body: (
         <div className="app-start-field-stack">
           <label className="app-start-field">
-            <span>Target grade</span>
+            <span>What grade do you want?</span>
             <input
               value={form.targetGrade}
               onChange={(event) =>
@@ -157,7 +157,7 @@ export function OnboardingPaywall({
           </label>
 
           <label className="app-start-field">
-            <span>Main study goal</span>
+            <span>What is your main study goal?</span>
             <textarea
               value={form.studyGoal}
               onChange={(event) =>
@@ -252,10 +252,10 @@ export function OnboardingPaywall({
       <section className="app-start-panel">
         <div className="app-start-copy">
           <p className="app-start-kicker">Personalize the workspace</p>
-          <h1>Set the app up around the student before they see the dashboard.</h1>
+          <h1>Answer a few questions before you start using the app.</h1>
           <p>
-            This gives the product enough context to feel personal immediately instead of
-            acting like a generic note tool.
+            This gives the app enough context to feel personal immediately instead of acting
+            like a generic note tool.
           </p>
         </div>
 
@@ -313,23 +313,25 @@ export function OnboardingPaywall({
 
   return (
     <section className="app-start-panel">
-      <div className="app-start-dismiss-row">
-        <button
-          type="button"
-          className="app-start-close-button"
-          onClick={() => router.push("/app")}
-          aria-label="Close paywall"
-        >
-          <EmojiIcon symbol="✕" size="0.95rem" />
-        </button>
-      </div>
+      {onboardingComplete ? (
+        <div className="app-start-dismiss-row">
+          <button
+            type="button"
+            className="app-start-close-button"
+            onClick={() => router.push("/app")}
+            aria-label="Close paywall"
+          >
+            <EmojiIcon symbol="✕" size="0.95rem" />
+          </button>
+        </div>
+      ) : null}
 
       <div className="app-start-copy">
         <p className="app-start-kicker">Choose a subscription</p>
         <h1>Unlock the full workflow after onboarding.</h1>
         <p>
-          Keep the app simple: personalize first, then ask for the plan once the student sees
-          the product is being tailored to them.
+          First we personalize the app for you. Then you choose a plan to unlock note
+          creation, flashcards, quizzes, and practice tests.
         </p>
         <CheckoutBanner state={searchParams.get("checkout")} />
       </div>

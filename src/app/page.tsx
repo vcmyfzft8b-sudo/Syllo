@@ -71,7 +71,7 @@ export default async function HomePage() {
         <div className="landing-auth-stack">
           {providers.google ? (
             <form action="/auth/google" method="post" className="auth-provider-form">
-              <input type="hidden" name="next" value="/app" />
+              <input type="hidden" name="next" value="/app/start" />
               <button type="submit" className="landing-provider-button primary">
                 <GoogleMark />
                 <span>Continue with Google</span>
@@ -81,7 +81,7 @@ export default async function HomePage() {
 
           {providers.apple ? (
             <form action="/auth/apple" method="post" className="auth-provider-form">
-              <input type="hidden" name="next" value="/app" />
+              <input type="hidden" name="next" value="/app/start" />
               <button type="submit" className="landing-provider-button secondary">
                 <AppleMark />
                 <span>Continue with Apple</span>
@@ -91,7 +91,7 @@ export default async function HomePage() {
 
           {providers.email ? (
             <a
-              href="/auth/email-entry?mode=signup&next=%2Fapp"
+              href="/auth/email-entry?mode=signup&next=%2Fapp%2Fstart"
               className="landing-provider-button tertiary"
             >
               <Mail className="auth-provider-icon" />

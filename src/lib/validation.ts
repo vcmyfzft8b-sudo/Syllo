@@ -62,7 +62,7 @@ export function createSanitizedStringSchema(options?: {
     .pipe(outputSchema);
 }
 
-export function normalizeNextPath(value: string | null | undefined, fallback = "/app") {
+export function normalizeNextPath(value: string | null | undefined, fallback = "/app/start") {
   if (typeof value !== "string") {
     return fallback;
   }

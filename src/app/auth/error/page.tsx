@@ -46,10 +46,10 @@ export default async function AuthErrorPage({
             </p>
 
             <div className="auth-check-actions">
-              <Link href="/auth/login?next=/app" className="ios-primary-button auth-submit-button">
+              <Link href="/auth/login?next=/app/start" className="ios-primary-button auth-submit-button">
                 Back to login
               </Link>
-              <Link href="/auth/signup?next=/app" className="auth-secondary-link">
+              <Link href="/auth/signup?next=/app/start" className="auth-secondary-link">
                 Create account
               </Link>
             </div>
