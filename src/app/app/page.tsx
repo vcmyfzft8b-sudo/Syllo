@@ -19,10 +19,6 @@ export default async function AppHomePage({
   const lectures = await listLecturesForUser(user.id);
   const params = await searchParams;
 
-  if (appState?.onboardingComplete && !appState.hasPaidAccess) {
-    redirect("/app/start");
-  }
-
   if (
     params?.mode &&
     !appState?.hasPaidAccess
