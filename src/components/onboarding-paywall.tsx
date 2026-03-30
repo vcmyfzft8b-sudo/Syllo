@@ -328,7 +328,7 @@ export function OnboardingPaywall({
   }
 
   return (
-    <section className="app-start-panel">
+    <section className="app-start-panel app-start-panel-paywall">
       {onboardingComplete ? (
         <div className="app-start-dismiss-row">
           <button

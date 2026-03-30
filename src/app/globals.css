@@ -272,6 +272,12 @@ a:visited {
   gap: 1.5rem;
 }
 
+.app-start-panel-paywall {
+  width: min(100%, 86rem);
+  margin: 0 auto;
+  padding-inline: clamp(1rem, 4vw, 2.5rem);
+}
+
 .app-start-panel-fullscreen {
   width: 100%;
   min-height: calc(100vh - 3rem);
@@ -285,6 +291,10 @@ a:visited {
 .app-start-dismiss-row {
   display: flex;
   justify-content: flex-end;
+}
+
+.app-start-panel-paywall .app-start-dismiss-row {
+  padding-right: 1.875rem;
 }
 
 .app-start-close-button {
@@ -624,10 +634,9 @@ a:visited {
 }
 
 .app-start-pricing-grid {
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-  width: min(100%, 74rem);
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 17rem));
+  width: min(100%, 78rem);
   margin: 0 auto;
-  padding-inline: clamp(1rem, 4vw, 2.5rem);
   justify-content: center;
 }
 
@@ -690,9 +699,8 @@ a:visited {
   margin: 0;
   color: var(--secondary-label);
   font-size: 0.95rem;
-  width: min(100%, 74rem);
+  width: min(100%, 78rem);
   margin-inline: auto;
-  padding-inline: clamp(1rem, 4vw, 2.5rem);
   text-align: center;
 }
 
@@ -760,6 +768,7 @@ a:visited {
 
   .app-start-pricing-grid {
     grid-template-columns: 1fr;
+    width: 100%;
   }
 
   .app-start-actions,
