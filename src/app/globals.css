@@ -272,6 +272,16 @@ a:visited {
   gap: 1.5rem;
 }
 
+.app-start-panel-fullscreen {
+  width: 100%;
+  min-height: calc(100vh - 3rem);
+}
+
+.app-start-panel-survey {
+  max-width: none;
+  gap: 0;
+}
+
 .app-start-dismiss-row {
   display: flex;
   justify-content: flex-end;
@@ -338,6 +348,42 @@ a:visited {
   background: var(--surface);
   box-shadow: var(--shadow-soft);
   backdrop-filter: blur(22px);
+}
+
+.app-start-wizard-fullscreen {
+  min-height: calc(100vh - 3rem);
+  align-content: center;
+  padding: 2rem;
+  border-radius: 2rem;
+}
+
+.app-start-wizard-survey {
+  width: 100%;
+  min-height: calc(100vh - 3rem);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 1.25rem 2rem 2rem;
+}
+
+.app-start-wizard-survey .app-start-progress {
+  padding: 0;
+}
+
+.app-start-wizard-survey .app-start-step-card {
+  min-height: calc(100vh - 10rem);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 1rem 0 0;
+  align-content: space-between;
+}
+
+.app-start-wizard-survey .app-start-actions {
+  margin-top: auto;
+  padding-top: 1.25rem;
 }
 
 .app-start-personalizing {
@@ -606,6 +652,30 @@ a:visited {
 }
 
 @media (max-width: 768px) {
+  .app-start-shell {
+    padding: 0;
+  }
+
+  .app-start-panel-fullscreen {
+    min-height: 100vh;
+  }
+
+  .app-start-wizard-fullscreen {
+    min-height: 100vh;
+    border-radius: 0;
+    padding: 1.25rem;
+  }
+
+  .app-start-wizard-survey {
+    min-height: 100vh;
+    padding: 1rem 1.25rem 1.5rem;
+  }
+
+  .app-start-wizard-survey .app-start-step-card {
+    min-height: calc(100vh - 8rem);
+    padding-top: 0.75rem;
+  }
+
   .app-start-copy,
   .app-start-wizard,
   .app-start-price-card,

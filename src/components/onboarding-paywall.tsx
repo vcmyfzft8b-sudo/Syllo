@@ -247,8 +247,8 @@ export function OnboardingPaywall({
   if (!onboardingComplete) {
     if (isPersonalizing) {
       return (
-        <section className="app-start-panel">
-          <div className="app-start-wizard app-start-personalizing">
+        <section className="app-start-panel app-start-panel-fullscreen app-start-panel-survey">
+          <div className="app-start-wizard app-start-wizard-fullscreen app-start-wizard-survey app-start-personalizing">
             <div className="app-start-personalizing-orb" aria-hidden="true" />
             <p className="app-start-kicker">Customizing your app</p>
             <h2>Building your setup around you.</h2>
@@ -274,8 +274,8 @@ export function OnboardingPaywall({
       form.studyGoal.trim().length > 0;
 
     return (
-      <section className="app-start-panel">
-        <div className="app-start-wizard">
+      <section className="app-start-panel app-start-panel-fullscreen app-start-panel-survey">
+        <div className="app-start-wizard app-start-wizard-fullscreen app-start-wizard-survey">
           <div className="app-start-progress">
             {onboardingSteps.map((wizardStep, index) => (
               <div
