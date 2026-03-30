@@ -758,6 +758,10 @@ a:visited {
     padding-inline: 1rem;
   }
 
+  .app-start-pricing-grid {
+    grid-template-columns: 1fr;
+  }
+
   .app-start-actions,
   .app-start-subscription-status {
     grid-template-columns: 1fr;
