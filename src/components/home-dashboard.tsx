@@ -187,9 +187,11 @@ const NoteRow = memo(function NoteRow({
 export function HomeDashboard({
   lectures,
   userId,
+  canCreateNotes,
 }: {
   lectures: AppLectureListItem[];
   userId: string;
+  canCreateNotes: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -293,6 +295,15 @@ export function HomeDashboard({
     if (searchModal) {
       router.replace("/app", { scroll: false });
     }
+  }
+
+  function openCreateFlow(mode: NoteSourceMode) {
+    if (!canCreateNotes) {
+      router.push("/app/start");
+      return;
+    }
+
+    setManualModal(mode);
   }
 
   function openRenameModal(lecture: AppLectureListItem) {
@@ -433,7 +444,7 @@ export function HomeDashboard({
               <button
                 key={action.id}
                 type="button"
-                onClick={() => setManualModal(action.id)}
+                onClick={() => openCreateFlow(action.id)}
                 className="note-action-card"
               >
                 <span
@@ -569,7 +580,7 @@ export function HomeDashboard({
               {!search && !selectedFolderId ? (
                 <button
                   type="button"
-                  onClick={() => setManualModal("record")}
+                  onClick={() => openCreateFlow("record")}
                   className="app-home-highlight-link"
                 >
                   <span>Create your first note</span>

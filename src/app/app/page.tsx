@@ -27,6 +27,10 @@ export default async function AppHomePage({
   }
 
   return (
-    <HomeDashboard lectures={lectures} userId={user.id} />
+    <HomeDashboard
+      lectures={lectures}
+      userId={user.id}
+      canCreateNotes={Boolean(appState?.onboardingComplete && appState?.hasPaidAccess)}
+    />
   );
 }
