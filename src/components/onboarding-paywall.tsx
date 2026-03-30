@@ -13,6 +13,8 @@ type BillingPlanCard = {
   cadence: string;
   amount: number;
   displayAmount?: string;
+  originalDisplayAmount?: string;
+  discountNote?: string;
   billingNote?: string;
   annualizedAmount: number;
   blurb: string;
@@ -358,8 +360,14 @@ export function OnboardingPaywall({
               <div className="app-start-price-header">
                 <div>
                   <p className="app-start-price-name">{plan.label}</p>
+                  {plan.originalDisplayAmount ? (
+                    <p className="app-start-price-original">Usually €{plan.originalDisplayAmount}</p>
+                  ) : null}
                   <h2>€{plan.displayAmount ?? plan.amount}</h2>
                   <p className="app-start-price-cadence">{plan.cadence}</p>
+                  {plan.discountNote ? (
+                    <p className="app-start-price-discount-note">{plan.discountNote}</p>
+                  ) : null}
                   {plan.billingNote ? (
                     <p className="app-start-price-billing-note">{plan.billingNote}</p>
                   ) : null}

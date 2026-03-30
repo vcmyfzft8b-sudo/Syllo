@@ -671,10 +671,23 @@ a:visited {
   font-weight: 600;
 }
 
+.app-start-price-original {
+  color: var(--secondary-label);
+  font-size: 0.9rem;
+  text-decoration: line-through;
+}
+
 .app-start-price-cadence,
 .app-start-price-footnote,
 .app-start-price-blurb {
   color: var(--secondary-label);
+}
+
+.app-start-price-discount-note {
+  margin-top: 0.2rem;
+  color: var(--tint);
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .app-start-price-billing-note {

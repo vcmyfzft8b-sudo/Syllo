@@ -18,6 +18,8 @@ export const BILLING_PLANS: Record<
     cadence: string;
     amount: number;
     displayAmount?: string;
+    originalDisplayAmount?: string;
+    discountNote?: string;
     billingNote?: string;
     annualizedAmount: number;
     blurb: string;
@@ -28,6 +30,8 @@ export const BILLING_PLANS: Record<
     label: "Weekly",
     cadence: "per week",
     amount: 9,
+    originalDisplayAmount: "10",
+    discountNote: "10% off right now",
     annualizedAmount: 468,
     blurb: "Fastest way to try the full product.",
   },
@@ -36,6 +40,8 @@ export const BILLING_PLANS: Record<
     label: "Monthly",
     cadence: "per month",
     amount: 18,
+    originalDisplayAmount: "20",
+    discountNote: "10% off right now",
     annualizedAmount: 216,
     blurb: "Best default for most students.",
   },
@@ -45,6 +51,8 @@ export const BILLING_PLANS: Record<
     cadence: "per month",
     amount: 119,
     displayAmount: "9.92",
+    originalDisplayAmount: "11.02",
+    discountNote: "10% off right now",
     billingNote: "Billed annually",
     annualizedAmount: 119,
     blurb: "Lowest effective price if they stay through the year.",
