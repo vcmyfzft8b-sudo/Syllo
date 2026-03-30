@@ -17,6 +17,8 @@ export const BILLING_PLANS: Record<
     label: string;
     cadence: string;
     amount: number;
+    displayAmount?: string;
+    billingNote?: string;
     annualizedAmount: number;
     blurb: string;
   }
@@ -40,8 +42,10 @@ export const BILLING_PLANS: Record<
   yearly: {
     id: "yearly",
     label: "Yearly",
-    cadence: "per year",
+    cadence: "per month",
     amount: 119,
+    displayAmount: "9.92",
+    billingNote: "Billed annually",
     annualizedAmount: 119,
     blurb: "Lowest effective price if they stay through the year.",
   },

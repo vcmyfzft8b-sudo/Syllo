@@ -76,7 +76,9 @@ export function AppShell({
   const router = useRouter();
   const chrome = getChrome(pathname);
   const createHref = "/app?mode=record";
+  const subscribeHref = "/app/start";
   const showCreateCta = pathname !== "/app/start";
+  const showSubscribeCta = !canCreateNotes && showCreateCta;
 
   useEffect(() => {
     for (const item of TAB_ITEMS) {
@@ -115,6 +117,13 @@ export function AppShell({
             <InstantLink href={createHref} className="nota-sidebar-cta">
               <EmojiIcon symbol="➕" size="1rem" />
               New note
+            </InstantLink>
+          ) : null}
+
+          {showSubscribeCta ? (
+            <InstantLink href={subscribeHref} className="nota-sidebar-subscribe-cta">
+              <EmojiIcon symbol="✨" size="1rem" />
+              Subscribe
             </InstantLink>
           ) : null}
 
@@ -177,6 +186,13 @@ export function AppShell({
 
         <main className="ios-content app-shell-content">{children}</main>
       </div>
+
+      {showSubscribeCta ? (
+        <InstantLink href={subscribeHref} className="mobile-subscribe-cta">
+          <EmojiIcon symbol="✨" size="1rem" />
+          <span>Subscribe</span>
+        </InstantLink>
+      ) : null}
 
       <nav className="ios-tabbar" aria-label="Main navigation">
         <div className="ios-tabbar-inner">

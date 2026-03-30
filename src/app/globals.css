@@ -677,6 +677,12 @@ a:visited {
   color: var(--secondary-label);
 }
 
+.app-start-price-billing-note {
+  margin-top: 0.2rem;
+  color: var(--secondary-label);
+  font-size: 0.9rem;
+}
+
 .app-start-badge,
 .app-start-banner {
   display: inline-flex;
@@ -975,6 +981,22 @@ select:disabled {
   box-shadow: 0 14px 28px color-mix(in srgb, var(--tint) 20%, transparent);
 }
 
+.nota-sidebar-subscribe-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3.05rem;
+  margin-top: 0.75rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ff7a18, #ffb347);
+  color: #2c1400;
+  font-size: 0.95rem;
+  font-weight: 700;
+  box-shadow: 0 16px 30px rgba(255, 122, 24, 0.28);
+}
+
 .desktop-sidebar-brand {
   display: inline-flex;
   align-items: center;
@@ -1131,6 +1153,25 @@ select:disabled {
 
 .app-topbar-cta span {
   display: inline-block;
+}
+
+.mobile-subscribe-cta {
+  position: fixed;
+  right: 1rem;
+  bottom: calc(env(safe-area-inset-bottom) + 6.8rem);
+  z-index: 55;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 3.2rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ff7a18, #ffb347);
+  color: #2c1400;
+  font-size: 0.95rem;
+  font-weight: 700;
+  box-shadow: 0 16px 28px rgba(255, 122, 24, 0.28);
 }
 
 .ios-nav-meta {
@@ -7268,7 +7309,12 @@ select:disabled {
   }
 
   .nota-sidebar-brand,
-  .nota-sidebar-cta {
+  .nota-sidebar-cta,
+  .nota-sidebar-subscribe-cta {
+    display: none;
+  }
+
+  .mobile-subscribe-cta {
     display: none;
   }
 
