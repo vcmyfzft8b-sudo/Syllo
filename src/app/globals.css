@@ -374,16 +374,58 @@ a:visited {
 
 .app-start-wizard-survey .app-start-step-card {
   min-height: calc(100vh - 10rem);
+  max-width: 72rem;
+  width: 100%;
+  margin: 0 auto;
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding: 1rem 0 0;
-  align-content: space-between;
+  padding: clamp(2rem, 8vh, 5rem) 0 0;
+  align-content: start;
+  gap: 1.25rem;
 }
 
 .app-start-wizard-survey .app-start-actions {
-  margin-top: auto;
-  padding-top: 1.25rem;
+  max-width: 72rem;
+  width: 100%;
+  margin: 0 auto;
+  padding-top: 1rem;
+  align-items: center;
+}
+
+.app-start-wizard-survey .app-start-overline {
+  margin-bottom: 0.2rem;
+}
+
+.app-start-wizard-survey .app-start-step-card h2 {
+  max-width: 42rem;
+}
+
+.app-start-wizard-survey .app-start-step-card > p {
+  max-width: 36rem;
+  color: var(--secondary-label);
+  font-size: 1.02rem;
+  line-height: 1.55;
+}
+
+.app-start-wizard-survey .app-start-choice-grid,
+.app-start-wizard-survey .app-start-field-stack {
+  max-width: 72rem;
+  margin-top: 1rem;
+}
+
+.app-start-wizard-survey .app-start-choice-grid {
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.app-start-wizard-survey .app-start-choice {
+  min-height: 4.5rem;
+  font-size: 1.02rem;
+}
+
+.app-start-wizard-survey .app-start-field input,
+.app-start-wizard-survey .app-start-field textarea {
+  max-width: 38rem;
 }
 
 .app-start-personalizing {
@@ -673,7 +715,27 @@ a:visited {
 
   .app-start-wizard-survey .app-start-step-card {
     min-height: calc(100vh - 8rem);
-    padding-top: 0.75rem;
+    padding-top: 1.1rem;
+    gap: 1rem;
+  }
+
+  .app-start-wizard-survey .app-start-step-card h2 {
+    max-width: none;
+    font-size: clamp(2.1rem, 9vw, 3rem);
+  }
+
+  .app-start-wizard-survey .app-start-step-card > p {
+    max-width: none;
+    font-size: 1rem;
+  }
+
+  .app-start-wizard-survey .app-start-choice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 0.75rem;
+  }
+
+  .app-start-wizard-survey .app-start-choice:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 
   .app-start-copy,
