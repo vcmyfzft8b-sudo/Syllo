@@ -250,15 +250,6 @@ export function OnboardingPaywall({
 
     return (
       <section className="app-start-panel">
-        <div className="app-start-copy">
-          <p className="app-start-kicker">Personalize the workspace</p>
-          <h1>Answer a few questions before you start using the app.</h1>
-          <p>
-            This gives the app enough context to feel personal immediately instead of acting
-            like a generic note tool.
-          </p>
-        </div>
-
         <div className="app-start-wizard">
           <div className="app-start-progress">
             {onboardingSteps.map((wizardStep, index) => (
@@ -326,15 +317,7 @@ export function OnboardingPaywall({
         </div>
       ) : null}
 
-      <div className="app-start-copy">
-        <p className="app-start-kicker">Choose a subscription</p>
-        <h1>Unlock the full workflow after onboarding.</h1>
-        <p>
-          First we personalize the app for you. Then you choose a plan to unlock note
-          creation, flashcards, quizzes, and practice tests.
-        </p>
-        <CheckoutBanner state={searchParams.get("checkout")} />
-      </div>
+      <CheckoutBanner state={searchParams.get("checkout")} />
 
       <div className="app-start-pricing-grid">
         {plans.map((plan) => {
