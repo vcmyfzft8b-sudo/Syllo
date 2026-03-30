@@ -260,6 +260,293 @@ a:visited {
   text-decoration: none;
 }
 
+.app-start-shell {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0 4rem;
+}
+
+.app-start-panel {
+  width: min(100%, 68rem);
+  display: grid;
+  gap: 1.5rem;
+}
+
+.app-start-dismiss-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.app-start-close-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid var(--separator);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--label);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(20px);
+}
+
+.app-start-copy {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.75rem;
+  border: 1px solid var(--separator);
+  border-radius: 1.75rem;
+  background:
+    radial-gradient(circle at top left, rgba(0, 102, 204, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.62));
+  box-shadow: var(--shadow-raised);
+}
+
+.app-start-copy h1,
+.app-start-step-card h2,
+.app-start-price-card h2,
+.app-start-subscription-status h3 {
+  margin: 0;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  line-height: 1;
+}
+
+.app-start-copy p,
+.app-start-step-card p,
+.app-start-price-card p,
+.app-start-subscription-status p {
+  margin: 0;
+}
+
+.app-start-kicker,
+.app-start-overline {
+  color: var(--tint);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.app-start-wizard,
+.app-start-subscription-status {
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid var(--separator);
+  border-radius: 1.5rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(22px);
+}
+
+.app-start-progress {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.app-start-progress-dot {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--separator);
+}
+
+.app-start-progress-dot.active,
+.app-start-progress-dot.complete {
+  background: var(--tint);
+}
+
+.app-start-step-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: 1.25rem;
+  background: var(--surface-strong);
+}
+
+.app-start-choice-grid,
+.app-start-pricing-grid {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.app-start-choice-grid {
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+}
+
+.app-start-choice {
+  border: 1px solid var(--separator);
+  border-radius: 1rem;
+  padding: 0.95rem 1rem;
+  background: transparent;
+  color: var(--label);
+  font: inherit;
+  transition:
+    transform var(--motion-duration-fast) var(--motion-curve-standard),
+    border-color var(--motion-duration-fast) var(--motion-curve-standard),
+    background-color var(--motion-duration-fast) var(--motion-curve-standard);
+}
+
+.app-start-choice.selected {
+  border-color: var(--tint);
+  background: var(--tint-soft);
+  transform: translateY(-1px);
+}
+
+.app-start-field-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.app-start-field {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.app-start-field span {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.app-start-field input,
+.app-start-field textarea {
+  width: 100%;
+  border: 1px solid var(--separator);
+  border-radius: 1rem;
+  padding: 0.95rem 1rem;
+  background: var(--surface-muted);
+  color: var(--label);
+  font: inherit;
+}
+
+.app-start-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
+.app-start-primary-button,
+.app-start-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border-radius: 999px;
+  padding: 0.9rem 1.2rem;
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app-start-primary-button {
+  background: var(--tint);
+  color: #fff;
+}
+
+.app-start-secondary-button {
+  background: transparent;
+  color: var(--label);
+  border-color: var(--separator);
+}
+
+.app-start-primary-button:disabled,
+.app-start-secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.app-start-pricing-grid {
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+
+.app-start-price-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.4rem;
+  border-radius: 1.5rem;
+  border: 1px solid var(--separator);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(22px);
+}
+
+.app-start-price-card.featured {
+  border-color: rgba(0, 102, 204, 0.28);
+  background:
+    linear-gradient(180deg, rgba(0, 102, 204, 0.1), rgba(255, 255, 255, 0.72)),
+    var(--surface);
+}
+
+.app-start-price-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.app-start-price-name {
+  color: var(--secondary-label);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.app-start-price-cadence,
+.app-start-price-footnote,
+.app-start-price-blurb {
+  color: var(--secondary-label);
+}
+
+.app-start-badge,
+.app-start-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  background: var(--surface-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.app-start-banner.success {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.app-start-discount-note {
+  margin: 0;
+  color: var(--secondary-label);
+  font-size: 0.95rem;
+}
+
+.app-start-subscription-status {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .app-start-copy,
+  .app-start-wizard,
+  .app-start-price-card,
+  .app-start-subscription-status {
+    padding: 1.15rem;
+  }
+
+  .app-start-actions,
+  .app-start-subscription-status {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .app-start-primary-button,
+  .app-start-secondary-button {
+    width: 100%;
+  }
+}
+
 button,
 input,
 textarea,

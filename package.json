@@ -11,7 +11,8 @@
     "dev:turbopack": "NODE_PATH=./node_modules next dev",
     "build": "NODE_PATH=./node_modules next build",
     "start": "NODE_PATH=./node_modules next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "stripe:setup": "node scripts/setup-stripe-billing.mjs"
   },
   "dependencies": {
     "@ffmpeg/core": "^0.12.10",
@@ -35,6 +36,7 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
+    "stripe": "^21.0.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { createBillingRequiredResponse, hasPaidAccessForUserId } from "@/lib/billing";
 import { createLectureFromTextSource, fetchReadableWebpage } from "@/lib/manual-lectures";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
@@ -29,6 +30,10 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!(await hasPaidAccessForUserId(user.id))) {
+    return createBillingRequiredResponse("Choose a plan before importing material from links.");
   }
 
   const limited = await enforceRateLimit({

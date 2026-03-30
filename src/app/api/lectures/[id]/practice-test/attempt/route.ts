@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { createBillingRequiredResponse, hasPaidAccessForUserId } from "@/lib/billing";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
 import { createPracticeTestAttempt } from "@/lib/practice-test";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
@@ -17,6 +18,10 @@ export async function POST(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!(await hasPaidAccessForUserId(user.id))) {
+    return createBillingRequiredResponse("Choose a plan before starting practice tests.");
   }
 
   const limited = await enforceRateLimit({

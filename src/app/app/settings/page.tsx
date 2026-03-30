@@ -1,7 +1,9 @@
 import Link from "next/link";
 
+import { BillingPortalButton } from "@/components/billing-portal-button";
 import { EmojiIcon } from "@/components/emoji-icon";
 import { ThemeSettings } from "@/components/theme-settings";
+import { getViewerAppState } from "@/lib/billing";
 import { requireUser } from "@/lib/auth";
 import { BRAND_NAME } from "@/lib/brand";
 
@@ -47,7 +49,9 @@ function SettingsExternalCard(props: {
 
 export default async function SettingsPage() {
   const user = await requireUser();
+  const appState = await getViewerAppState();
   const email = user.email ?? user.user_metadata.email ?? "Signed-in user";
+  const subscription = appState?.subscription ?? null;
 
   return (
     <main className="home-dashboard pb-8">
@@ -62,6 +66,35 @@ export default async function SettingsPage() {
           <h2 className="dashboard-section-title">Theme</h2>
         </div>
         <ThemeSettings />
+      </section>
+
+      <section className="dashboard-section">
+        <div className="dashboard-section-heading">
+          <h2 className="dashboard-section-title">Subscription</h2>
+        </div>
+
+        <div className="dashboard-surface-card settings-account-card">
+          <div className="min-w-0">
+            <p className="dashboard-overline">Plan</p>
+            <p className="settings-account-value">
+              {subscription ? `${subscription.plan} (${subscription.status.replaceAll("_", " ")})` : "Not subscribed"}
+            </p>
+            <p className="ios-row-subtitle mt-1">
+              {subscription?.current_period_end
+                ? `Renews through ${new Date(subscription.current_period_end).toLocaleDateString()}`
+                : "Users are sent to onboarding and billing before the main app opens."}
+            </p>
+          </div>
+
+          {subscription ? (
+            <BillingPortalButton />
+          ) : (
+            <Link href="/app/start" className="settings-inline-action">
+              <EmojiIcon symbol="✨" size="0.95rem" />
+              Choose plan
+            </Link>
+          )}
+        </div>
       </section>
 
       <section className="dashboard-section">

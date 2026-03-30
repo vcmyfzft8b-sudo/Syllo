@@ -16,6 +16,14 @@ const TAB_ITEMS = [
 ];
 
 function getChrome(pathname: string) {
+  if (pathname === "/app/start") {
+    return {
+      title: "Get Started",
+      subtitle: "Personalize the app and choose a plan",
+      backHref: null,
+    };
+  }
+
   if (pathname.startsWith("/app/lectures/")) {
     return {
       title: "Note",
@@ -57,12 +65,16 @@ function getChrome(pathname: string) {
 
 export function AppShell({
   children,
+  canCreateNotes,
 }: {
   children: React.ReactNode;
+  canCreateNotes: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const chrome = getChrome(pathname);
+  const createHref = canCreateNotes ? "/app?mode=record" : "/app/start";
+  const showCreateCta = pathname !== "/app/start";
 
   useEffect(() => {
     for (const item of TAB_ITEMS) {
@@ -93,10 +105,12 @@ export function AppShell({
             <BrandLogo />
           </InstantLink>
 
-          <InstantLink href="/app?mode=record" className="nota-sidebar-cta">
-            <EmojiIcon symbol="➕" size="1rem" />
-            New note
-          </InstantLink>
+          {showCreateCta ? (
+            <InstantLink href={createHref} className="nota-sidebar-cta">
+              <EmojiIcon symbol="➕" size="1rem" />
+              New note
+            </InstantLink>
+          ) : null}
 
           <nav className="desktop-sidebar-nav" aria-label="Sidebar navigation">
             {TAB_ITEMS.map((item) => {
@@ -144,12 +158,14 @@ export function AppShell({
               </div>
             ) : null}
 
-            <div className="ios-nav-actions app-topbar-actions">
-              <InstantLink href="/app?mode=record" className="app-topbar-cta">
-                <EmojiIcon symbol="➕" size="1rem" />
-                <span>New note</span>
-              </InstantLink>
-            </div>
+            {showCreateCta ? (
+              <div className="ios-nav-actions app-topbar-actions">
+                <InstantLink href={createHref} className="app-topbar-cta">
+                  <EmojiIcon symbol="➕" size="1rem" />
+                  <span>New note</span>
+                </InstantLink>
+              </div>
+            ) : null}
           </div>
         </header>
 

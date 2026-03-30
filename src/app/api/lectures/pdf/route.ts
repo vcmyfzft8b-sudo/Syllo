@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { createBillingRequiredResponse, hasPaidAccessForUserId } from "@/lib/billing";
 import { MAX_DOCUMENT_BYTES } from "@/lib/constants";
 import { isPdfDocument, isSupportedDocumentFile } from "@/lib/document-files";
 import { validateDocumentFileSignature } from "@/lib/file-validation";
@@ -28,6 +29,10 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!(await hasPaidAccessForUserId(user.id))) {
+    return createBillingRequiredResponse("Choose a plan before importing documents.");
   }
 
   const limited = await enforceRateLimit({

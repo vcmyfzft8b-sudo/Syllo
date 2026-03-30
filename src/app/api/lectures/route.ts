@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { parseAudioChunkManifest } from "@/lib/audio-processing";
+import { createBillingRequiredResponse, hasPaidAccessForUserId } from "@/lib/billing";
 import { MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS } from "@/lib/constants";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
@@ -36,6 +37,10 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!(await hasPaidAccessForUserId(user.id))) {
+    return createBillingRequiredResponse("Choose a plan before uploading or recording material.");
   }
 
   const limited = await enforceRateLimit({

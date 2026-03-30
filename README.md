@@ -54,6 +54,11 @@ NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
 OPENAI_API_KEY=...
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_WEEKLY=
+STRIPE_PRICE_MONTHLY=
+STRIPE_PRICE_YEARLY=
 
 # Optional overrides
 OPENAI_TEXT_MODEL=gpt-4.1-mini
@@ -73,6 +78,14 @@ PREVIEW_AUTH_BYPASS=
 - `supabase/migrations/0003_lecture_delete_policy.sql`
 - `supabase/migrations/0004_comprehensive_flashcards.sql`
 - `supabase/migrations/0005_quizzes.sql`
+- `supabase/migrations/0006_lecture_processing_metadata.sql`
+- `supabase/migrations/0007_study_sessions.sql`
+- `supabase/migrations/0008_email_auth_rate_limits.sql`
+- `supabase/migrations/0009_api_rate_limits.sql`
+- `supabase/migrations/0010_fix_consume_rate_limit_conflict.sql`
+- `supabase/migrations/0011_practice_tests.sql`
+- `supabase/migrations/0012_practice_test_attempt_snapshots.sql`
+- `supabase/migrations/0013_billing_and_onboarding.sql`
 
 5. In Supabase Auth, enable the providers you want to use:
 
@@ -90,10 +103,36 @@ npm run dev
 
 7. Open `http://localhost:3000`.
 
+## Billing flow
+
+- After sign-in, the user can still browse the app.
+- Paid actions redirect to `/app/start`: uploading or recording material, importing links or documents, and generating flashcards, quizzes, or practice tests.
+- The first part of `/app/start` is a short personalization flow that stores onboarding answers in `public.profiles`.
+- The second part is the Stripe paywall.
+- Current plan prices:
+  - weekly: `€9`
+  - monthly: `€18`
+  - yearly: `€119`
+
+### Stripe setup
+
+1. Create three recurring Stripe prices in `EUR`: weekly, monthly, and yearly.
+2. Put `STRIPE_SECRET_KEY` in your environment.
+3. Run `npm run stripe:setup` to create the product, the three prices, the billing portal configuration, and the webhook endpoint when one does not already exist.
+4. Put the resulting price IDs, plus the webhook secret, into your environment.
+5. If you prefer to do it manually, add a Stripe webhook endpoint for `/api/stripe/webhook`.
+6. Subscribe the webhook to:
+   - `checkout.session.completed`
+   - `customer.subscription.created`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+7. For local development, forward Stripe events to `http://localhost:3000/api/stripe/webhook` with the Stripe CLI.
+
 ## Environment notes
 
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are required for auth, storage, and server-side data access.
 - `OPENAI_API_KEY` is required for transcription and AI generation.
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_WEEKLY`, `STRIPE_PRICE_MONTHLY`, and `STRIPE_PRICE_YEARLY` are required for the subscription flow.
 - `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` are optional. Without them, the app can still run, but background processing behavior depends on the local fallback path already implemented in the codebase.
 - The audio storage bucket is `lecture-audio` and is created by the initial migration.
 
@@ -101,11 +140,13 @@ npm run dev
 
 - `/` landing and sign-in entry
 - `/app` note library
+- `/app/start` onboarding and subscription gate
 - `/app?mode=record|upload|link|text` create-note entry points
 - `/app/lectures/[id]` note workspace
 - `/app/support` help center
 - `/app/settings` account and sharing settings
 - `/api/inngest` background job endpoint
+- `/api/stripe/webhook` Stripe subscription sync
 
 ## What the workspace includes
 

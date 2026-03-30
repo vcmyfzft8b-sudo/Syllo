@@ -6,6 +6,7 @@ import {
   type AudioChunkManifest,
 } from "@/lib/audio-processing";
 import { createAudioProcessingChunks } from "@/lib/audio-processing-client";
+import { parseApiResponse } from "@/lib/billing-client";
 import { normalizeUploadAudioMimeType } from "@/lib/storage";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { CreateLectureResponse } from "@/lib/types";
@@ -63,13 +64,7 @@ export async function createAudioLectureWithProcessingChunks(params: {
     }),
   });
 
-  const createData = (await createResponse.json()) as CreateLectureResponse & {
-    error?: string;
-  };
-
-  if (!createResponse.ok) {
-    throw new Error(createData.error ?? "The lecture could not be created.");
-  }
+  const createData = await parseApiResponse<CreateLectureResponse>(createResponse);
 
   params.onLectureCreated?.(createData.lectureId);
 
@@ -120,13 +115,7 @@ export async function createAudioLectureWithProcessingChunks(params: {
         }),
       });
 
-      const manifestData = (await manifestResponse.json()) as ChunkUploadResponse & {
-        error?: string;
-      };
-
-      if (!manifestResponse.ok) {
-        throw new Error(manifestData.error ?? "Chunk upload targets could not be prepared.");
-      }
+      const manifestData = await parseApiResponse<ChunkUploadResponse>(manifestResponse);
 
       const uploadsByIndex = new Map(
         manifestData.uploads.map((upload) => [upload.index, upload] as const),
@@ -179,13 +168,7 @@ export async function createAudioLectureWithProcessingChunks(params: {
     }),
   });
 
-  const finalizeData = (await finalizeResponse.json()) as {
-    error?: string;
-  };
-
-  if (!finalizeResponse.ok) {
-    throw new Error(finalizeData.error ?? "The audio could not be sent for processing.");
-  }
+  await parseApiResponse(finalizeResponse);
 
   return {
     lectureId: createData.lectureId,

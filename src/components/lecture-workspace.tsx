@@ -13,10 +13,12 @@ import { EmojiIcon } from "@/components/emoji-icon";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { StatusBadge } from "@/components/status-badge";
 import { StudyCompletionCard } from "@/components/study-completion-card";
+import { parseApiResponse, redirectToBillingIfNeeded } from "@/lib/billing-client";
 import type { FlashcardConfidenceBucket, StudyAssetStatus } from "@/lib/database.types";
 import {
   POLL_INTERVAL_MS,
 } from "@/lib/constants";
+import { useRouter } from "next/navigation";
 import type {
   ChatMessageWithCitations,
   LectureDetail,
@@ -669,6 +671,7 @@ export function LectureWorkspace({
 }: {
   initialDetail: LectureDetail;
 }) {
+  const router = useRouter();
   const [detail, setDetail] = useState(initialDetail);
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("notes");
   const [question, setQuestion] = useState("");
@@ -1210,11 +1213,16 @@ export function LectureWorkspace({
     const response = await fetch(`/api/lectures/${detail.lecture.id}/study`, {
       method: "POST",
     });
-    const payload = await response.json().catch(() => null);
     setIsRegeneratingStudy(false);
 
-    if (!response.ok) {
-      setStudyError(payload?.error ?? "Study tools could not be regenerated.");
+    try {
+      await parseApiResponse<{ ok: true }>(response);
+    } catch (error) {
+      if (redirectToBillingIfNeeded({ error, router })) {
+        return;
+      }
+
+      setStudyError(error instanceof Error ? error.message : "Study tools could not be regenerated.");
       return;
     }
 
@@ -1227,11 +1235,16 @@ export function LectureWorkspace({
     const response = await fetch(`/api/lectures/${detail.lecture.id}/quiz`, {
       method: "POST",
     });
-    const payload = await response.json().catch(() => null);
     setIsRegeneratingQuiz(false);
 
-    if (!response.ok) {
-      setStudyError(payload?.error ?? "Quiz could not be created.");
+    try {
+      await parseApiResponse<{ ok: true }>(response);
+    } catch (error) {
+      if (redirectToBillingIfNeeded({ error, router })) {
+        return;
+      }
+
+      setStudyError(error instanceof Error ? error.message : "Quiz could not be created.");
       return;
     }
 
@@ -1244,11 +1257,23 @@ export function LectureWorkspace({
     const response = await fetch(`/api/lectures/${detail.lecture.id}/practice-test/attempt`, {
       method: "POST",
     });
-    const payload = await response.json().catch(() => null);
     setIsStartingPracticeTest(false);
 
-    if (!response.ok) {
-      setStudyError(payload?.error ?? "A new practice test could not be started.");
+    let payload: {
+      id?: string;
+      questions?: Array<{ id: string }>;
+    };
+
+    try {
+      payload = await parseApiResponse(response);
+    } catch (error) {
+      if (redirectToBillingIfNeeded({ error, router })) {
+        return;
+      }
+
+      setStudyError(
+        error instanceof Error ? error.message : "A new practice test could not be started.",
+      );
       return;
     }
 

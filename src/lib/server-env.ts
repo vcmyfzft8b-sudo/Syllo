@@ -27,6 +27,11 @@ const serverEnvSchema = z.object({
   INNGEST_EVENT_KEY: z.string().optional(),
   INNGEST_SIGNING_KEY: z.string().optional(),
   INTERNAL_JOB_SECRET: z.string().optional(),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_WEEKLY: z.string().optional(),
+  STRIPE_PRICE_MONTHLY: z.string().optional(),
+  STRIPE_PRICE_YEARLY: z.string().optional(),
 });
 
 export function getServerEnv() {
@@ -50,6 +55,11 @@ export function getServerEnv() {
     INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY,
     INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
     INTERNAL_JOB_SECRET: process.env.INTERNAL_JOB_SECRET?.trim(),
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY?.trim(),
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET?.trim(),
+    STRIPE_PRICE_WEEKLY: process.env.STRIPE_PRICE_WEEKLY?.trim(),
+    STRIPE_PRICE_MONTHLY: process.env.STRIPE_PRICE_MONTHLY?.trim(),
+    STRIPE_PRICE_YEARLY: process.env.STRIPE_PRICE_YEARLY?.trim(),
   });
 }
 

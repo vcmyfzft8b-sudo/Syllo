@@ -1,5 +1,6 @@
 import { after, NextResponse } from "next/server";
 
+import { createBillingRequiredResponse, hasPaidAccessForUserId } from "@/lib/billing";
 import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
 import { enqueueLectureQuizGeneration } from "@/lib/jobs";
 import { queueLectureQuizGeneration } from "@/lib/quiz";
@@ -20,6 +21,10 @@ export async function GET(
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!(await hasPaidAccessForUserId(user.id))) {
+    return createBillingRequiredResponse("Choose a plan before generating quizzes.");
   }
 
   const limited = await enforceRateLimit({

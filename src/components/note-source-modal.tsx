@@ -20,6 +20,7 @@ import {
   MAX_SCAN_IMAGE_BYTES,
   SCAN_IMAGE_INPUT_ACCEPT,
 } from "@/lib/constants";
+import { parseApiResponse, redirectToBillingIfNeeded } from "@/lib/billing-client";
 import {
   createSafeTransportFileName,
   isSupportedDocumentFile,
@@ -311,11 +312,7 @@ export function NoteSourceModal({
         }),
       });
 
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "The note could not be created.");
-      }
+      const payload = await parseApiResponse<{ lectureId: string }>(response);
 
       createdLectureIdRef.current = payload.lectureId;
       return payload.lectureId as string;
@@ -599,6 +596,11 @@ export function NoteSourceModal({
       router.push(`/app/lectures/${result.lectureId}`);
       router.refresh();
     } catch (submitError) {
+      if (redirectToBillingIfNeeded({ error: submitError, router })) {
+        onClose();
+        return;
+      }
+
       if (!processingStarted) {
         await deleteCreatedLecture();
       }
@@ -651,11 +653,7 @@ export function NoteSourceModal({
         }),
       });
 
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "The text could not be processed.");
-      }
+      await parseApiResponse<{ lectureId: string }>(response);
 
       onClose();
       createdLectureIdRef.current = null;
@@ -663,6 +661,11 @@ export function NoteSourceModal({
       router.refresh();
     } catch (submitError) {
       await deleteCreatedLecture();
+      if (redirectToBillingIfNeeded({ error: submitError, router })) {
+        onClose();
+        return;
+      }
+
       if (!cancelRequestedRef.current) {
         setError(
           submitError instanceof Error
@@ -711,11 +714,7 @@ export function NoteSourceModal({
         }),
       });
 
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "The link could not be processed.");
-      }
+      await parseApiResponse<{ lectureId: string }>(response);
 
       onClose();
       createdLectureIdRef.current = null;
@@ -723,6 +722,11 @@ export function NoteSourceModal({
       router.refresh();
     } catch (submitError) {
       await deleteCreatedLecture();
+      if (redirectToBillingIfNeeded({ error: submitError, router })) {
+        onClose();
+        return;
+      }
+
       if (!cancelRequestedRef.current) {
         setError(
           submitError instanceof Error
@@ -764,17 +768,18 @@ export function NoteSourceModal({
         body: formData,
       });
 
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "The photo could not be scanned.");
-      }
+      const payload = await parseApiResponse<{ title?: string; text?: string }>(response);
 
       setPdfSource(null);
       setTextValue(payload.text ?? "");
       setScannedFileName(file.name);
       setIsTextEditorOpen(false);
     } catch (scanError) {
+      if (redirectToBillingIfNeeded({ error: scanError, router })) {
+        onClose();
+        return;
+      }
+
       setError(
         scanError instanceof Error ? scanError.message : "The photo could not be scanned.",
       );
@@ -857,11 +862,7 @@ export function NoteSourceModal({
         body: formData,
       });
 
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "The document could not be processed.");
-      }
+      await parseApiResponse<{ lectureId: string }>(response);
 
       onClose();
       createdLectureIdRef.current = null;
@@ -869,6 +870,11 @@ export function NoteSourceModal({
       router.refresh();
     } catch (submitError) {
       await deleteCreatedLecture();
+      if (redirectToBillingIfNeeded({ error: submitError, router })) {
+        onClose();
+        return;
+      }
+
       if (!cancelRequestedRef.current) {
         setError(
           submitError instanceof Error

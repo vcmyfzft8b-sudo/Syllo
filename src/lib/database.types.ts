@@ -56,17 +56,110 @@ export type Database = {
           email: string | null;
           full_name: string | null;
           created_at: string;
+          updated_at: string;
+          onboarding_completed_at: string | null;
+          age_range: string | null;
+          education_level: string | null;
+          current_average_grade: string | null;
+          target_grade: string | null;
+          study_goal: string | null;
+          stripe_customer_id: string | null;
         };
         Insert: {
           id: string;
           email?: string | null;
           full_name?: string | null;
           created_at?: string;
+          updated_at?: string;
+          onboarding_completed_at?: string | null;
+          age_range?: string | null;
+          education_level?: string | null;
+          current_average_grade?: string | null;
+          target_grade?: string | null;
+          study_goal?: string | null;
+          stripe_customer_id?: string | null;
         };
         Update: {
           email?: string | null;
           full_name?: string | null;
           created_at?: string;
+          updated_at?: string;
+          onboarding_completed_at?: string | null;
+          age_range?: string | null;
+          education_level?: string | null;
+          current_average_grade?: string | null;
+          target_grade?: string | null;
+          study_goal?: string | null;
+          stripe_customer_id?: string | null;
+        };
+      };
+      billing_subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string;
+          stripe_price_id: string | null;
+          plan: "weekly" | "monthly" | "yearly";
+          status:
+            | "incomplete"
+            | "incomplete_expired"
+            | "trialing"
+            | "active"
+            | "past_due"
+            | "canceled"
+            | "unpaid"
+            | "paused";
+          currency: string;
+          unit_amount: number | null;
+          current_period_end: string | null;
+          cancel_at_period_end: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id: string;
+          stripe_price_id?: string | null;
+          plan: "weekly" | "monthly" | "yearly";
+          status:
+            | "incomplete"
+            | "incomplete_expired"
+            | "trialing"
+            | "active"
+            | "past_due"
+            | "canceled"
+            | "unpaid"
+            | "paused";
+          currency?: string;
+          unit_amount?: number | null;
+          current_period_end?: string | null;
+          cancel_at_period_end?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string;
+          stripe_price_id?: string | null;
+          plan?: "weekly" | "monthly" | "yearly";
+          status?:
+            | "incomplete"
+            | "incomplete_expired"
+            | "trialing"
+            | "active"
+            | "past_due"
+            | "canceled"
+            | "unpaid"
+            | "paused";
+          currency?: string;
+          unit_amount?: number | null;
+          current_period_end?: string | null;
+          cancel_at_period_end?: boolean;
+          created_at?: string;
+          updated_at?: string;
         };
       };
       lectures: {
@@ -617,6 +710,8 @@ export type Database = {
 };
 
 export type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+export type BillingSubscriptionRow =
+  Database["public"]["Tables"]["billing_subscriptions"]["Row"];
 export type LectureRow = Database["public"]["Tables"]["lectures"]["Row"];
 export type TranscriptSegmentRow =
   Database["public"]["Tables"]["transcript_segments"]["Row"];

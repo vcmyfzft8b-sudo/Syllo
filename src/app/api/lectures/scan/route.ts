@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { createBillingRequiredResponse, hasPaidAccessForUserId } from "@/lib/billing";
 import { MAX_SCAN_IMAGE_BYTES } from "@/lib/constants";
 import { extractTextFromImage } from "@/lib/manual-lectures";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
@@ -15,6 +16,10 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!(await hasPaidAccessForUserId(user.id))) {
+    return createBillingRequiredResponse("Choose a plan before scanning study material.");
   }
 
   const limited = await enforceRateLimit({
