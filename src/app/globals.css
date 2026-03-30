@@ -981,13 +981,12 @@ select:disabled {
   box-shadow: 0 14px 28px color-mix(in srgb, var(--tint) 20%, transparent);
 }
 
-.nota-sidebar-subscribe-cta {
+.app-subscribe-cta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 3.05rem;
-  margin-top: 0.75rem;
+  min-height: 2.85rem;
   padding: 0 1rem;
   border-radius: 999px;
   background: linear-gradient(135deg, #ff7a18, #ffb347);
@@ -995,6 +994,7 @@ select:disabled {
   font-size: 0.95rem;
   font-weight: 700;
   box-shadow: 0 16px 30px rgba(255, 122, 24, 0.28);
+  white-space: nowrap;
 }
 
 .desktop-sidebar-brand {
@@ -1132,6 +1132,10 @@ select:disabled {
   margin-left: auto;
 }
 
+.app-topbar-subscribe-actions {
+  margin-left: auto;
+}
+
 .app-topbar-cta {
   display: inline-flex;
   align-items: center;
@@ -1153,25 +1157,6 @@ select:disabled {
 
 .app-topbar-cta span {
   display: inline-block;
-}
-
-.mobile-subscribe-cta {
-  position: fixed;
-  right: 1rem;
-  bottom: calc(env(safe-area-inset-bottom) + 6.8rem);
-  z-index: 55;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  min-height: 3.2rem;
-  padding: 0 1rem;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #ff7a18, #ffb347);
-  color: #2c1400;
-  font-size: 0.95rem;
-  font-weight: 700;
-  box-shadow: 0 16px 28px rgba(255, 122, 24, 0.28);
 }
 
 .ios-nav-meta {
@@ -7178,6 +7163,11 @@ select:disabled {
   .app-topbar-actions {
     display: none;
   }
+
+  .app-topbar-subscribe-actions {
+    display: flex;
+    margin-left: auto;
+  }
 }
 
 @media (min-width: 900px) {
@@ -7309,12 +7299,7 @@ select:disabled {
   }
 
   .nota-sidebar-brand,
-  .nota-sidebar-cta,
-  .nota-sidebar-subscribe-cta {
-    display: none;
-  }
-
-  .mobile-subscribe-cta {
+  .nota-sidebar-cta {
     display: none;
   }
 
@@ -7390,6 +7375,10 @@ select:disabled {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+  }
+
+  .app-topbar-subscribe-actions {
+    display: none;
   }
 
   .desktop-brandline-back {

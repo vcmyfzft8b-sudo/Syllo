@@ -104,6 +104,13 @@ export function AppShell({
               Back
             </InstantLink>
           ) : null}
+
+          {showSubscribeCta ? (
+            <InstantLink href={subscribeHref} className="app-subscribe-cta">
+              <EmojiIcon symbol="✨" size="1rem" />
+              <span>Subscribe</span>
+            </InstantLink>
+          ) : null}
         </div>
       </div>
 
@@ -117,13 +124,6 @@ export function AppShell({
             <InstantLink href={createHref} className="nota-sidebar-cta">
               <EmojiIcon symbol="➕" size="1rem" />
               New note
-            </InstantLink>
-          ) : null}
-
-          {showSubscribeCta ? (
-            <InstantLink href={subscribeHref} className="nota-sidebar-subscribe-cta">
-              <EmojiIcon symbol="✨" size="1rem" />
-              Subscribe
             </InstantLink>
           ) : null}
 
@@ -173,6 +173,15 @@ export function AppShell({
               </div>
             ) : null}
 
+            {showSubscribeCta ? (
+              <div className="ios-nav-actions app-topbar-subscribe-actions">
+                <InstantLink href={subscribeHref} className="app-subscribe-cta">
+                  <EmojiIcon symbol="✨" size="1rem" />
+                  <span>Subscribe</span>
+                </InstantLink>
+              </div>
+            ) : null}
+
             {showCreateCta ? (
               <div className="ios-nav-actions app-topbar-actions">
                 <InstantLink href={createHref} className="app-topbar-cta">
@@ -186,13 +195,6 @@ export function AppShell({
 
         <main className="ios-content app-shell-content">{children}</main>
       </div>
-
-      {showSubscribeCta ? (
-        <InstantLink href={subscribeHref} className="mobile-subscribe-cta">
-          <EmojiIcon symbol="✨" size="1rem" />
-          <span>Subscribe</span>
-        </InstantLink>
-      ) : null}
 
       <nav className="ios-tabbar" aria-label="Main navigation">
         <div className="ios-tabbar-inner">
