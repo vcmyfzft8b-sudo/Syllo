@@ -1,7 +1,7 @@
 "use client";
 
-import { ChevronLeft } from "lucide-react";
-import { useEffect } from "react";
+import { ChevronLeft, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState, startTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { BrandLogo } from "@/components/brand-logo";
@@ -72,12 +72,19 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartYRef = useRef<number | null>(null);
+  const pullEligibleRef = useRef(false);
+  const pullDistanceRef = useRef(0);
   const shouldHideNavigation = pathname === "/app/start";
   const chrome = getChrome(pathname);
   const createHref = "/app?mode=record";
   const subscribeHref = "/app/start";
   const showCreateCta = !shouldHideNavigation;
   const showSubscribeCta = !canCreateNotes && showCreateCta;
+  const pullThreshold = 84;
+  const cappedPullDistance = Math.min(pullDistance, 120);
 
   useEffect(() => {
     for (const item of TAB_ITEMS) {
@@ -85,9 +92,138 @@ export function AppShell({
     }
   }, [router]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mobileBreakpoint = 1100;
+
+    const resetGesture = () => {
+      touchStartYRef.current = null;
+      pullEligibleRef.current = false;
+      pullDistanceRef.current = 0;
+      setPullDistance(0);
+    };
+
+    function isScrollableAtTop(target: EventTarget | null) {
+      let node = target instanceof HTMLElement ? target : null;
+
+      while (node && node !== document.body) {
+        const style = window.getComputedStyle(node);
+        const canScrollY =
+          (style.overflowY === "auto" || style.overflowY === "scroll") &&
+          node.scrollHeight > node.clientHeight;
+
+        if (canScrollY) {
+          return node.scrollTop <= 0;
+        }
+
+        node = node.parentElement;
+      }
+
+      return window.scrollY <= 0;
+    }
+
+    function handleTouchStart(event: TouchEvent) {
+      if (window.innerWidth >= mobileBreakpoint || isRefreshing || event.touches.length !== 1) {
+        resetGesture();
+        return;
+      }
+
+      touchStartYRef.current = event.touches[0]?.clientY ?? null;
+      pullEligibleRef.current = window.scrollY <= 0 && isScrollableAtTop(event.target);
+    }
+
+    function handleTouchMove(event: TouchEvent) {
+      if (!pullEligibleRef.current || touchStartYRef.current == null || isRefreshing) {
+        return;
+      }
+
+      if (window.scrollY > 0 || !isScrollableAtTop(event.target)) {
+        resetGesture();
+        return;
+      }
+
+      const deltaY = (event.touches[0]?.clientY ?? 0) - touchStartYRef.current;
+
+      if (deltaY <= 0) {
+        setPullDistance(0);
+        return;
+      }
+
+      event.preventDefault();
+      const nextPullDistance = Math.min(deltaY * 0.5, 120);
+      pullDistanceRef.current = nextPullDistance;
+      setPullDistance(nextPullDistance);
+    }
+
+    function handleTouchEnd() {
+      if (!pullEligibleRef.current || isRefreshing) {
+        resetGesture();
+        return;
+      }
+
+      const shouldRefresh = pullDistanceRef.current >= pullThreshold;
+      resetGesture();
+
+      if (!shouldRefresh) {
+        return;
+      }
+
+      setIsRefreshing(true);
+      startTransition(() => router.refresh());
+      window.setTimeout(() => {
+        setIsRefreshing(false);
+      }, 900);
+    }
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleTouchEnd);
+    window.addEventListener("touchcancel", handleTouchEnd);
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("touchcancel", handleTouchEnd);
+    };
+  }, [isRefreshing, router]);
+
+  const pullProgress = Math.min(cappedPullDistance / pullThreshold, 1);
+  const pullIndicatorVisible = isRefreshing || cappedPullDistance > 0;
+  const pullIndicatorStyle = {
+    opacity: pullIndicatorVisible ? 1 : 0,
+    transform: `translate(-50%, ${Math.round(-18 + cappedPullDistance * 0.75)}px) scale(${0.92 + pullProgress * 0.08})`,
+  };
+
+  function renderPullToRefreshIndicator() {
+    return (
+      <div
+        className={`pull-refresh-indicator${isRefreshing ? " refreshing" : ""}`}
+        style={pullIndicatorStyle}
+        aria-hidden={!pullIndicatorVisible}
+      >
+        <div className="pull-refresh-indicator-inner">
+          <Loader2
+            className="pull-refresh-indicator-icon"
+            style={{
+              transform: isRefreshing
+                ? "rotate(0deg)"
+                : `rotate(${Math.round(pullProgress * 180)}deg)`,
+            }}
+          />
+          <span>{isRefreshing ? "Refreshing..." : "Pull to refresh"}</span>
+        </div>
+      </div>
+    );
+  }
+
   if (shouldHideNavigation) {
     return (
       <div className="ios-app-shell">
+        {renderPullToRefreshIndicator()}
         <main className="ios-content app-shell-content app-shell-content-start">{children}</main>
       </div>
     );
@@ -95,6 +231,7 @@ export function AppShell({
 
   return (
     <div className="ios-app-shell desktop-shell">
+      {renderPullToRefreshIndicator()}
       <div className="desktop-brandline">
         <InstantLink href="/app" className="desktop-brandline-brand">
           <BrandLogo compact />
