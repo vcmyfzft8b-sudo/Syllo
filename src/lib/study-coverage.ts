@@ -11,7 +11,7 @@ export const MAX_STUDY_ITEMS = 70;
 
 function normalizePlannerText(value: unknown, maxLength: number) {
   if (typeof value !== "string") {
-    return value;
+    return "";
   }
 
   return value.replace(/\s+/g, " ").trim().slice(0, maxLength);
