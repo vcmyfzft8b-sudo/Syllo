@@ -328,16 +328,6 @@ a:visited {
   box-shadow: var(--shadow-raised);
 }
 
-.app-start-paywall-copy {
-  width: min(100%, 44rem);
-  text-align: center;
-  justify-items: center;
-}
-
-.app-start-paywall-copy p:last-child {
-  max-width: 38rem;
-}
-
 .app-start-copy h1,
 .app-start-step-card h2,
 .app-start-price-card h2,
