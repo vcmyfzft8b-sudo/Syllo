@@ -264,8 +264,8 @@ a:visited {
   display: flex;
   justify-content: center;
   width: 100%;
-  min-height: 100vh;
-  padding: clamp(1rem, 2vw, 1.5rem) clamp(1rem, 3vw, 2rem) 4rem;
+  min-height: 100dvh;
+  padding: 0;
 }
 
 .app-start-panel {
@@ -275,16 +275,16 @@ a:visited {
 }
 
 .app-start-panel-paywall {
-  width: min(100%, 78rem);
-  margin: 0 auto;
+  width: 100%;
+  min-height: 100dvh;
   align-content: start;
   justify-items: center;
-  padding-inline: 0;
+  padding: clamp(1rem, 2vw, 1.5rem) clamp(1rem, 3vw, 2.5rem) clamp(2rem, 4vw, 3rem);
 }
 
 .app-start-panel-fullscreen {
   width: 100%;
-  min-height: calc(100vh - 3rem);
+  min-height: 100dvh;
 }
 
 .app-start-panel-survey {
@@ -366,12 +366,12 @@ a:visited {
 }
 
 .app-start-wizard-fullscreen {
-  min-height: calc(100vh - 3rem);
+  min-height: 100dvh;
   align-content: center;
-  width: min(100%, 80rem);
+  width: 100%;
   margin: 0 auto;
-  padding: 2rem;
-  border-radius: 2rem;
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+  border-radius: 0;
 }
 
 .app-start-wizard-survey {
@@ -379,13 +379,13 @@ a:visited {
   grid-template-rows: auto minmax(0, 1fr) auto;
   align-content: stretch;
   width: 100%;
-  min-height: calc(100vh - 3rem);
+  min-height: 100dvh;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
-  padding: 1.25rem clamp(1rem, 3vw, 2rem) 2rem;
+  padding: clamp(1.25rem, 2.5vw, 2rem) clamp(1rem, 4vw, 3rem) clamp(1.5rem, 3vw, 2.5rem);
 }
 
 .app-start-wizard-survey .app-start-progress {
@@ -397,11 +397,12 @@ a:visited {
   min-height: 0;
   height: 100%;
   width: 100%;
+  max-width: 100rem;
   margin: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding: clamp(2rem, 8vh, 5rem) 0 clamp(1.5rem, 4vh, 3rem);
+  padding: clamp(2rem, 7vh, 5rem) 0 clamp(1.5rem, 4vh, 3rem);
   align-content: center;
   gap: 1.25rem;
 }
@@ -420,11 +421,11 @@ a:visited {
 }
 
 .app-start-wizard-survey .app-start-step-card h2 {
-  max-width: 42rem;
+  max-width: 56rem;
 }
 
 .app-start-wizard-survey .app-start-step-card > p {
-  max-width: 36rem;
+  max-width: 44rem;
   color: var(--secondary-label);
   font-size: 1.02rem;
   line-height: 1.55;
@@ -437,7 +438,7 @@ a:visited {
 }
 
 .app-start-wizard-survey .app-start-choice-grid {
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
 }
 
 .app-start-wizard-survey .app-start-choice {
@@ -650,7 +651,7 @@ a:visited {
 .app-start-pricing-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   width: 100%;
-  max-width: 78rem;
+  max-width: 100rem;
   margin: 0 auto;
   align-items: stretch;
 }
@@ -733,7 +734,7 @@ a:visited {
   margin: 0;
   color: var(--secondary-label);
   font-size: 0.95rem;
-  width: min(100%, 78rem);
+  width: min(100%, 100rem);
   margin-inline: auto;
   text-align: center;
 }
@@ -741,7 +742,7 @@ a:visited {
 .app-start-subscription-status {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  width: min(100%, 52rem);
+  width: min(100%, 100rem);
   margin-inline: auto;
 }
 
@@ -752,22 +753,18 @@ a:visited {
 }
 
 @media (max-width: 768px) {
-  .app-start-shell {
-    padding: 0;
-  }
-
   .app-start-panel-fullscreen {
-    min-height: 100vh;
+    min-height: 100dvh;
   }
 
   .app-start-wizard-fullscreen {
-    min-height: 100vh;
+    min-height: 100dvh;
     border-radius: 0;
     padding: 1.25rem;
   }
 
   .app-start-wizard-survey {
-    min-height: 100vh;
+    min-height: 100dvh;
     padding: 1rem 1.25rem 1.5rem;
   }
 
