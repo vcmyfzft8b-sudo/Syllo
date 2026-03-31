@@ -15,23 +15,23 @@ const checkoutSchema = z.object({
   plan: z.enum(["weekly", "monthly", "yearly"]),
 });
 
-export async function POST(request: Request) {
+async function createCheckoutSession(plan: z.infer<typeof checkoutSchema>["plan"]) {
   const appState = await getViewerAppState();
 
   if (!appState) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return {
+      ok: false as const,
+      status: 401,
+      error: "Unauthorized",
+    };
   }
 
   if (!appState.onboardingComplete) {
-    return NextResponse.json({ error: "Complete onboarding first." }, { status: 400 });
-  }
-
-  const parsed = await parseJsonRequest(request, checkoutSchema, {
-    maxBytes: 1024,
-  });
-
-  if (!parsed.success) {
-    return parsed.response;
+    return {
+      ok: false as const,
+      status: 400,
+      error: "Complete onboarding first.",
+    };
   }
 
   try {
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       customer: customerId,
       line_items: [
         {
-          price: getPriceIdForPlan(parsed.data.plan),
+          price: getPriceIdForPlan(plan),
           quantity: 1,
         },
       ],
@@ -62,23 +62,73 @@ export async function POST(request: Request) {
       },
       metadata: {
         userId: appState.user.id,
-        plan: parsed.data.plan,
+        plan,
       },
       subscription_data: {
         metadata: {
           userId: appState.user.id,
-          plan: parsed.data.plan,
+          plan,
         },
       },
     });
 
-    return NextResponse.json({ url: session.url });
+    if (!session.url) {
+      return {
+        ok: false as const,
+        status: 500,
+        error: "Stripe checkout did not return a redirect URL.",
+      };
+    }
+
+    return {
+      ok: true as const,
+      url: session.url,
+    };
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Could not create checkout session.",
-      },
-      { status: 500 },
+    return {
+      ok: false as const,
+      status: 500,
+      error: error instanceof Error ? error.message : "Could not create checkout session.",
+    };
+  }
+}
+
+export async function POST(request: Request) {
+  const parsed = await parseJsonRequest(request, checkoutSchema, {
+    maxBytes: 1024,
+  });
+
+  if (!parsed.success) {
+    return parsed.response;
+  }
+
+  const result = await createCheckoutSession(parsed.data.plan);
+
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+
+  return NextResponse.json({ url: result.url });
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const parsed = checkoutSchema.safeParse({
+    plan: url.searchParams.get("plan"),
+  });
+
+  if (!parsed.success) {
+    return NextResponse.redirect(new URL("/app/start?checkout=cancelled", url), 303);
+  }
+
+  const result = await createCheckoutSession(parsed.data.plan);
+
+  if (!result.ok) {
+    return NextResponse.redirect(
+      new URL(`/app/start?checkout=cancelled&error=${encodeURIComponent(result.error)}`, url),
+      303,
     );
   }
+
+  return NextResponse.redirect(result.url, 303);
 }
