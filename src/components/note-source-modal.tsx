@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Loader2,
 } from "lucide-react";
+import { createPortal } from "react-dom";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -994,9 +995,13 @@ export function NoteSourceModal({
     return null;
   }
 
-  return (
+  const modalContent = (
     <>
-      <div className="ios-sheet-backdrop" onClick={requestClose} aria-hidden="true" />
+      <div
+        className="ios-sheet-backdrop note-source-modal-backdrop"
+        onClick={requestClose}
+        aria-hidden="true"
+      />
       <div
         className="ios-sheet-wrap note-source-modal-wrap"
         role="dialog"
@@ -1564,4 +1569,10 @@ export function NoteSourceModal({
       ) : null}
     </>
   );
+
+  if (typeof document === "undefined") {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 }

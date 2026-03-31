@@ -1931,8 +1931,15 @@ select:disabled {
   border: 1px solid color-mix(in srgb, var(--separator) 72%, transparent);
 }
 
+.note-source-modal-backdrop {
+  z-index: 140;
+}
+
 .note-source-modal-wrap {
+  z-index: 141;
   padding: 1.5rem;
+  align-items: center;
+  justify-content: center;
 }
 
 .note-source-modal-stack {
@@ -3195,12 +3202,15 @@ select:disabled {
   }
 
   .note-source-modal-wrap {
-    padding: 1.2rem;
+    padding:
+      max(1rem, env(safe-area-inset-top))
+      1rem
+      max(1rem, env(safe-area-inset-bottom) + 1rem);
   }
 
   .note-source-modal {
     width: min(100%, calc(100vw - 2.4rem));
-    max-height: min(calc(100vh - 2.4rem), 50rem);
+    max-height: min(calc(100dvh - 2rem), 50rem);
     padding: 1.2rem;
     border-radius: 24px;
   }
