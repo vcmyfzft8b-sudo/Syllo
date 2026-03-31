@@ -17,7 +17,7 @@ import {
   createSupabaseServiceRoleClient,
 } from "@/lib/supabase/server";
 
-const MAX_SIGNATURE_BYTES = 8192;
+const MAX_SIGNATURE_BYTES = 65536;
 const MAX_TEXT_SNIFF_BYTES = 65536;
 
 function startsWithBytes(bytes: Uint8Array, signature: number[]) {
@@ -26,6 +26,10 @@ function startsWithBytes(bytes: Uint8Array, signature: number[]) {
 
 function findAscii(bytes: Uint8Array, pattern: string) {
   return Buffer.from(bytes).includes(pattern, 0, "latin1");
+}
+
+function findAsciiCaseInsensitive(bytes: Uint8Array, pattern: string) {
+  return decodeUtf8(bytes).toLowerCase().includes(pattern.toLowerCase());
 }
 
 function decodeUtf8(bytes: Uint8Array) {
@@ -149,7 +153,14 @@ function isOggSignature(bytes: Uint8Array) {
 }
 
 function isWebmSignature(bytes: Uint8Array) {
-  return startsWithBytes(bytes, [0x1a, 0x45, 0xdf, 0xa3]) && findAscii(bytes, "webm");
+  if (!startsWithBytes(bytes, [0x1a, 0x45, 0xdf, 0xa3])) {
+    return false;
+  }
+
+  return (
+    findAsciiCaseInsensitive(bytes, "webm") ||
+    findAsciiCaseInsensitive(bytes, "matroska")
+  );
 }
 
 function isCafSignature(bytes: Uint8Array) {

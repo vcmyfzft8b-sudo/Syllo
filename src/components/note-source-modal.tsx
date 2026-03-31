@@ -53,12 +53,23 @@ function pickRecorderMimeType() {
     return null;
   }
 
-  const candidates = [
-    "audio/webm;codecs=opus",
-    "audio/mp4",
-    "audio/webm",
-    "audio/ogg;codecs=opus",
-  ];
+  const userAgent = window.navigator.userAgent;
+  const prefersMp4Recording =
+    /Safari/i.test(userAgent) &&
+    !/(Chrome|Chromium|CriOS|EdgiOS|FxiOS)/i.test(userAgent);
+  const candidates = prefersMp4Recording
+    ? [
+        "audio/mp4",
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+      ]
+    : [
+        "audio/webm;codecs=opus",
+        "audio/mp4",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+      ];
 
   return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate)) ?? "";
 }
