@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { EmojiIcon } from "@/components/emoji-icon";
 import { Folder } from "@/components/folder";
+import { ViewportPortal } from "@/components/viewport-portal";
 import type { AppLectureListItem } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
 
@@ -424,105 +425,108 @@ export function LibraryFolderMenu({
       ) : null}
 
       {isCreateModalOpen ? (
-        <div
-          className="library-folder-modal-overlay"
-          role="presentation"
-          onClick={() => setIsCreateModalOpen(false)}
-        >
+        <ViewportPortal>
           <div
-            className="library-folder-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="new-folder-title"
-            onClick={(event) => event.stopPropagation()}
+            className="library-folder-modal-overlay"
+            role="presentation"
+            onClick={() => setIsCreateModalOpen(false)}
           >
-            <button
-              type="button"
-              className="app-close-button library-folder-modal-close"
-              onClick={() => setIsCreateModalOpen(false)}
-              aria-label="Close new folder dialog"
+            <div
+              className="library-folder-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="new-folder-title"
+              onClick={(event) => event.stopPropagation()}
             >
-              <EmojiIcon symbol="✖️" size="1rem" />
-            </button>
+              <button
+                type="button"
+                className="app-close-button library-folder-modal-close"
+                onClick={() => setIsCreateModalOpen(false)}
+                aria-label="Close new folder dialog"
+              >
+                <EmojiIcon symbol="✖️" size="1rem" />
+              </button>
 
-            <div className="library-folder-modal-header">
-              <h3 id="new-folder-title" className="library-folder-modal-title">
-                New Folder
-              </h3>
-              <div className="library-folder-modal-icon">
-                <Folder open size={1.35} />
-              </div>
-            </div>
-
-            <div className="library-folder-modal-body">
-              <label className="library-folder-modal-field">
-                <span>Name</span>
-                <input
-                  value={folderName}
-                  onChange={(event) => setFolderName(event.target.value)}
-                  placeholder="Biology, Maths, History..."
-                  className="ios-input"
-                />
-              </label>
-
-              <div className="library-folder-modal-field">
-                <span>Add lectures</span>
-                <div className="library-folder-lecture-picker modal">
-                  {lectures.length > 0 ? (
-                    lectures.map((lecture) => (
-                      <label key={lecture.id} className="library-folder-lecture-option">
-                        <input
-                          type="checkbox"
-                          checked={draftLectureIds.includes(lecture.id)}
-                          onChange={() =>
-                            setDraftLectureIds((currentIds) =>
-                              toggleLectureId(currentIds, lecture.id),
-                            )
-                          }
-                        />
-                        <span>
-                          <span className="library-folder-lecture-title">
-                            {lecture.title ?? "Untitled note"}
-                          </span>
-                          <span className="library-folder-lecture-meta">
-                            {formatRelativeDate(lecture.created_at)}
-                          </span>
-                        </span>
-                      </label>
-                    ))
-                  ) : (
-                    <p className="library-folder-empty">
-                      Create notes first, then group them into folders.
-                    </p>
-                  )}
+              <div className="library-folder-modal-header">
+                <h3 id="new-folder-title" className="library-folder-modal-title">
+                  New Folder
+                </h3>
+                <div className="library-folder-modal-icon">
+                  <Folder open size={1.35} />
                 </div>
               </div>
-            </div>
 
-            <button
-              type="button"
-              className="library-folder-primary-button modal"
-              onClick={handleCreateFolder}
-            >
-              Create
-            </button>
+              <div className="library-folder-modal-body">
+                <label className="library-folder-modal-field">
+                  <span>Name</span>
+                  <input
+                    value={folderName}
+                    onChange={(event) => setFolderName(event.target.value)}
+                    placeholder="Biology, Maths, History..."
+                    className="ios-input"
+                  />
+                </label>
+
+                <div className="library-folder-modal-field">
+                  <span>Add lectures</span>
+                  <div className="library-folder-lecture-picker modal">
+                    {lectures.length > 0 ? (
+                      lectures.map((lecture) => (
+                        <label key={lecture.id} className="library-folder-lecture-option">
+                          <input
+                            type="checkbox"
+                            checked={draftLectureIds.includes(lecture.id)}
+                            onChange={() =>
+                              setDraftLectureIds((currentIds) =>
+                                toggleLectureId(currentIds, lecture.id),
+                              )
+                            }
+                          />
+                          <span>
+                            <span className="library-folder-lecture-title">
+                              {lecture.title ?? "Untitled note"}
+                            </span>
+                            <span className="library-folder-lecture-meta">
+                              {formatRelativeDate(lecture.created_at)}
+                            </span>
+                          </span>
+                        </label>
+                      ))
+                    ) : (
+                      <p className="library-folder-empty">
+                        Create notes first, then group them into folders.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="library-folder-primary-button modal"
+                onClick={handleCreateFolder}
+              >
+                Create
+              </button>
+            </div>
           </div>
-        </div>
+        </ViewportPortal>
       ) : null}
 
       {isEditModalOpen ? (
-        <div
-          className="library-folder-modal-overlay"
-          role="presentation"
-          onClick={handleCancelEdit}
-        >
+        <ViewportPortal>
           <div
-            className="library-folder-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="edit-folder-title"
-            onClick={(event) => event.stopPropagation()}
+            className="library-folder-modal-overlay"
+            role="presentation"
+            onClick={handleCancelEdit}
           >
+            <div
+              className="library-folder-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="edit-folder-title"
+              onClick={(event) => event.stopPropagation()}
+            >
             <button
               type="button"
               className="app-close-button library-folder-modal-close"
@@ -636,8 +640,9 @@ export function LibraryFolderMenu({
                 Delete folder
               </button>
             </div>
+            </div>
           </div>
-        </div>
+        </ViewportPortal>
       ) : null}
     </div>
   );

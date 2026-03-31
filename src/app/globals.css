@@ -2892,12 +2892,13 @@ select:disabled {
 .library-folder-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 140;
   display: grid;
   place-items: center;
   padding: 1.5rem;
   background: rgba(12, 15, 25, 0.56);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .library-folder-modal {
@@ -3565,6 +3566,14 @@ select:disabled {
   display: grid;
   gap: 1rem;
   border: 1px solid color-mix(in srgb, var(--separator) 72%, transparent);
+}
+
+.dashboard-note-dialog-backdrop {
+  z-index: 140;
+}
+
+.dashboard-note-dialog-wrap {
+  z-index: 141;
 }
 
 .dashboard-note-dialog-body {

@@ -5,12 +5,12 @@ import {
   ChevronDown,
   Loader2,
 } from "lucide-react";
-import { createPortal } from "react-dom";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { EmojiIcon } from "@/components/emoji-icon";
 import { LiveAudioWave } from "@/components/live-audio-wave";
+import { ViewportPortal } from "@/components/viewport-portal";
 import { createAudioLectureWithProcessingChunks } from "@/lib/audio-lecture-upload";
 import {
   AUDIO_FILE_INPUT_ACCEPT,
@@ -1570,9 +1570,5 @@ export function NoteSourceModal({
     </>
   );
 
-  if (typeof document === "undefined") {
-    return modalContent;
-  }
-
-  return createPortal(modalContent, document.body);
+  return <ViewportPortal>{modalContent}</ViewportPortal>;
 }

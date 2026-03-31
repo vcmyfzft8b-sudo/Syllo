@@ -20,6 +20,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { EmojiIcon } from "@/components/emoji-icon";
 import { LibraryFolderMenu } from "@/components/library-folder-menu";
 import { InstantLink } from "@/components/instant-link";
+import { ViewportPortal } from "@/components/viewport-portal";
 import { POLL_INTERVAL_MS } from "@/lib/constants";
 import type { AppLectureListItem } from "@/lib/types";
 import { formatCalendarDate } from "@/lib/utils";
@@ -591,147 +592,158 @@ export function HomeDashboard({
       />
 
       {renameTarget ? (
-        <>
-          <div className="ios-sheet-backdrop" onClick={closeRenameModal} aria-hidden="true" />
-          <div className="ios-sheet-wrap" role="presentation">
-            <div className="ios-sheet-stack">
-              <section
-                className="ios-sheet dashboard-note-dialog"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="rename-note-title"
-              >
-                <div className="ios-sheet-header">
-                  <h2 id="rename-note-title" className="ios-sheet-title">
-                    Rename note
-                  </h2>
-                  <button
-                    type="button"
-                    className="app-close-button ios-sheet-header-close"
-                    onClick={closeRenameModal}
-                    aria-label="Close rename note dialog"
-                    disabled={busyLectureId === renameTarget.id}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <form
-                  className="dashboard-note-dialog-body"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void handleRenameLecture();
-                  }}
+        <ViewportPortal>
+          <>
+            <div
+              className="ios-sheet-backdrop dashboard-note-dialog-backdrop"
+              onClick={closeRenameModal}
+              aria-hidden="true"
+            />
+            <div className="ios-sheet-wrap dashboard-note-dialog-wrap" role="presentation">
+              <div className="ios-sheet-stack">
+                <section
+                  className="ios-sheet dashboard-note-dialog"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="rename-note-title"
                 >
-                  <p className="ios-subtitle dashboard-note-dialog-copy">
-                    Give this note a clearer title without leaving the page.
-                  </p>
-
-                  <label className="dashboard-note-dialog-field">
-                    <span>Title</span>
-                    <input
-                      autoFocus
-                      value={renameValue}
-                      onChange={(event) => setRenameValue(event.target.value)}
-                      className="ios-input"
-                      placeholder="Untitled note"
-                    />
-                  </label>
-
-                  <div className="dashboard-note-dialog-actions">
-                    <button
-                      type="submit"
-                      className="ios-primary-button"
-                      disabled={
-                        busyLectureId === renameTarget.id ||
-                        !renameValue.trim() ||
-                        renameValue.trim() === (renameTarget.title?.trim() || "Untitled note")
-                      }
-                    >
-                      {busyLectureId === renameTarget.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : null}
-                      Save title
-                    </button>
+                  <div className="ios-sheet-header">
+                    <h2 id="rename-note-title" className="ios-sheet-title">
+                      Rename note
+                    </h2>
                     <button
                       type="button"
-                      className="ios-secondary-button"
+                      className="app-close-button ios-sheet-header-close"
                       onClick={closeRenameModal}
+                      aria-label="Close rename note dialog"
                       disabled={busyLectureId === renameTarget.id}
                     >
-                      Cancel
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
-                </form>
-              </section>
+
+                  <form
+                    className="dashboard-note-dialog-body"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void handleRenameLecture();
+                    }}
+                  >
+                    <p className="ios-subtitle dashboard-note-dialog-copy">
+                      Give this note a clearer title without leaving the page.
+                    </p>
+
+                    <label className="dashboard-note-dialog-field">
+                      <span>Title</span>
+                      <input
+                        autoFocus
+                        value={renameValue}
+                        onChange={(event) => setRenameValue(event.target.value)}
+                        className="ios-input"
+                        placeholder="Untitled note"
+                      />
+                    </label>
+
+                    <div className="dashboard-note-dialog-actions">
+                      <button
+                        type="submit"
+                        className="ios-primary-button"
+                        disabled={
+                          busyLectureId === renameTarget.id ||
+                          !renameValue.trim() ||
+                          renameValue.trim() === (renameTarget.title?.trim() || "Untitled note")
+                        }
+                      >
+                        {busyLectureId === renameTarget.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : null}
+                        Save title
+                      </button>
+                      <button
+                        type="button"
+                        className="ios-secondary-button"
+                        onClick={closeRenameModal}
+                        disabled={busyLectureId === renameTarget.id}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </section>
+              </div>
             </div>
-          </div>
-        </>
+          </>
+        </ViewportPortal>
       ) : null}
 
       {deleteTarget ? (
-        <>
-          <div className="ios-sheet-backdrop" onClick={closeDeleteModal} aria-hidden="true" />
-          <div className="ios-sheet-wrap" role="presentation">
-            <div className="ios-sheet-stack">
-              <section
-                className="ios-sheet dashboard-note-dialog"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="delete-note-title"
-              >
-                <div className="ios-sheet-header">
-                  <h2 id="delete-note-title" className="ios-sheet-title">
-                    Delete note
-                  </h2>
-                  <button
-                    type="button"
-                    className="app-close-button ios-sheet-header-close"
-                    onClick={closeDeleteModal}
-                    aria-label="Close delete note dialog"
-                    disabled={busyLectureId === deleteTarget.id}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="dashboard-note-dialog-body">
-                  <p className="ios-subtitle dashboard-note-dialog-copy">
-                    Delete{" "}
-                    <span className="dashboard-note-dialog-highlight">
-                      {deleteTarget.title?.trim() || "Untitled note"}
-                    </span>
-                    ? This cannot be undone.
-                  </p>
-
-                  <div className="dashboard-note-dialog-actions">
-                    <button
-                      type="button"
-                      className="dashboard-note-dialog-danger"
-                      onClick={() => void handleDeleteLecture()}
-                      disabled={busyLectureId === deleteTarget.id}
-                    >
-                      {busyLectureId === deleteTarget.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : null}
+        <ViewportPortal>
+          <>
+            <div
+              className="ios-sheet-backdrop dashboard-note-dialog-backdrop"
+              onClick={closeDeleteModal}
+              aria-hidden="true"
+            />
+            <div className="ios-sheet-wrap dashboard-note-dialog-wrap" role="presentation">
+              <div className="ios-sheet-stack">
+                <section
+                  className="ios-sheet dashboard-note-dialog"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="delete-note-title"
+                >
+                  <div className="ios-sheet-header">
+                    <h2 id="delete-note-title" className="ios-sheet-title">
                       Delete note
-                    </button>
+                    </h2>
                     <button
                       type="button"
-                      className="ios-secondary-button"
+                      className="app-close-button ios-sheet-header-close"
                       onClick={closeDeleteModal}
+                      aria-label="Close delete note dialog"
                       disabled={busyLectureId === deleteTarget.id}
                     >
-                      Cancel
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
-                </div>
-              </section>
+
+                  <div className="dashboard-note-dialog-body">
+                    <p className="ios-subtitle dashboard-note-dialog-copy">
+                      Delete{" "}
+                      <span className="dashboard-note-dialog-highlight">
+                        {deleteTarget.title?.trim() || "Untitled note"}
+                      </span>
+                      ? This cannot be undone.
+                    </p>
+
+                    <div className="dashboard-note-dialog-actions">
+                      <button
+                        type="button"
+                        className="dashboard-note-dialog-danger"
+                        onClick={() => void handleDeleteLecture()}
+                        disabled={busyLectureId === deleteTarget.id}
+                      >
+                        {busyLectureId === deleteTarget.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : null}
+                        Delete note
+                      </button>
+                      <button
+                        type="button"
+                        className="ios-secondary-button"
+                        onClick={closeDeleteModal}
+                        disabled={busyLectureId === deleteTarget.id}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </section>
+              </div>
             </div>
-          </div>
-        </>
+          </>
+        </ViewportPortal>
       ) : null}
     </>
   );
 }
-  const canCreateNotes = false;
