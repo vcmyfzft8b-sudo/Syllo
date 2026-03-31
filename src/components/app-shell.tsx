@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useEffect, useRef, useState, startTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -14,6 +14,7 @@ const TAB_ITEMS = [
   { href: "/app/support", displayLabel: "Help", icon: "❓" },
   { href: "/app/settings", displayLabel: "Settings", icon: "⚙️" },
 ];
+const PULL_REFRESH_SPOKES = Array.from({ length: 8 }, (_, index) => index);
 
 function getChrome(pathname: string) {
   if (pathname === "/app/start") {
@@ -205,14 +206,27 @@ export function AppShell({
         style={pullIndicatorStyle}
         aria-hidden={!pullIndicatorVisible}
       >
-        <Loader2
-          className="pull-refresh-indicator-icon"
+        <div
+          className="pull-refresh-spinner"
           style={{
             transform: isRefreshing
               ? "rotate(0deg)"
-              : `rotate(${Math.round(pullProgress * 180)}deg)`,
+              : `rotate(${Math.round(pullProgress * 140)}deg) scale(${0.88 + pullProgress * 0.12})`,
           }}
-        />
+        >
+          {PULL_REFRESH_SPOKES.map((spoke) => (
+            <span
+              key={spoke}
+              className="pull-refresh-spinner-spoke"
+              style={
+                {
+                  "--pull-refresh-spoke-index": spoke,
+                  "--pull-refresh-spoke-opacity": 0.12 + pullProgress * 0.7,
+                } as React.CSSProperties
+              }
+            />
+          ))}
+        </div>
       </div>
     );
   }
