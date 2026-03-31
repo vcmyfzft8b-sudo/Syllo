@@ -74,10 +74,11 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const shouldHideNavigation = hideNavigation || pathname === "/app/start";
   const chrome = getChrome(pathname);
   const createHref = "/app?mode=record";
   const subscribeHref = "/app/start";
-  const showCreateCta = pathname !== "/app/start";
+  const showCreateCta = !shouldHideNavigation;
   const showSubscribeCta = !canCreateNotes && showCreateCta;
 
   useEffect(() => {
@@ -86,7 +87,7 @@ export function AppShell({
     }
   }, [router]);
 
-  if (hideNavigation) {
+  if (shouldHideNavigation) {
     return (
       <div className="ios-app-shell">
         <main className="ios-content app-shell-content app-shell-content-start">{children}</main>
