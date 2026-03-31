@@ -315,47 +315,47 @@ export function AppShell({
       </aside>
 
       <div className="desktop-main">
-        <header className="ios-nav app-topbar">
-          <div className="ios-nav-inner app-topbar-inner">
-            <InstantLink href="/app" className="app-topbar-brand" aria-label={`${BRAND_NAME} home`}>
-              <BrandLogo compact />
-            </InstantLink>
-
-            <div className="app-topbar-copy">
-              <div className="app-topbar-title">{chrome.title}</div>
-              <div className="app-topbar-subtitle">{chrome.subtitle}</div>
-            </div>
-
-            {chrome.backHref ? (
-              <div className="ios-nav-actions">
-                <InstantLink href={chrome.backHref} className="app-back-button">
-                  <ChevronLeft className="h-5 w-5" />
-                  Back
-                </InstantLink>
-              </div>
-            ) : null}
-
-            {showSubscribeCta ? (
-              <div className="ios-nav-actions app-topbar-subscribe-actions">
-                <InstantLink href={subscribeHref} className="app-subscribe-cta">
-                  <EmojiIcon symbol="✨" size="1rem" />
-                  <span>Subscribe</span>
-                </InstantLink>
-              </div>
-            ) : null}
-
-            {showCreateCta ? (
-              <div className="ios-nav-actions app-topbar-actions">
-                <InstantLink href={createHref} className="app-topbar-cta">
-                  <EmojiIcon symbol="➕" size="1rem" />
-                  <span>New note</span>
-                </InstantLink>
-              </div>
-            ) : null}
-          </div>
-        </header>
-
         <div className="app-shell-pull-content" style={mobilePullContentStyle}>
+          <header className="ios-nav app-topbar">
+            <div className="ios-nav-inner app-topbar-inner">
+              <InstantLink href="/app" className="app-topbar-brand" aria-label={`${BRAND_NAME} home`}>
+                <BrandLogo compact />
+              </InstantLink>
+
+              <div className="app-topbar-copy">
+                <div className="app-topbar-title">{chrome.title}</div>
+                <div className="app-topbar-subtitle">{chrome.subtitle}</div>
+              </div>
+
+              {chrome.backHref ? (
+                <div className="ios-nav-actions">
+                  <InstantLink href={chrome.backHref} className="app-back-button">
+                    <ChevronLeft className="h-5 w-5" />
+                    Back
+                  </InstantLink>
+                </div>
+              ) : null}
+
+              {showSubscribeCta ? (
+                <div className="ios-nav-actions app-topbar-subscribe-actions">
+                  <InstantLink href={subscribeHref} className="app-subscribe-cta">
+                    <EmojiIcon symbol="✨" size="1rem" />
+                    <span>Subscribe</span>
+                  </InstantLink>
+                </div>
+              ) : null}
+
+              {showCreateCta ? (
+                <div className="ios-nav-actions app-topbar-actions">
+                  <InstantLink href={createHref} className="app-topbar-cta">
+                    <EmojiIcon symbol="➕" size="1rem" />
+                    <span>New note</span>
+                  </InstantLink>
+                </div>
+              ) : null}
+            </div>
+          </header>
+
           <main className="ios-content app-shell-content">{children}</main>
         </div>
       </div>
