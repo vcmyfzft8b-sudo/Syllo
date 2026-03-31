@@ -97,8 +97,8 @@ For email code login, update the Supabase email template to include the OTP toke
 
 For production auth:
 
-- set Supabase Auth Site URL to your real app domain
-- add `https://your-domain/auth/callback` to Supabase redirect URLs
+- set Supabase Auth Site URL to `https://memoai.eu`
+- add `https://memoai.eu/auth/callback` to Supabase redirect URLs
 - configure a real SMTP sender in Supabase Auth so email codes can be delivered reliably at production volume
 - configure Google in Supabase Auth with your production callback URL before exposing the button to users
 
