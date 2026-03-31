@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getAuthProviderAvailability } from "@/lib/auth-providers";
 import { parseFormDataRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { resolveSiteUrl } from "@/lib/site-url";
@@ -15,6 +16,16 @@ function resolveNextPath(request: NextRequest, value?: FormDataEntryValue | null
 }
 
 async function startGoogleAuth(request: NextRequest, next: string) {
+  const providers = await getAuthProviderAvailability();
+
+  if (!providers.google) {
+    const errorUrl = request.nextUrl.clone();
+    errorUrl.pathname = "/auth/error";
+    errorUrl.search = "";
+    errorUrl.searchParams.set("message", "Google sign-in is not enabled for this project.");
+    return NextResponse.redirect(errorUrl, { status: 303 });
+  }
+
   const { supabase, applyCookies } = await createSupabaseRouteHandlerClient();
 
   const callbackUrl = new URL("/auth/callback", resolveSiteUrl(request));

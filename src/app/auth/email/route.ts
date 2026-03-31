@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
+import { getAuthProviderAvailability } from "@/lib/auth-providers";
 import { parseFormDataRequest } from "@/lib/request-validation";
 import {
   createSupabaseRouteHandlerClient,
@@ -113,6 +114,20 @@ export async function POST(request: NextRequest) {
 
   const next = parsed.data.next;
   const normalizedEmail = normalizeEmail(parsed.data.email);
+  const providers = await getAuthProviderAvailability();
+
+  if (!providers.email) {
+    const retryUrl = redirectToCheckEmail(request, {
+      email: parsed.data.email,
+      mode: parsed.data.mode,
+      next,
+      message: "Email sign-in is not enabled for this project.",
+      messageType: "error",
+      sentAt: 0,
+    });
+    return NextResponse.redirect(retryUrl, { status: 303 });
+  }
+
   const serviceRole = createSupabaseServiceRoleClient();
 
   const oneMinuteAgo = new Date(Date.now() - EMAIL_AUTH_MINUTE_LIMIT_SECONDS * 1000).toISOString();

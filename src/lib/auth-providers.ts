@@ -16,35 +16,43 @@ export type AuthProviderAvailability = {
 export async function getAuthProviderAvailability(): Promise<AuthProviderAvailability> {
   const env = getServerEnv();
 
-  const response = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/settings`, {
-    headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-    },
-    cache: "no-store",
-  });
+  try {
+    const response = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/settings`, {
+      headers: {
+        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+      cache: "no-store",
+    });
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return {
+        apple: false,
+        email: false,
+        google: false,
+      };
+    }
+
+    const settings = (await response.json()) as SupabaseAuthSettings;
+    const emailEnabled =
+      typeof settings.email === "boolean"
+        ? settings.email
+        : typeof settings.email?.enabled === "boolean"
+          ? settings.email.enabled
+          : typeof settings.external?.email === "boolean"
+            ? settings.external.email
+            : false;
+
+    return {
+      apple: Boolean(settings.external?.apple),
+      email: emailEnabled,
+      google: Boolean(settings.external?.google),
+    };
+  } catch {
     return {
       apple: false,
-      email: true,
-      google: true,
+      email: false,
+      google: false,
     };
   }
-
-  const settings = (await response.json()) as SupabaseAuthSettings;
-  const emailEnabled =
-    typeof settings.email === "boolean"
-      ? settings.email
-      : typeof settings.email?.enabled === "boolean"
-        ? settings.email.enabled
-        : typeof settings.external?.email === "boolean"
-          ? settings.external.email
-          : true;
-
-  return {
-    apple: Boolean(settings.external?.apple),
-    email: emailEnabled,
-    google: Boolean(settings.external?.google),
-  };
 }

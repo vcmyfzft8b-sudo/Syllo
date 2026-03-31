@@ -6,7 +6,7 @@ It turns source material into structured notes, summaries, study tools, and lect
 
 ## Current feature set
 
-- Email magic-link auth with Supabase
+- Email OTP code auth with Supabase
 - Google auth, plus Apple auth when enabled in Supabase
 - Protected app shell for the note library
 - Create notes from:
@@ -95,6 +95,13 @@ PREVIEW_AUTH_BYPASS=
 
 For email code login, update the Supabase email template to include the OTP token placeholder such as `{{ .Token }}` so users receive a code they can type into the app. This repo includes local templates in [`supabase/templates/magic-link.html`](./supabase/templates/magic-link.html) and [`supabase/templates/confirmation.html`](./supabase/templates/confirmation.html).
 
+For production auth:
+
+- set Supabase Auth Site URL to your real app domain
+- add `https://your-domain/auth/callback` to Supabase redirect URLs
+- configure a real SMTP sender in Supabase Auth so email codes can be delivered reliably at production volume
+- configure Google in Supabase Auth with your production callback URL before exposing the button to users
+
 6. Start the app:
 
 ```bash
@@ -134,6 +141,7 @@ npm run dev
 - `OPENAI_API_KEY` is required for transcription and AI generation.
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_WEEKLY`, `STRIPE_PRICE_MONTHLY`, and `STRIPE_PRICE_YEARLY` are required for the subscription flow.
 - `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` are optional. Without them, the app can still run, but background processing behavior depends on the local fallback path already implemented in the codebase.
+- `INTERNAL_JOB_SECRET` is strongly recommended when `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` are not set, so internal background-job requests can still run safely via your deployed app URL.
 - The audio storage bucket is `lecture-audio` and is created by the initial migration.
 
 ## Important routes

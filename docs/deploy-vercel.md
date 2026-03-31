@@ -52,6 +52,10 @@ Strongly recommended on Vercel:
 - `INNGEST_EVENT_KEY=...`
 - `INNGEST_SIGNING_KEY=...`
 
+If you are not wiring hosted Inngest yet, also set:
+
+- `INTERNAL_JOB_SECRET=` a long random secret used for internal background-job routes
+
 Do not enable this in production:
 
 - `PREVIEW_AUTH_BYPASS`
@@ -65,9 +69,22 @@ In Supabase Auth:
 
 If Google or Apple auth is enabled, update those provider settings to use the same production callback base URL.
 
+For Google sign-in in Supabase:
+
+- create a Google OAuth client for your production domain
+- add your Vercel production domain and custom domain to the Google OAuth authorized JavaScript origins if you use both during rollout
+- add Supabase's Google callback URL from the Supabase dashboard to the Google OAuth authorized redirect URIs
+- paste the Google client ID and secret into Supabase Auth provider settings
+
 If you want in-app email code entry instead of magic links, update the Supabase email template to send the OTP token placeholder like `{{ .Token }}`.
 
 Temporary testing note: if you wire SMTP with a personal sender for short-term testing, replace it before production with a branded sender on a verified domain such as `no-reply@your-domain`. Do not ship live auth email from a personal mailbox.
+
+For email code sign-in at production volume:
+
+- configure Supabase Auth SMTP with a real provider such as Resend, Postmark, or SendGrid
+- use a verified sending domain and a branded sender like `no-reply@your-domain`
+- keep the email template using `{{ .Token }}` so users receive a code they can type into the app
 
 ## Deploy
 
@@ -91,6 +108,7 @@ When the app works on the Vercel deployment URL:
 2. point DNS to Vercel
 3. update `NEXT_PUBLIC_SITE_URL`
 4. update Supabase Auth Site URL and redirect URL again if the domain changed
+5. update your SMTP sender domain and Google OAuth allowed origins if they still point at the temporary Vercel domain
 
 ## Recommended production shape
 
