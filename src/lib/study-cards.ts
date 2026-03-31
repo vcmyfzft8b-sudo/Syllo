@@ -384,6 +384,8 @@ Produce mixed study cards:
 - apply cards only when the source includes an example or practical case
 Do not collapse different concepts into one card.
 When a concept requests multiple cards, make them materially different from each other and cover distinct angles such as recall, explanation, comparison, or process from the same source concept.
+Do not create repetitive cards that test the same fact with only superficial wording changes.
+If a concept is simple, prefer one excellent card over multiple weaker cards.
 Do not invent facts or examples.
 Every card must cite 1 or 2 source units and the answer must be fully supported by those citations.
 Use the provided conceptKey exactly.

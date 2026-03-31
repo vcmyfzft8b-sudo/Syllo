@@ -12,7 +12,7 @@ import type {
 import { generateStructuredObject } from "@/lib/ai/json";
 import { buildGeneratedContentLanguageInstruction } from "@/lib/languages";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
-import { createCoveragePlan } from "@/lib/study-coverage";
+import { createCoveragePlan, MAX_STUDY_ITEMS } from "@/lib/study-coverage";
 import type { CoverageConcept, CoverageUnitPlan, SourceUnit } from "@/lib/study-models";
 import { buildSourceUnits } from "@/lib/study-source-units";
 
@@ -262,12 +262,21 @@ function countTargetQuestions(concepts: CoverageConcept[]) {
   );
 }
 
+function normalizeQuestionKey(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/["'`]/g, "")
+    .replace(/[^a-z0-9ščžćđ\s]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function dedupeQuizQuestions(questions: QuizQuestionDraft[]) {
   const seen = new Set<string>();
   const output: QuizQuestionDraft[] = [];
 
   for (const question of questions) {
-    const key = `${question.conceptKey}::${question.prompt.toLowerCase()}`;
+    const key = `${question.conceptKey}::${normalizeQuestionKey(question.prompt)}`;
     if (seen.has(key)) {
       continue;
     }
@@ -277,6 +286,55 @@ function dedupeQuizQuestions(questions: QuizQuestionDraft[]) {
   }
 
   return output;
+}
+
+function trimQuestionsToPlanBudget(params: {
+  questions: QuizQuestionDraft[];
+  plans: CoverageUnitPlan[];
+}) {
+  const targetCountByConcept = new Map<string, number>();
+
+  for (const plan of params.plans) {
+    for (const concept of plan.concepts) {
+      targetCountByConcept.set(
+        concept.conceptKey,
+        Math.min(Math.max(concept.recommendedCardCount, 1), 3),
+      );
+    }
+  }
+
+  const rankedQuestions = [...params.questions].sort((left, right) => {
+    return (
+      left.sourceUnitIdx - right.sourceUnitIdx ||
+      left.prompt.length - right.prompt.length ||
+      left.explanation.length - right.explanation.length
+    );
+  });
+  const selectedCountByConcept = new Map<string, number>();
+  const selected: QuizQuestionDraft[] = [];
+
+  for (const question of rankedQuestions) {
+    if (selected.length >= MAX_STUDY_ITEMS) {
+      break;
+    }
+
+    const conceptTarget = targetCountByConcept.get(question.conceptKey) ?? 0;
+
+    if (conceptTarget <= 0) {
+      continue;
+    }
+
+    const currentCount = selectedCountByConcept.get(question.conceptKey) ?? 0;
+
+    if (currentCount >= conceptTarget) {
+      continue;
+    }
+
+    selected.push(question);
+    selectedCountByConcept.set(question.conceptKey, currentCount + 1);
+  }
+
+  return selected.sort((left, right) => left.sourceUnitIdx - right.sourceUnitIdx);
 }
 
 function normalizeQuizText(value: string, maxLength: number) {
@@ -376,6 +434,8 @@ Prefer stems in patterns like:
 Prioritize terminology, direct definitions, acronym meanings, equations, exact lists, named models, categories, classifications, step sequences, and concrete facts before broad interpretation questions.
 Use "zakaj" or "kako" style questions only when the mechanism itself is central and clearly supported by the source.
 Distractors should be plausible alternatives from the same topic area, not random nonsense.
+Do not create repetitive questions that test the same fact with superficial wording changes.
+If a concept is simple, prefer one strong question over multiple weaker ones.
 Use the provided conceptKey exactly.
 Do not invent facts, terms, or examples that are not supported by the source.`,
     input: JSON.stringify(
@@ -517,6 +577,11 @@ async function generateCoverageQuiz(params: {
 
     generatedQuestions = dedupeQuizQuestions([...generatedQuestions, ...repairedQuestions]);
   }
+
+  generatedQuestions = trimQuestionsToPlanBudget({
+    questions: generatedQuestions,
+    plans: plannedCoverage,
+  });
 
   return {
     units,

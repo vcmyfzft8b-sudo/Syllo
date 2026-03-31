@@ -11,7 +11,7 @@ import type {
   TranscriptSegmentRow,
 } from "@/lib/database.types";
 import { countWords } from "@/lib/note-generation";
-import { createCoveragePlan } from "@/lib/study-coverage";
+import { createCoveragePlan, MAX_STUDY_ITEMS } from "@/lib/study-coverage";
 import { generateCoverageCards, repairCoverageCards } from "@/lib/study-cards";
 import type { CoverageCardDraft, CoverageUnitPlan, SourceUnit, StudySectionDraft } from "@/lib/study-models";
 import { buildSourceUnits } from "@/lib/study-source-units";
@@ -201,6 +201,60 @@ function dedupeAcceptedCards(cards: CoverageCardDraft[]) {
   }
 
   return output;
+}
+
+function trimCardsToPlanBudget(params: {
+  cards: CoverageCardDraft[];
+  plans: CoverageUnitPlan[];
+}) {
+  const targetCountByConcept = new Map<string, number>();
+
+  for (const plan of params.plans) {
+    for (const concept of plan.concepts) {
+      targetCountByConcept.set(
+        concept.conceptKey,
+        Math.min(Math.max(concept.recommendedCardCount, 1), 3),
+      );
+    }
+  }
+
+  const selectedCountByConcept = new Map<string, number>();
+  const rankedCards = [...params.cards].sort((left, right) => {
+    return (
+      right.coverageRank - left.coverageRank ||
+      left.sourceUnitIdx - right.sourceUnitIdx ||
+      left.front.length - right.front.length
+    );
+  });
+  const selected: CoverageCardDraft[] = [];
+
+  for (const card of rankedCards) {
+    if (selected.length >= MAX_STUDY_ITEMS) {
+      break;
+    }
+
+    const conceptTarget = targetCountByConcept.get(card.conceptKey) ?? 0;
+
+    if (conceptTarget <= 0) {
+      continue;
+    }
+
+    const currentCount = selectedCountByConcept.get(card.conceptKey) ?? 0;
+
+    if (currentCount >= conceptTarget) {
+      continue;
+    }
+
+    selected.push(card);
+    selectedCountByConcept.set(card.conceptKey, currentCount + 1);
+  }
+
+  return selected.sort(
+    (left, right) =>
+      left.sourceUnitIdx - right.sourceUnitIdx ||
+      left.conceptKey.localeCompare(right.conceptKey) ||
+      right.coverageRank - left.coverageRank,
+  );
 }
 
 function selectAcceptedCards(params: {
@@ -574,13 +628,17 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
       plans: plannedCoverage,
       units: effectiveUnits,
     });
+    const trimmedAcceptedCards = trimCardsToPlanBudget({
+      cards: acceptedCards,
+      plans: plannedCoverage,
+    });
     const acceptedValidation = validateCoverage({
       units: effectiveUnits,
       plans: plannedCoverage,
-      cards: acceptedCards,
+      cards: trimmedAcceptedCards,
     });
 
-    let finalCards = acceptedCards;
+    let finalCards = trimmedAcceptedCards;
     let finalValidation = acceptedValidation;
     let coverageWarning: string | null = null;
 
@@ -603,8 +661,16 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
           (finalCards.length === 0 && generatedCards.length > 0)
         )
       ) {
-        finalCards = dedupeAcceptedCards(generatedCards);
-        finalValidation = generatedValidation;
+        const trimmedGeneratedCards = trimCardsToPlanBudget({
+          cards: dedupeAcceptedCards(generatedCards),
+          plans: plannedCoverage,
+        });
+        finalCards = trimmedGeneratedCards;
+        finalValidation = validateCoverage({
+          units: effectiveUnits,
+          plans: plannedCoverage,
+          cards: trimmedGeneratedCards,
+        });
       }
 
       if (finalCards.length === 0) {

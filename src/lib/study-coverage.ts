@@ -7,6 +7,7 @@ import type { CoverageCardKind, CoverageConcept, CoverageConceptType, CoverageUn
 
 const UNIT_BATCH_SIZE = 5;
 const UNIT_PLAN_CONCURRENCY = 2;
+export const MAX_STUDY_ITEMS = 70;
 
 const plannerConceptSchema = z.object({
   conceptKey: z.string().min(3).max(80),
@@ -244,20 +245,110 @@ function conceptPriorityScore(
   return importanceScore * 10 + styleScore + Math.min(unit.wordCount / 200, 2);
 }
 
+function sortConceptsByPriority(
+  concepts: CoverageConcept[],
+  plan: CoverageUnitPlan,
+  unit: SourceUnit,
+) {
+  return [...concepts].sort(
+    (left, right) =>
+      conceptPriorityScore(right, plan, unit) - conceptPriorityScore(left, plan, unit),
+  );
+}
+
 function buildStudyItemTarget(units: SourceUnit[]) {
   const sourceWordCount = units.reduce((total, unit) => total + unit.wordCount, 0);
   const baseTarget = Math.round(sourceWordCount / 40);
   const maxTarget =
     sourceWordCount >= 8000 ? 120 : sourceWordCount >= 5000 ? 100 : 80;
 
-  return clamp(baseTarget, 18, maxTarget);
+  return clamp(baseTarget, 18, Math.min(maxTarget, MAX_STUDY_ITEMS));
+}
+
+function trimPlansToConceptBudget(plans: CoverageUnitPlan[], units: SourceUnit[]) {
+  const totalConceptCount = plans.reduce((total, plan) => total + plan.concepts.length, 0);
+
+  if (totalConceptCount <= MAX_STUDY_ITEMS) {
+    return plans;
+  }
+
+  const unitByIndex = new Map(units.map((unit) => [unit.unitIndex, unit]));
+  const planEntries = plans
+    .map((plan) => {
+      const unit = unitByIndex.get(plan.unitIndex);
+
+      if (!unit || plan.concepts.length === 0) {
+        return null;
+      }
+
+      return {
+        plan,
+        unit,
+        concepts: sortConceptsByPriority(plan.concepts, plan, unit),
+      };
+    })
+    .filter(
+      (
+        entry,
+      ): entry is {
+        plan: CoverageUnitPlan;
+        unit: SourceUnit;
+        concepts: CoverageConcept[];
+      } => Boolean(entry),
+    )
+    .sort((left, right) => {
+      const leftBest = conceptPriorityScore(left.concepts[0], left.plan, left.unit);
+      const rightBest = conceptPriorityScore(right.concepts[0], right.plan, right.unit);
+      return rightBest - leftBest || left.plan.unitIndex - right.plan.unitIndex;
+    });
+
+  const selectedConceptsByUnit = new Map<number, CoverageConcept[]>();
+  let selectedCount = 0;
+  let roundIndex = 0;
+
+  while (selectedCount < MAX_STUDY_ITEMS) {
+    let addedInRound = false;
+
+    for (const entry of planEntries) {
+      const concept = entry.concepts[roundIndex];
+
+      if (!concept) {
+        continue;
+      }
+
+      const selected = selectedConceptsByUnit.get(entry.plan.unitIndex) ?? [];
+      selected.push(concept);
+      selectedConceptsByUnit.set(entry.plan.unitIndex, selected);
+      selectedCount += 1;
+      addedInRound = true;
+
+      if (selectedCount >= MAX_STUDY_ITEMS) {
+        break;
+      }
+    }
+
+    if (!addedInRound) {
+      break;
+    }
+
+    roundIndex += 1;
+  }
+
+  return plans.map((plan) => ({
+    ...plan,
+    concepts: selectedConceptsByUnit.get(plan.unitIndex) ?? [],
+  }));
 }
 
 function applyStudyItemBudget(plans: CoverageUnitPlan[], units: SourceUnit[]) {
+  const trimmedPlans = trimPlansToConceptBudget(plans, units);
   const unitByIndex = new Map(units.map((unit) => [unit.unitIndex, unit]));
-  const totalConceptCount = plans.reduce((total, plan) => total + plan.concepts.length, 0);
-  const targetTotal = Math.max(totalConceptCount, buildStudyItemTarget(units));
-  const normalizedPlans = plans.map((plan) => ({
+  const totalConceptCount = trimmedPlans.reduce((total, plan) => total + plan.concepts.length, 0);
+  const targetTotal = Math.min(
+    MAX_STUDY_ITEMS,
+    Math.max(totalConceptCount, buildStudyItemTarget(units)),
+  );
+  const normalizedPlans = trimmedPlans.map((plan) => ({
     ...plan,
     concepts: plan.concepts.map((concept) => ({
       ...concept,
@@ -297,7 +388,7 @@ function applyStudyItemBudget(plans: CoverageUnitPlan[], units: SourceUnit[]) {
         break;
       }
 
-      const originalPlan = plans.find((plan) => plan.unitIndex === entry.plan.unitIndex);
+      const originalPlan = trimmedPlans.find((plan) => plan.unitIndex === entry.plan.unitIndex);
       const originalConcept = originalPlan?.concepts.find(
         (concept) => concept.conceptKey === entry.concept.conceptKey,
       );
@@ -372,7 +463,7 @@ export async function createCoveragePlan(params: {
       schemaName: "coverage_plan_batch",
       maxOutputTokens: Math.max(3200, batch.length * 760),
       instructions:
-        "Create a study-worthy flashcard plan from the supplied source units. Preserve broad coverage of the material so a student can review the whole lecture through interactive study tools. Prefer atomic, testable facts over broad summaries. Prioritize facts that work well as short recall prompts similar to strong study decks: terminology, direct definitions, acronym meanings, equations, exact lists, named models, categories, classifications, step sequences, concrete numeric or structural facts, protocol purposes, device roles, and important cause-effect claims. When a unit contains several distinct facts, split them into separate concepts rather than merging them. Prefer many small concepts over a few broad umbrella concepts. If a unit is mostly slide metadata, learning goals, repeated headings, or image/diagram narration such as 'the figure shows ...', return an empty concepts array for that unit. Do not create concepts for generic chapter goals, obvious captions, or paraphrases of the same point. Use high importance only for core exam-relevant facts. Default to one card per concept; recommend two cards when the source supports two distinct study angles such as recall plus process/comparison; recommend three cards only for dense source units with several distinct facts that deserve fuller review coverage. Favor concepts that can become prompts like 'Kaj je X?', 'Kaj pomeni X?', 'Navedite ...', 'Naštejte ...', 'Dopolnite ...', 'Kateri model ...', or 'Termin: X'.",
+        "Create a study-worthy flashcard plan from the supplied source units. Preserve broad coverage of the material so a student can review the whole lecture through interactive study tools. The final deck and quiz have a strict global budget, so only keep the highest-yield, non-overlapping concepts. Prefer atomic, testable facts over broad summaries. Prioritize facts that work well as short recall prompts similar to strong study decks: terminology, direct definitions, acronym meanings, equations, exact lists, named models, categories, classifications, step sequences, concrete numeric or structural facts, protocol purposes, device roles, and important cause-effect claims. When a unit contains several distinct facts, split them into separate concepts rather than merging them, but do not create near-duplicate concepts that test the same idea. If a unit is mostly slide metadata, learning goals, repeated headings, or image/diagram narration such as 'the figure shows ...', return an empty concepts array for that unit. Do not create concepts for generic chapter goals, obvious captions, or paraphrases of the same point. Use high importance only for core exam-relevant facts. Default to one card per concept; recommend two cards only when the source supports two clearly different high-value study angles such as recall plus process/comparison; recommend three cards only for truly dense source units with several distinct facts that deserve fuller review coverage. If a unit can be covered well with one strong concept, keep it to one. Favor concepts that can become prompts like 'Kaj je X?', 'Kaj pomeni X?', 'Navedite ...', 'Naštejte ...', 'Dopolnite ...', 'Kateri model ...', or 'Termin: X'.",
       input: JSON.stringify(
         {
           title: params.title,
