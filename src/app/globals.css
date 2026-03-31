@@ -941,12 +941,12 @@ select:disabled {
 }
 
 .pull-refresh-indicator.refreshing .pull-refresh-spinner {
-  animation: pull-refresh-rotate 0.9s linear infinite;
+  animation: pull-refresh-rotate 1.2s linear infinite;
 }
 
 .pull-refresh-indicator.refreshing .pull-refresh-spinner-spoke {
-  animation: pull-refresh-fade 0.9s linear infinite;
-  animation-delay: calc(var(--pull-refresh-spoke-index) * -0.1125s);
+  animation: pull-refresh-fade 1.2s linear infinite;
+  animation-delay: calc(var(--pull-refresh-spoke-index) * -0.15s);
 }
 
 .desktop-shell {
