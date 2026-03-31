@@ -7,7 +7,7 @@ import {
   Download,
   Loader2,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { EmojiIcon } from "@/components/emoji-icon";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
@@ -583,22 +583,10 @@ function sanitizeQuizSessionState(
   };
 }
 
-function buildDefaultPracticeTestSessionState(): PersistedPracticeTestSessionState {
-  return {
-    currentAttemptId: null,
-    attemptQuestionIds: [],
-    textAnswers: {},
-    unknownQuestionIds: [],
-    latestViewedAttemptId: null,
-    submittedAt: null,
-  };
-}
-
 function sanitizePracticeTestSessionState(
   session: PersistedPracticeTestSessionState | null | undefined,
   detail: LectureDetail,
 ): PersistedPracticeTestSessionState {
-  const fallback = buildDefaultPracticeTestSessionState();
   const attemptsById = new Map(detail.practiceTestAttempts.map((attempt) => [attempt.id, attempt]));
   const currentAttemptCandidate =
     session?.currentAttemptId ? attemptsById.get(session.currentAttemptId) ?? null : null;
@@ -1149,10 +1137,6 @@ export function LectureWorkspace({
     (persistedPracticeAttempt?.status === "in_progress" ? persistedPracticeAttempt : null) ??
     detail.practiceTestAttempts.find((attempt) => attempt.status === "in_progress") ??
     null;
-  const latestPracticeAttempt =
-    detail.practiceTestAttempts.length > 0
-      ? detail.practiceTestAttempts[detail.practiceTestAttempts.length - 1] ?? null
-      : null;
   const latestGradedPracticeAttempt =
     [...detail.practiceTestAttempts].reverse().find((attempt) => attempt.status === "graded") ?? null;
   const visiblePracticeAttempt =
@@ -1194,18 +1178,18 @@ export function LectureWorkspace({
     }
   }
 
-  async function refreshLectureDetail() {
+  const refreshLectureDetail = useCallback(async () => {
     const refresh = await fetch(`/api/lectures/${detail.lecture.id}`, {
       cache: "no-store",
     });
     if (refresh.ok) {
       setDetail(mergeLectureDetailWithStoredStudySession((await refresh.json()) as LectureDetail));
     }
-  }
+  }, [detail.lecture.id]);
 
   useEffect(() => {
     void refreshLectureDetail();
-  }, [detail.lecture.id]);
+  }, [refreshLectureDetail]);
 
   async function handleStudyCreate() {
     setStudyError(null);

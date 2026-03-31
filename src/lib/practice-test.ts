@@ -24,7 +24,6 @@ import type {
   PracticeTestAttemptWithAnswers,
   PracticeTestHistoryEntry,
   PracticeTestHistorySummary,
-  PracticeTestQuestion,
 } from "@/lib/types";
 import { getAiProvider, getServerEnv } from "@/lib/server-env";
 
