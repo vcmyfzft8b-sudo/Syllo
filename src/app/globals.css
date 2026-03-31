@@ -3933,11 +3933,31 @@ select:disabled {
   min-height: 2.35rem;
   border-radius: 10px;
   min-width: 0;
+  gap: 0.35rem;
   padding: 0 0.55rem;
   font-size: clamp(0.78rem, 2.7vw, 0.9rem);
   font-weight: 600;
   line-height: 1.15;
   white-space: nowrap;
+}
+
+.lecture-study-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.1rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--orange) 18%, transparent);
+  color: var(--orange);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.lecture-study-mode-switch .ios-segment.active .lecture-study-tab-badge {
+  background: color-mix(in srgb, var(--orange) 14%, var(--surface-muted));
 }
 
 .lecture-study-overview {

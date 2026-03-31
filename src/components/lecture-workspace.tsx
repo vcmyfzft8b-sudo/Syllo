@@ -1779,7 +1779,10 @@ export function LectureWorkspace({
                   onClick={() => setActiveStudyView(item.id)}
                   className={`ios-segment ${activeStudyView === item.id ? "active" : ""}`}
                 >
-                  {item.label}
+                  <span>{item.label}</span>
+                  {item.id === "practice_test" ? (
+                    <span className="lecture-study-tab-badge">Demo</span>
+                  ) : null}
                 </button>
               ))}
             </div>
