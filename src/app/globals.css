@@ -287,11 +287,12 @@ a:visited {
 }
 
 .app-start-panel-paywall {
+  position: relative;
   width: 100%;
-  min-height: 100%;
-  align-content: start;
+  min-height: 100dvh;
+  align-content: center;
   justify-items: center;
-  padding: 0 0 clamp(2rem, 4vw, 3rem);
+  padding: clamp(5rem, 10vh, 7rem) 0 clamp(2rem, 4vw, 3rem);
 }
 
 .app-start-panel-fullscreen {
@@ -311,6 +312,10 @@ a:visited {
 
 .app-start-panel-paywall .app-start-dismiss-row {
   width: 100%;
+  position: absolute;
+  top: clamp(1rem, 2vw, 1.5rem);
+  left: 0;
+  right: 0;
   padding-right: 0;
 }
 
@@ -771,6 +776,16 @@ a:visited {
 }
 
 @media (max-width: 768px) {
+  .app-start-panel-paywall {
+    min-height: auto;
+    align-content: start;
+    padding-top: 4.5rem;
+  }
+
+  .app-start-panel-paywall .app-start-dismiss-row {
+    top: 1rem;
+  }
+
   .app-start-panel-fullscreen {
     min-height: 100%;
   }
