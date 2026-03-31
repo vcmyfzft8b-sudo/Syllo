@@ -348,6 +348,14 @@ export function OnboardingPaywall({
 
       <CheckoutBanner state={searchParams.get("checkout")} />
 
+      <div className="app-start-copy app-start-paywall-copy">
+        <p className="app-start-kicker">Unlock full access</p>
+        <h1>Choose the plan that fits how you study.</h1>
+        <p>
+          Start with the option that matches your pace. You can switch plans later from billing settings.
+        </p>
+      </div>
+
       <div className="app-start-pricing-grid">
         {plans.map((plan) => {
           const activePlan = subscription?.plan === plan.id && hasPaidAccess;
