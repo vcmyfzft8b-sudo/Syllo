@@ -6516,11 +6516,14 @@ select:disabled {
   text-align: left;
   letter-spacing: 0.26em;
   color: white;
+  -webkit-text-fill-color: white;
+  caret-color: white;
   font-size: clamp(1.18rem, 2.7vw, 1.42rem);
 }
 
 .check-email-code-input::placeholder {
   color: rgba(214, 221, 235, 0.48);
+  -webkit-text-fill-color: rgba(214, 221, 235, 0.48);
   font-weight: 600;
   letter-spacing: 0.22em;
 }
@@ -6549,6 +6552,7 @@ select:disabled {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.05);
   color: white;
+  -webkit-text-fill-color: white;
   font-size: 1rem;
   font-weight: 650;
 }
@@ -6556,7 +6560,46 @@ select:disabled {
 .check-email-secondary[disabled] {
   background: rgba(255, 255, 255, 0.035);
   color: rgba(255, 255, 255, 0.58);
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.58);
   opacity: 1;
+}
+
+.landing-auth-page .app-back-button {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.96);
+  color: #111111;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+}
+
+.landing-auth-page .app-back-button:hover {
+  opacity: 1;
+  background: #ffffff;
+}
+
+:root[data-theme="dark"] .landing-auth-page .app-back-button {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(29, 29, 33, 0.92);
+  color: white;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+}
+
+:root[data-theme="dark"] .landing-auth-page .app-back-button:hover {
+  background: rgba(36, 36, 41, 0.96);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .landing-auth-page .app-back-button,
+  :root[data-theme="system"] .landing-auth-page .app-back-button {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(29, 29, 33, 0.92);
+    color: white;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+  }
+
+  :root:not([data-theme]) .landing-auth-page .app-back-button:hover,
+  :root[data-theme="system"] .landing-auth-page .app-back-button:hover {
+    background: rgba(36, 36, 41, 0.96);
+  }
 }
 
 .email-entry-page {
