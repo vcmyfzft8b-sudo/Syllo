@@ -900,6 +900,10 @@ select:disabled {
   background: var(--canvas);
 }
 
+.app-shell-pull-content {
+  will-change: transform;
+}
+
 .pull-refresh-indicator {
   position: fixed;
   top: calc(env(safe-area-inset-top) + 1.5rem);

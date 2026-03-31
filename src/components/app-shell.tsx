@@ -75,6 +75,7 @@ export function AppShell({
   const router = useRouter();
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isPulling, setIsPulling] = useState(false);
   const touchStartYRef = useRef<number | null>(null);
   const pullEligibleRef = useRef(false);
   const pullDistanceRef = useRef(0);
@@ -104,6 +105,7 @@ export function AppShell({
       touchStartYRef.current = null;
       pullEligibleRef.current = false;
       pullDistanceRef.current = 0;
+      setIsPulling(false);
       setPullDistance(0);
     };
 
@@ -156,6 +158,7 @@ export function AppShell({
       event.preventDefault();
       const nextPullDistance = Math.min(deltaY * 0.5, 120);
       pullDistanceRef.current = nextPullDistance;
+      setIsPulling(true);
       setPullDistance(nextPullDistance);
     }
 
@@ -193,10 +196,15 @@ export function AppShell({
   }, [isRefreshing, router]);
 
   const pullProgress = Math.min(cappedPullDistance / pullThreshold, 1);
-  const pullIndicatorVisible = isRefreshing || cappedPullDistance > 0;
+  const pullIndicatorVisible = isRefreshing || cappedPullDistance > 8;
+  const mobilePullOffset = isRefreshing ? 54 : Math.round(cappedPullDistance * 0.94);
   const pullIndicatorStyle = {
     opacity: pullIndicatorVisible ? 1 : 0,
-    transform: `translate(-50%, ${Math.round(-18 + cappedPullDistance * 0.75)}px) scale(${0.92 + pullProgress * 0.08})`,
+    transform: `translate(-50%, ${Math.round(-22 + mobilePullOffset * 0.78)}px) scale(${0.9 + pullProgress * 0.1})`,
+  };
+  const mobilePullContentStyle = {
+    transform: `translate3d(0, ${mobilePullOffset}px, 0)`,
+    transition: isPulling ? "none" : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
   };
 
   function renderPullToRefreshIndicator() {
@@ -235,7 +243,9 @@ export function AppShell({
     return (
       <div className="ios-app-shell">
         {renderPullToRefreshIndicator()}
-        <main className="ios-content app-shell-content app-shell-content-start">{children}</main>
+        <div className="app-shell-pull-content" style={mobilePullContentStyle}>
+          <main className="ios-content app-shell-content app-shell-content-start">{children}</main>
+        </div>
       </div>
     );
   }
@@ -304,47 +314,49 @@ export function AppShell({
       </aside>
 
       <div className="desktop-main">
-        <header className="ios-nav app-topbar">
-          <div className="ios-nav-inner app-topbar-inner">
-            <InstantLink href="/app" className="app-topbar-brand" aria-label={`${BRAND_NAME} home`}>
-              <BrandLogo compact />
-            </InstantLink>
+        <div className="app-shell-pull-content" style={mobilePullContentStyle}>
+          <header className="ios-nav app-topbar">
+            <div className="ios-nav-inner app-topbar-inner">
+              <InstantLink href="/app" className="app-topbar-brand" aria-label={`${BRAND_NAME} home`}>
+                <BrandLogo compact />
+              </InstantLink>
 
-            <div className="app-topbar-copy">
-              <div className="app-topbar-title">{chrome.title}</div>
-              <div className="app-topbar-subtitle">{chrome.subtitle}</div>
+              <div className="app-topbar-copy">
+                <div className="app-topbar-title">{chrome.title}</div>
+                <div className="app-topbar-subtitle">{chrome.subtitle}</div>
+              </div>
+
+              {chrome.backHref ? (
+                <div className="ios-nav-actions">
+                  <InstantLink href={chrome.backHref} className="app-back-button">
+                    <ChevronLeft className="h-5 w-5" />
+                    Back
+                  </InstantLink>
+                </div>
+              ) : null}
+
+              {showSubscribeCta ? (
+                <div className="ios-nav-actions app-topbar-subscribe-actions">
+                  <InstantLink href={subscribeHref} className="app-subscribe-cta">
+                    <EmojiIcon symbol="✨" size="1rem" />
+                    <span>Subscribe</span>
+                  </InstantLink>
+                </div>
+              ) : null}
+
+              {showCreateCta ? (
+                <div className="ios-nav-actions app-topbar-actions">
+                  <InstantLink href={createHref} className="app-topbar-cta">
+                    <EmojiIcon symbol="➕" size="1rem" />
+                    <span>New note</span>
+                  </InstantLink>
+                </div>
+              ) : null}
             </div>
+          </header>
 
-            {chrome.backHref ? (
-              <div className="ios-nav-actions">
-                <InstantLink href={chrome.backHref} className="app-back-button">
-                  <ChevronLeft className="h-5 w-5" />
-                  Back
-                </InstantLink>
-              </div>
-            ) : null}
-
-            {showSubscribeCta ? (
-              <div className="ios-nav-actions app-topbar-subscribe-actions">
-                <InstantLink href={subscribeHref} className="app-subscribe-cta">
-                  <EmojiIcon symbol="✨" size="1rem" />
-                  <span>Subscribe</span>
-                </InstantLink>
-              </div>
-            ) : null}
-
-            {showCreateCta ? (
-              <div className="ios-nav-actions app-topbar-actions">
-                <InstantLink href={createHref} className="app-topbar-cta">
-                  <EmojiIcon symbol="➕" size="1rem" />
-                  <span>New note</span>
-                </InstantLink>
-              </div>
-            ) : null}
-          </div>
-        </header>
-
-        <main className="ios-content app-shell-content">{children}</main>
+          <main className="ios-content app-shell-content">{children}</main>
+        </div>
       </div>
 
       <nav className="ios-tabbar" aria-label="Main navigation">
