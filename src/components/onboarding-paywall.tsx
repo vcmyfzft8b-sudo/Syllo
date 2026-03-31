@@ -209,7 +209,21 @@ export function OnboardingPaywall({
     setCheckoutPlan(plan);
 
     try {
-      window.location.assign(`/api/billing/checkout?plan=${plan}`);
+      const response = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ plan }),
+      });
+
+      const payload = (await response.json()) as { url?: string; error?: string };
+
+      if (!response.ok || !payload.url) {
+        throw new Error(payload.error ?? "Could not start checkout.");
+      }
+
+      window.location.href = payload.url;
     } finally {
       setCheckoutPlan(null);
     }
