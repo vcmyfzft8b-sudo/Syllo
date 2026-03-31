@@ -87,7 +87,11 @@ export function AppShell({
   }, [router]);
 
   if (hideNavigation) {
-    return <div className="ios-app-shell desktop-shell">{children}</div>;
+    return (
+      <div className="ios-app-shell">
+        <main className="ios-content app-shell-content app-shell-content-start">{children}</main>
+      </div>
+    );
   }
 
   return (
