@@ -396,9 +396,8 @@ a:visited {
 .app-start-wizard-survey .app-start-step-card {
   min-height: 0;
   height: 100%;
-  max-width: 72rem;
   width: 100%;
-  margin: 0 auto;
+  margin: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -408,9 +407,8 @@ a:visited {
 }
 
 .app-start-wizard-survey .app-start-actions {
-  max-width: 72rem;
   width: 100%;
-  margin: 0 auto;
+  margin: 0;
   padding-top: 1rem;
   align-items: center;
   justify-content: flex-end;
@@ -434,12 +432,12 @@ a:visited {
 
 .app-start-wizard-survey .app-start-choice-grid,
 .app-start-wizard-survey .app-start-field-stack {
-  max-width: 72rem;
+  width: 100%;
   margin-top: 1rem;
 }
 
 .app-start-wizard-survey .app-start-choice-grid {
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
 }
 
 .app-start-wizard-survey .app-start-choice {
@@ -750,13 +748,6 @@ a:visited {
 @media (max-width: 1100px) {
   .app-start-pricing-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .app-start-wizard-survey .app-start-step-card,
-  .app-start-wizard-survey .app-start-actions,
-  .app-start-wizard-survey .app-start-choice-grid,
-  .app-start-wizard-survey .app-start-field-stack {
-    max-width: 56rem;
   }
 }
 
