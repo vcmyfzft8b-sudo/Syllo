@@ -590,6 +590,46 @@ async function generateCoverageQuiz(params: {
   };
 }
 
+async function publishQuizQuestions(params: {
+  lectureId: string;
+  questions: Array<{
+    lecture_id: string;
+    idx: number;
+    prompt: string;
+    options_json: string[];
+    correct_option_idx: number;
+    explanation: string;
+    difficulty: FlashcardDifficulty;
+    source_locator: string | null;
+    created_at: string;
+  }>;
+}) {
+  const supabase = createSupabaseServiceRoleClient();
+
+  const { error: upsertQuestionsError } = await supabase
+    .from("quiz_questions")
+    .upsert(params.questions as never, {
+      onConflict: "lecture_id,idx",
+    });
+
+  if (upsertQuestionsError) {
+    throw upsertQuestionsError;
+  }
+
+  const { error: deleteStaleQuestionsError } =
+    params.questions.length > 0
+      ? await supabase
+          .from("quiz_questions")
+          .delete()
+          .eq("lecture_id", params.lectureId)
+          .gte("idx", params.questions.length)
+      : await supabase.from("quiz_questions").delete().eq("lecture_id", params.lectureId);
+
+  if (deleteStaleQuestionsError) {
+    throw deleteStaleQuestionsError;
+  }
+}
+
 export async function generateLectureQuiz(params: { lectureId: string }) {
   const supabase = createSupabaseServiceRoleClient();
   const storage = await detectQuizStorageCapabilities();
@@ -693,34 +733,20 @@ export async function generateLectureQuiz(params: { lectureId: string }) {
     });
 
     if (storage.mode === "tables") {
-      const { error: deleteQuestionsError } = await supabase
-        .from("quiz_questions")
-        .delete()
-        .eq("lecture_id", params.lectureId);
-
-      if (deleteQuestionsError) {
-        throw deleteQuestionsError;
-      }
-
-      const { error: insertQuestionsError } = await supabase
-        .from("quiz_questions")
-        .insert(
-          questionsToInsert.map((question) => ({
-            lecture_id: question.lecture_id,
-            idx: question.idx,
-            prompt: question.prompt,
-            options_json: question.options_json,
-            correct_option_idx: question.correct_option_idx,
-            explanation: question.explanation,
-            difficulty: question.difficulty,
-            source_locator: question.source_locator,
-            created_at: question.created_at,
-          })) as never,
-        );
-
-      if (insertQuestionsError) {
-        throw insertQuestionsError;
-      }
+      await publishQuizQuestions({
+        lectureId: params.lectureId,
+        questions: questionsToInsert.map((question) => ({
+          lecture_id: question.lecture_id,
+          idx: question.idx,
+          prompt: question.prompt,
+          options_json: question.options_json,
+          correct_option_idx: question.correct_option_idx,
+          explanation: question.explanation,
+          difficulty: question.difficulty,
+          source_locator: question.source_locator,
+          created_at: question.created_at,
+        })),
+      });
     } else {
       await updateArtifactQuizState({
         lectureId: params.lectureId,

@@ -1765,6 +1765,11 @@ export function LectureWorkspace({
                   </div>
                 ) : null}
               </div>
+              <div className="lecture-study-header-actions">
+                {activeStudyView === "practice_test" ? (
+                  <span className="lecture-study-status demo">Demo</span>
+                ) : null}
+              </div>
             </div>
 
             <div className="ios-segmented lecture-study-mode-switch">
@@ -1780,9 +1785,6 @@ export function LectureWorkspace({
                   className={`ios-segment ${activeStudyView === item.id ? "active" : ""}`}
                 >
                   <span>{item.label}</span>
-                  {item.id === "practice_test" ? (
-                    <span className="lecture-study-tab-badge">Demo</span>
-                  ) : null}
                 </button>
               ))}
             </div>

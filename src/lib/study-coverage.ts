@@ -9,20 +9,35 @@ const UNIT_BATCH_SIZE = 5;
 const UNIT_PLAN_CONCURRENCY = 2;
 export const MAX_STUDY_ITEMS = 70;
 
+function normalizePlannerText(value: unknown, maxLength: number) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  return value.replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+
+function plannerTextSchema(minLength: number, maxLength: number) {
+  return z.preprocess(
+    (value) => normalizePlannerText(value, maxLength),
+    z.string().min(minLength).max(maxLength),
+  );
+}
+
 const plannerConceptSchema = z.object({
-  conceptKey: z.string().min(3).max(80),
-  conceptLabel: z.string().min(3).max(120),
-  conceptType: z.string().min(3).max(40),
+  conceptKey: plannerTextSchema(3, 80),
+  conceptLabel: plannerTextSchema(3, 120),
+  conceptType: plannerTextSchema(3, 40),
   studyValue: z.enum(["high", "medium", "low"]),
   recommendedCardCount: z.number().int().min(1).max(3),
-  preferredCardStyle: z.string().min(3).max(40),
-  supportingExcerpt: z.string().min(1).max(1200),
+  preferredCardStyle: plannerTextSchema(3, 40),
+  supportingExcerpt: plannerTextSchema(1, 1200),
 });
 
 const plannerUnitSchema = z.object({
   unitIndex: z.number().int().nonnegative(),
   sectionIndex: z.number().int().nonnegative(),
-  sectionTitle: z.string().min(2).max(160),
+  sectionTitle: plannerTextSchema(2, 160),
   importance: z.enum(["high", "medium", "low"]),
   concepts: z.array(plannerConceptSchema),
 });
@@ -208,9 +223,12 @@ function normalizeUnitPlan(unit: SourceUnit, plan: PlannerUnitDraft | CoverageUn
       return {
         ...concept,
         conceptType,
+        conceptLabel: normalizePlannerText(concept.conceptLabel, 120),
         preferredCardStyle: normalizeCardStyle(concept.preferredCardStyle, conceptType),
-        conceptKey:
+        conceptKey: normalizePlannerText(
           concept.conceptKey || `${unit.unitIndex}-${slugify(concept.conceptLabel) || index}`,
+          80,
+        ),
         recommendedCardCount: Math.min(
           Math.max(concept.recommendedCardCount, 1),
           maxRecommendedCardCount,
