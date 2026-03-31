@@ -16,6 +16,8 @@ export const metadata: Metadata = {
     title: BRAND_NAME,
   },
   icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
     apple: "/apple-icon.png",
   },
 };
