@@ -66,15 +66,13 @@ function getChrome(pathname: string) {
 export function AppShell({
   children,
   canCreateNotes,
-  hideNavigation,
 }: {
   children: React.ReactNode;
   canCreateNotes: boolean;
-  hideNavigation: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const shouldHideNavigation = hideNavigation || pathname === "/app/start";
+  const shouldHideNavigation = pathname === "/app/start";
   const chrome = getChrome(pathname);
   const createHref = "/app?mode=record";
   const subscribeHref = "/app/start";
