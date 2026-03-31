@@ -205,17 +205,14 @@ export function AppShell({
         style={pullIndicatorStyle}
         aria-hidden={!pullIndicatorVisible}
       >
-        <div className="pull-refresh-indicator-inner">
-          <Loader2
-            className="pull-refresh-indicator-icon"
-            style={{
-              transform: isRefreshing
-                ? "rotate(0deg)"
-                : `rotate(${Math.round(pullProgress * 180)}deg)`,
-            }}
-          />
-          <span>{isRefreshing ? "Refreshing..." : "Pull to refresh"}</span>
-        </div>
+        <Loader2
+          className="pull-refresh-indicator-icon"
+          style={{
+            transform: isRefreshing
+              ? "rotate(0deg)"
+              : `rotate(${Math.round(pullProgress * 180)}deg)`,
+          }}
+        />
       </div>
     );
   }
