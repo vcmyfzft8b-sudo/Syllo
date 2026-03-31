@@ -6566,40 +6566,14 @@ select:disabled {
 
 .landing-auth-page .app-back-button {
   border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.96);
-  color: #111111;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
-}
-
-.landing-auth-page .app-back-button:hover {
-  opacity: 1;
-  background: #ffffff;
-}
-
-:root[data-theme="dark"] .landing-auth-page .app-back-button {
-  border-color: rgba(255, 255, 255, 0.14);
   background: rgba(29, 29, 33, 0.92);
   color: white;
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
 }
 
-:root[data-theme="dark"] .landing-auth-page .app-back-button:hover {
+.landing-auth-page .app-back-button:hover {
+  opacity: 1;
   background: rgba(36, 36, 41, 0.96);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .landing-auth-page .app-back-button,
-  :root[data-theme="system"] .landing-auth-page .app-back-button {
-    border-color: rgba(255, 255, 255, 0.14);
-    background: rgba(29, 29, 33, 0.92);
-    color: white;
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
-  }
-
-  :root:not([data-theme]) .landing-auth-page .app-back-button:hover,
-  :root[data-theme="system"] .landing-auth-page .app-back-button:hover {
-    background: rgba(36, 36, 41, 0.96);
-  }
 }
 
 .email-entry-page {
