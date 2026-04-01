@@ -3906,7 +3906,7 @@ select:disabled {
 
 .lecture-study-header {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.85rem;
@@ -3918,6 +3918,17 @@ select:disabled {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
+}
+
+.lecture-study-title {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.lecture-study-header-actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .lecture-study-mode-switch {
@@ -7133,14 +7144,18 @@ select:disabled {
   }
 
   .lecture-study-header {
-    align-items: stretch;
+    align-items: center;
   }
 
   .lecture-study-title,
-  .lecture-study-header-actions,
   .lecture-study-overview,
   .lecture-study-mode-switch {
     width: 100%;
+  }
+
+  .lecture-study-header-actions {
+    width: auto;
+    flex: 0 0 auto;
   }
 
   .lecture-study-completion {
