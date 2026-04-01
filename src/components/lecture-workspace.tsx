@@ -1834,15 +1834,9 @@ export function LectureWorkspace({
                       >
                         <div className="lecture-flashcard-rotator">
                           <div className="lecture-flashcard-face lecture-flashcard-face-front">
-                            <div className="lecture-flashcard-face-meta">
-                              <span>Flashcard</span>
-                            </div>
                             <p className="lecture-flashcard-content">{currentFlashcard.front}</p>
                           </div>
                           <div className="lecture-flashcard-face lecture-flashcard-face-answer">
-                            <div className="lecture-flashcard-face-meta">
-                              <span>Answer</span>
-                            </div>
                             <p className="lecture-flashcard-content">{currentFlashcard.back}</p>
                             {currentFlashcard.hint ? (
                               <p className="lecture-flashcard-hintline">{currentFlashcard.hint}</p>
