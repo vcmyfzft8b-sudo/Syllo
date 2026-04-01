@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { EmailEntryForm } from "@/components/email-entry-form";
 import { getOptionalUser } from "@/lib/auth";
 import { BRAND_NAME } from "@/lib/brand";
 import { normalizeNextPath, sanitizeUserInput } from "@/lib/validation";
@@ -50,22 +51,7 @@ export default async function EmailEntryPage({
           </p>
         </div>
 
-        <form action="/auth/email" method="post" className="email-entry-form">
-          <input type="hidden" name="mode" value={mode} />
-          <input type="hidden" name="next" value={next} />
-          <input
-            type="email"
-            name="email"
-            required
-            defaultValue={email}
-            placeholder="Enter email address"
-            autoComplete="email"
-            className="email-entry-input"
-          />
-          <button type="submit" className="email-entry-submit">
-            Continue
-          </button>
-        </form>
+        <EmailEntryForm email={email} mode={mode} next={next} />
       </section>
     </main>
   );
