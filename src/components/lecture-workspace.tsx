@@ -2357,20 +2357,20 @@ export function LectureWorkspace({
                           value: String(detail.practiceTestHistorySummary.attemptCount),
                         },
                       ]}
-                  actions={
-                    !isPracticeTestGenerating ? (
-                      <button
-                        type="button"
-                        onClick={() => void handlePracticeTestStart()}
-                        disabled={isStartingPracticeTest}
-                        className="lecture-study-refresh lecture-practice-start-button"
-                      >
-                        {isStartingPracticeTest ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : null}
-                        Start new test
-                      </button>
-                    ) : null
+                      actions={
+                        !isPracticeTestGenerating ? (
+                          <button
+                            type="button"
+                            onClick={() => void handlePracticeTestStart()}
+                            disabled={isStartingPracticeTest}
+                            className="lecture-study-refresh lecture-practice-start-button"
+                          >
+                            {isStartingPracticeTest ? (
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : null}
+                            Start new test
+                          </button>
+                        ) : null
                       }
                     />
 
