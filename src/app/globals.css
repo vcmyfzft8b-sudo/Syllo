@@ -4676,8 +4676,7 @@ select:disabled {
   position: absolute;
   inset: 0;
   display: grid;
-  align-content: start;
-  gap: 1rem;
+  align-content: center;
   min-height: 22rem;
   padding: 1.45rem 1.55rem;
   border-radius: 24px;
@@ -4698,7 +4697,7 @@ select:disabled {
 }
 
 .lecture-flashcard-face-answer {
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr;
 }
 
 .lecture-flashcard-face-meta {
@@ -4729,7 +4728,7 @@ select:disabled {
   font-size: clamp(1.08rem, 1.05vw + 0.88rem, 1.35rem);
   line-height: 1.62;
   letter-spacing: -0.02em;
-  align-self: start;
+  align-self: center;
   justify-self: stretch;
   width: 100%;
   max-width: none;
@@ -4738,18 +4737,11 @@ select:disabled {
 }
 
 .lecture-flashcard-face-front .lecture-flashcard-content {
-  padding-top: 0.1rem;
+  padding-top: 0;
 }
 
 .lecture-flashcard-face-answer .lecture-flashcard-content {
-  padding-top: 0.1rem;
-}
-
-.lecture-flashcard-hintline {
-  margin: 0;
-  color: var(--secondary-label);
-  font-size: 0.9rem;
-  line-height: 1.5;
+  padding-top: 0;
 }
 
 .lecture-flashcard-citations {

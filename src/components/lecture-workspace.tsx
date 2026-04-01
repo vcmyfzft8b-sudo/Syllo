@@ -1838,9 +1838,6 @@ export function LectureWorkspace({
                           </div>
                           <div className="lecture-flashcard-face lecture-flashcard-face-answer">
                             <p className="lecture-flashcard-content">{currentFlashcard.back}</p>
-                            {currentFlashcard.hint ? (
-                              <p className="lecture-flashcard-hintline">{currentFlashcard.hint}</p>
-                            ) : null}
                           </div>
                         </div>
                       </button>
