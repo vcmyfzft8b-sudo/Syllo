@@ -670,6 +670,9 @@ export function LectureWorkspace({
   const [isRegeneratingStudy, setIsRegeneratingStudy] = useState(false);
   const [isRegeneratingQuiz, setIsRegeneratingQuiz] = useState(false);
   const [isStartingPracticeTest, setIsStartingPracticeTest] = useState(false);
+  const [isAwaitingStudyGeneration, setIsAwaitingStudyGeneration] = useState(false);
+  const [isAwaitingQuizGeneration, setIsAwaitingQuizGeneration] = useState(false);
+  const [isAwaitingPracticeTestGeneration, setIsAwaitingPracticeTestGeneration] = useState(false);
   const [isSubmittingPracticeTest, setIsSubmittingPracticeTest] = useState(false);
   const [studyError, setStudyError] = useState<string | null>(null);
   const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false);
@@ -1160,6 +1163,52 @@ export function LectureWorkspace({
         ? detail.quizAsset?.status
         : detail.practiceTestAsset?.status;
   const activeMaterialStatusLabel = studyAssetStatusLabel(activeMaterialStatus);
+  const isStudyGenerating =
+    shouldPollAsset(detail.studyAsset?.status) || isAwaitingStudyGeneration;
+  const isQuizGenerating = shouldPollAsset(detail.quizAsset?.status) || isAwaitingQuizGeneration;
+  const isPracticeTestGenerating =
+    shouldPollAsset(detail.practiceTestAsset?.status) || isAwaitingPracticeTestGeneration;
+
+  useEffect(() => {
+    if (
+      isAwaitingStudyGeneration &&
+      (shouldPollAsset(detail.studyAsset?.status) ||
+        detail.studyAsset?.status === "failed" ||
+        detail.studyAsset?.status === "ready" ||
+        detail.flashcards.length > 0)
+    ) {
+      setIsAwaitingStudyGeneration(false);
+    }
+  }, [detail.flashcards.length, detail.studyAsset?.status, isAwaitingStudyGeneration]);
+
+  useEffect(() => {
+    if (
+      isAwaitingQuizGeneration &&
+      (shouldPollAsset(detail.quizAsset?.status) ||
+        detail.quizAsset?.status === "failed" ||
+        detail.quizAsset?.status === "ready" ||
+        detail.quizQuestions.length > 0)
+    ) {
+      setIsAwaitingQuizGeneration(false);
+    }
+  }, [detail.quizAsset?.status, detail.quizQuestions.length, isAwaitingQuizGeneration]);
+
+  useEffect(() => {
+    if (
+      isAwaitingPracticeTestGeneration &&
+      (shouldPollAsset(detail.practiceTestAsset?.status) ||
+        detail.practiceTestAsset?.status === "failed" ||
+        detail.practiceTestQuestions.length > 0 ||
+        detail.practiceTestAttempts.some((attempt) => attempt.status === "in_progress"))
+    ) {
+      setIsAwaitingPracticeTestGeneration(false);
+    }
+  }, [
+    detail.practiceTestAsset?.status,
+    detail.practiceTestAttempts,
+    detail.practiceTestQuestions.length,
+    isAwaitingPracticeTestGeneration,
+  ]);
 
   async function handleRetry() {
     setIsRetrying(true);
@@ -1193,6 +1242,7 @@ export function LectureWorkspace({
 
   async function handleStudyCreate() {
     setStudyError(null);
+    setIsAwaitingStudyGeneration(true);
     setIsRegeneratingStudy(true);
     const response = await fetch(`/api/lectures/${detail.lecture.id}/study`, {
       method: "POST",
@@ -1206,6 +1256,7 @@ export function LectureWorkspace({
         return;
       }
 
+      setIsAwaitingStudyGeneration(false);
       setStudyError(error instanceof Error ? error.message : "Study tools could not be regenerated.");
       return;
     }
@@ -1215,6 +1266,7 @@ export function LectureWorkspace({
 
   async function handleQuizCreate() {
     setStudyError(null);
+    setIsAwaitingQuizGeneration(true);
     setIsRegeneratingQuiz(true);
     const response = await fetch(`/api/lectures/${detail.lecture.id}/quiz`, {
       method: "POST",
@@ -1228,6 +1280,7 @@ export function LectureWorkspace({
         return;
       }
 
+      setIsAwaitingQuizGeneration(false);
       setStudyError(error instanceof Error ? error.message : "Quiz could not be created.");
       return;
     }
@@ -1237,6 +1290,7 @@ export function LectureWorkspace({
 
   async function handlePracticeTestStart() {
     setStudyError(null);
+    setIsAwaitingPracticeTestGeneration(true);
     setIsStartingPracticeTest(true);
     const response = await fetch(`/api/lectures/${detail.lecture.id}/practice-test/attempt`, {
       method: "POST",
@@ -1255,6 +1309,7 @@ export function LectureWorkspace({
         return;
       }
 
+      setIsAwaitingPracticeTestGeneration(false);
       setStudyError(
         error instanceof Error ? error.message : "A new practice test could not be started.",
       );
@@ -1784,7 +1839,7 @@ export function LectureWorkspace({
                   <p className="ios-row-title">
                     {detail.lecture.status !== "ready"
                       ? "Study tools unlock after note processing finishes."
-                      : shouldPollAsset(detail.studyAsset?.status)
+                      : isStudyGenerating
                         ? "Creating flashcards."
                         : detail.studyAsset?.status === "failed"
                           ? "Flashcard creation failed."
@@ -1793,11 +1848,11 @@ export function LectureWorkspace({
                   <p className="ios-row-subtitle">
                     {detail.lecture.status !== "ready"
                       ? "Notes are created first. After that, you can generate flashcards manually."
-                      : shouldPollAsset(detail.studyAsset?.status)
+                      : isStudyGenerating
                         ? "This view refreshes automatically as your deck is prepared."
                         : "Build a study deck from the same language and content as your notes."}
                   </p>
-                  {detail.lecture.status === "ready" && !shouldPollAsset(detail.studyAsset?.status) ? (
+                  {detail.lecture.status === "ready" && !isStudyGenerating ? (
                     <button
                       type="button"
                       onClick={() => void handleStudyCreate()}
@@ -1807,6 +1862,16 @@ export function LectureWorkspace({
                       {isRegeneratingStudy ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : null}
+                      Create flashcards
+                    </button>
+                  ) : null}
+                  {detail.lecture.status === "ready" && isAwaitingStudyGeneration ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="lecture-study-refresh lecture-study-create-button"
+                    >
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Create flashcards
                     </button>
                   ) : null}
@@ -1970,7 +2035,7 @@ export function LectureWorkspace({
                   <p className="ios-row-title">
                     {detail.lecture.status !== "ready"
                       ? "Study tools unlock after note processing finishes."
-                      : shouldPollAsset(detail.quizAsset?.status)
+                      : isQuizGenerating
                         ? "Creating quiz."
                         : detail.quizAsset?.status === "failed"
                           ? "Quiz creation failed."
@@ -1979,11 +2044,11 @@ export function LectureWorkspace({
                   <p className="ios-row-subtitle">
                     {detail.lecture.status !== "ready"
                       ? "Notes are created first. After that, you can generate quizzes manually."
-                      : shouldPollAsset(detail.quizAsset?.status)
+                      : isQuizGenerating
                         ? "This view refreshes automatically as your quiz is prepared."
                         : "Generate multiple-choice questions in the same language as your notes."}
                   </p>
-                  {detail.lecture.status === "ready" && !shouldPollAsset(detail.quizAsset?.status) ? (
+                  {detail.lecture.status === "ready" && !isQuizGenerating ? (
                     <button
                       type="button"
                       onClick={() => void handleQuizCreate()}
@@ -1993,6 +2058,16 @@ export function LectureWorkspace({
                       {isRegeneratingQuiz ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : null}
+                      Create quiz
+                    </button>
+                  ) : null}
+                  {detail.lecture.status === "ready" && isAwaitingQuizGeneration ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="lecture-study-refresh lecture-study-create-button"
+                    >
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Create quiz
                     </button>
                   ) : null}
@@ -2147,7 +2222,7 @@ export function LectureWorkspace({
                 <p className="ios-row-title">
                   {detail.lecture.status !== "ready"
                     ? "Study tools unlock after note processing finishes."
-                    : shouldPollAsset(detail.practiceTestAsset?.status)
+                    : isPracticeTestGenerating
                       ? "Creating practice test."
                       : detail.practiceTestAsset?.status === "failed"
                         ? "Practice-test creation failed."
@@ -2158,22 +2233,32 @@ export function LectureWorkspace({
                 <p className="ios-row-subtitle">
                   {detail.lecture.status !== "ready"
                     ? "Notes are created first. After that, you can start a practice test."
-                    : shouldPollAsset(detail.practiceTestAsset?.status)
+                    : isPracticeTestGenerating
                       ? "This view refreshes automatically while your next practice test is being prepared."
                       : hasCompletedPracticeTest
                         ? "Each new test gives you a fresh random set of open-ended questions."
                         : "Generate a first set of self-contained open-ended questions, then review your results and start new tests after you finish."}
                 </p>
-                {detail.lecture.status === "ready" ? (
+                {detail.lecture.status === "ready" && !isPracticeTestGenerating ? (
                   <button
                     type="button"
                     onClick={() => void handlePracticeTestStart()}
-                    disabled={isStartingPracticeTest || shouldPollAsset(detail.practiceTestAsset?.status)}
+                    disabled={isStartingPracticeTest}
                     className="lecture-study-refresh lecture-study-create-button"
                   >
                     {isStartingPracticeTest ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : null}
+                    {hasCompletedPracticeTest ? "Start new test" : "Generate test"}
+                  </button>
+                ) : null}
+                {detail.lecture.status === "ready" && isAwaitingPracticeTestGeneration ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="lecture-study-refresh lecture-study-create-button"
+                  >
+                    <Loader2 className="h-4 w-4 animate-spin" />
                     {hasCompletedPracticeTest ? "Start new test" : "Generate test"}
                   </button>
                 ) : null}
@@ -2272,20 +2357,20 @@ export function LectureWorkspace({
                           value: String(detail.practiceTestHistorySummary.attemptCount),
                         },
                       ]}
-                      actions={
-                        <button
-                          type="button"
-                          onClick={() => void handlePracticeTestStart()}
-                          disabled={
-                            isStartingPracticeTest || shouldPollAsset(detail.practiceTestAsset?.status)
-                          }
-                          className="lecture-study-refresh lecture-practice-start-button"
-                        >
-                          {isStartingPracticeTest ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                          ) : null}
-                          Start new test
-                        </button>
+                  actions={
+                    !isPracticeTestGenerating ? (
+                      <button
+                        type="button"
+                        onClick={() => void handlePracticeTestStart()}
+                        disabled={isStartingPracticeTest}
+                        className="lecture-study-refresh lecture-practice-start-button"
+                      >
+                        {isStartingPracticeTest ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : null}
+                        Start new test
+                      </button>
+                    ) : null
                       }
                     />
 
@@ -2335,17 +2420,17 @@ export function LectureWorkspace({
                 ) : (
                   <div className="lecture-practice-summary lecture-practice-summary-centered">
                     <div className="lecture-practice-summary-actions">
-                      <button
-                        type="button"
-                        onClick={() => void handlePracticeTestStart()}
-                        disabled={
-                          isStartingPracticeTest || shouldPollAsset(detail.practiceTestAsset?.status)
-                        }
-                        className="lecture-study-refresh lecture-practice-start-button"
-                      >
-                        {isStartingPracticeTest ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                        Start new test
-                      </button>
+                      {!isPracticeTestGenerating ? (
+                        <button
+                          type="button"
+                          onClick={() => void handlePracticeTestStart()}
+                          disabled={isStartingPracticeTest}
+                          className="lecture-study-refresh lecture-practice-start-button"
+                        >
+                          {isStartingPracticeTest ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                          Start new test
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 )}
@@ -2520,7 +2605,8 @@ export function LectureWorkspace({
 
           {shouldPollLecture(detail.lecture.status) ||
           shouldPollAsset(detail.studyAsset?.status) ||
-          shouldPollAsset(detail.quizAsset?.status) ? (
+          shouldPollAsset(detail.quizAsset?.status) ||
+          shouldPollAsset(detail.practiceTestAsset?.status) ? (
             <p className="ios-info lecture-inline-note">
               Processing is still running. This view refreshes automatically.
             </p>
