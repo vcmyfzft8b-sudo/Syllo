@@ -515,7 +515,7 @@ export function HomeDashboard({
                       ) : null}
                       Delete
                     </button>
-                    {lecture.source_type === "audio" ? (
+                    {lecture.status === "failed" ? (
                       <button
                         type="button"
                         disabled={busyLectureId === lecture.id}

@@ -2,6 +2,7 @@ import "server-only";
 
 import type { PostgrestError } from "@supabase/supabase-js";
 
+import { toUserFacingAiErrorMessage } from "@/lib/ai/errors";
 import { chatAnswerSchema } from "@/lib/ai/schemas";
 import { generateStructuredObject } from "@/lib/ai/json";
 import { createEmbeddings } from "@/lib/ai/embeddings";
@@ -74,15 +75,7 @@ async function updateLectureProcessingState(params: {
 }
 
 function toErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (typeof error === "string") {
-    return error;
-  }
-
-  return "Unknown processing error.";
+  return toUserFacingAiErrorMessage(error);
 }
 
 function assertTranscriptCoverage(params: {

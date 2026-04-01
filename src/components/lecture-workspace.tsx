@@ -2506,7 +2506,7 @@ export function LectureWorkspace({
                 </button>
               ) : null}
 
-              {detail.lecture.status === "failed" && detail.lecture.source_type === "audio" ? (
+              {detail.lecture.status === "failed" ? (
                 <button
                   type="button"
                   onClick={handleRetry}

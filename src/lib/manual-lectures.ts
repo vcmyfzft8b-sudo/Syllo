@@ -6,6 +6,7 @@ import { isIP } from "node:net";
 import mammoth from "mammoth";
 import { z } from "zod";
 
+import { toUserFacingAiErrorMessage } from "@/lib/ai/errors";
 import { generateStructuredObjectWithGeminiFile } from "@/lib/ai/gemini";
 import { generateStructuredObject } from "@/lib/ai/json";
 import {
@@ -782,8 +783,7 @@ export async function createLectureFromTextSource(params: {
           .update(
             {
               status: "failed",
-              error_message:
-                error instanceof Error ? error.message : "Unknown processing error.",
+              error_message: toUserFacingAiErrorMessage(error),
             } as never,
           )
           .eq("id", lectureId);

@@ -1,6 +1,6 @@
 import { after, NextResponse } from "next/server";
 
-import { enqueueLectureProcessing } from "@/lib/jobs";
+import { enqueueLectureProcessing, enqueueLectureProcessingStage } from "@/lib/jobs";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -48,18 +48,26 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (lecture.source_type !== "audio") {
+  const hasManualImport =
+    lecture.processing_metadata &&
+    typeof lecture.processing_metadata === "object" &&
+    !Array.isArray(lecture.processing_metadata) &&
+    "manualImport" in lecture.processing_metadata;
+
+  if (lecture.source_type !== "audio" && !hasManualImport) {
     return NextResponse.json(
-      { error: "Retry is currently supported only for audio notes." },
+      { error: "Retry is not available for this note." },
       { status: 400 },
     );
   }
+
+  const nextStatus = lecture.source_type === "audio" ? "queued" : "generating_notes";
 
   const { error } = await supabase
     .from("lectures")
     .update(
       {
-        status: "queued",
+        status: nextStatus,
         error_message: null,
       } as never,
     )
@@ -71,7 +79,15 @@ export async function POST(
   }
 
   after(async () => {
-    await enqueueLectureProcessing(id);
+    if (lecture.source_type === "audio") {
+      await enqueueLectureProcessing(id);
+      return;
+    }
+
+    await enqueueLectureProcessingStage({
+      lectureId: id,
+      stage: "generate_notes",
+    });
   });
 
   return NextResponse.json({ ok: true });

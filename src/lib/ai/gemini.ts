@@ -3,12 +3,14 @@ import "server-only";
 import { GoogleGenAI, createPartFromUri } from "@google/genai";
 import { z } from "zod";
 
+import { isRetryableAiError } from "@/lib/ai/errors";
 import { requireGeminiEnv } from "@/lib/server-env";
 import type { TranscriptResult } from "@/lib/types";
 
 const GEMINI_GENERATION_MAX_ATTEMPTS = 4;
 const GEMINI_EMBEDDING_DIMENSION = 1536;
 const GEMINI_GENERATION_TIMEOUT_MS = 90_000;
+const GEMINI_RETRY_BASE_DELAY_MS = 1_500;
 
 let geminiClient: GoogleGenAI | undefined;
 
@@ -84,6 +86,10 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: str
   }
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function getGeminiClient() {
   if (!geminiClient) {
     const env = requireGeminiEnv();
@@ -152,6 +158,10 @@ ${params.input}`,
       }
 
       lastError = error;
+
+      if (attempt < GEMINI_GENERATION_MAX_ATTEMPTS - 1 && isRetryableAiError(error)) {
+        await sleep(GEMINI_RETRY_BASE_DELAY_MS * (attempt + 1));
+      }
     }
   }
 
@@ -234,6 +244,10 @@ ${JSON.stringify(responseSchema)}`,
         }
 
         lastError = error;
+
+        if (attempt < GEMINI_GENERATION_MAX_ATTEMPTS - 1 && isRetryableAiError(error)) {
+          await sleep(GEMINI_RETRY_BASE_DELAY_MS * (attempt + 1));
+        }
       }
     }
 
