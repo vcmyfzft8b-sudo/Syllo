@@ -477,7 +477,7 @@ export function HomeDashboard({
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Išči po naslovu, viru ali napaki"
+                placeholder="Išči po naslovu"
               />
             </div>
           </div>

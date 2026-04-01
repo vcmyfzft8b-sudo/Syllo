@@ -1813,9 +1813,9 @@ export function LectureWorkspace({
 
             <div className="ios-segmented lecture-study-mode-switch">
               {([
-                { id: "flashcards", label: "Kartice" },
+                { id: "flashcards", label: "Flashcards" },
                 { id: "quiz", label: "Kviz" },
-                { id: "practice_test", label: "Preizkus" },
+                { id: "practice_test", label: "Test" },
               ] as const).map((item) => (
                 <button
                   key={item.id}
