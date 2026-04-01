@@ -45,6 +45,8 @@ type PostgrestLikeError = {
   hint?: string | null;
 };
 
+const BATCHED_IN_QUERY_SIZE = 100;
+
 function getSchemaErrorText(error: unknown) {
   if (!error || typeof error !== "object") {
     return "";
@@ -354,6 +356,76 @@ function mapQuizQuestion(question: QuizQuestionRow): QuizQuestionWithOptions {
 
 function mapPracticeTestQuestion(question: PracticeTestQuestionRow): PracticeTestQuestion {
   return question;
+}
+
+async function fetchFlashcardProgressRows(params: {
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
+  userId: string;
+  flashcardIds: string[];
+}) {
+  if (params.flashcardIds.length === 0) {
+    return [] as FlashcardProgressRow[];
+  }
+
+  const batches: string[][] = [];
+
+  for (let index = 0; index < params.flashcardIds.length; index += BATCHED_IN_QUERY_SIZE) {
+    batches.push(params.flashcardIds.slice(index, index + BATCHED_IN_QUERY_SIZE));
+  }
+
+  const progressRows: FlashcardProgressRow[] = [];
+
+  for (const batch of batches) {
+    const { data, error } = await params.supabase
+      .from("flashcard_progress")
+      .select("*")
+      .eq("user_id", params.userId)
+      .in("flashcard_id", batch);
+
+    if (error) {
+      throw error;
+    }
+
+    progressRows.push(...((data ?? []) as FlashcardProgressRow[]));
+  }
+
+  return progressRows;
+}
+
+async function fetchPracticeTestAttemptAnswers(params: {
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
+  attemptIds: string[];
+}) {
+  if (params.attemptIds.length === 0) {
+    return [] as Array<
+      PracticeTestAttemptAnswerRow & { practice_test_questions: PracticeTestQuestionRow | null }
+    >;
+  }
+
+  const answers: Array<
+    PracticeTestAttemptAnswerRow & { practice_test_questions: PracticeTestQuestionRow | null }
+  > = [];
+
+  for (let index = 0; index < params.attemptIds.length; index += BATCHED_IN_QUERY_SIZE) {
+    const attemptIdBatch = params.attemptIds.slice(index, index + BATCHED_IN_QUERY_SIZE);
+    const { data, error } = await params.supabase
+      .from("practice_test_attempt_answers")
+      .select("*, practice_test_questions(*)")
+      .in("attempt_id", attemptIdBatch)
+      .order("idx", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    answers.push(
+      ...((data ?? []) as Array<
+        PracticeTestAttemptAnswerRow & { practice_test_questions: PracticeTestQuestionRow | null }
+      >),
+    );
+  }
+
+  return answers;
 }
 
 function parseFallbackQuizState(params: {
@@ -725,21 +797,14 @@ export async function getLectureDetailForUser(params: {
 
   const flashcardRows = (flashcards ?? []) as FlashcardRow[];
   const flashcardIds = flashcardRows.map((flashcard) => flashcard.id);
-  const { data: flashcardProgress, error: flashcardProgressError } =
-    flashcardIds.length > 0
-      ? await supabase
-          .from("flashcard_progress")
-          .select("*")
-          .eq("user_id", params.userId)
-          .in("flashcard_id", flashcardIds)
-      : { data: [], error: null };
-
-  if (flashcardProgressError) {
-    throw flashcardProgressError;
-  }
+  const flashcardProgress = await fetchFlashcardProgressRows({
+    supabase,
+    userId: params.userId,
+    flashcardIds,
+  });
 
   const progressByFlashcardId = new Map(
-    ((flashcardProgress ?? []) as FlashcardProgressRow[]).map((progress) => [
+    flashcardProgress.map((progress) => [
       progress.flashcard_id,
       progress,
     ]),
@@ -762,14 +827,19 @@ export async function getLectureDetailForUser(params: {
 
   if (practiceTestAttempts.length > 0) {
     const attemptIds = practiceTestAttempts.map((attempt) => attempt.id);
-    const { data: attemptAnswers, error: attemptAnswersError } = await supabase
-      .from("practice_test_attempt_answers")
-      .select("*, practice_test_questions(*)")
-      .in("attempt_id", attemptIds)
-      .order("idx", { ascending: true });
+    let attemptAnswers: Array<
+      PracticeTestAttemptAnswerRow & { practice_test_questions: PracticeTestQuestionRow | null }
+    > = [];
 
-    if (attemptAnswersError && !isMissingPracticeTestSchemaError(attemptAnswersError)) {
-      throw attemptAnswersError;
+    try {
+      attemptAnswers = await fetchPracticeTestAttemptAnswers({
+        supabase,
+        attemptIds,
+      });
+    } catch (error) {
+      if (!isMissingPracticeTestSchemaError(error)) {
+        throw error;
+      }
     }
 
     const answersByAttemptId = new Map<
@@ -777,9 +847,7 @@ export async function getLectureDetailForUser(params: {
       Array<PracticeTestAttemptAnswerRow & { practice_test_questions: PracticeTestQuestionRow | null }>
     >();
 
-    for (const answer of ((attemptAnswers ?? []) as Array<
-      PracticeTestAttemptAnswerRow & { practice_test_questions: PracticeTestQuestionRow | null }
-    >)) {
+    for (const answer of attemptAnswers) {
       const existing = answersByAttemptId.get(answer.attempt_id) ?? [];
       existing.push(answer);
       answersByAttemptId.set(answer.attempt_id, existing);
