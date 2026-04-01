@@ -1063,7 +1063,7 @@ export function NoteSourceModal({
                   <p className="note-source-card-label">Korak 1</p>
                   <p className="note-source-guide-step-title">Posnemi v običajni aplikaciji za zvok na telefonu</p>
                   <p className="note-source-guide-copy">
-                    Na iPhonu uporabi Diktafon. Na Androidu uporabi Recorder ali katerokoli vgrajeno aplikacijo za snemanje, ki shrani datoteko na napravo.
+                    Na iPhonu uporabi Voice Memos. Na Androidu uporabi Recorder ali katerokoli vgrajeno aplikacijo za snemanje, ki shrani datoteko na napravo.
                   </p>
                   <p className="note-source-guide-copy">
                     Snemanje tam zaženi pred začetkom predavanja. Telefon lahko zakleneš, ugasneš zaslon ali popolnoma zapreš to aplikacijo. Snemanje bo teklo v sistemski aplikaciji, ne v tej aplikaciji.
