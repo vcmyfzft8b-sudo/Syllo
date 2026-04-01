@@ -79,6 +79,69 @@ export function getActiveSubscription(
   );
 }
 
+async function getSubscriptionsForUser(userId: string) {
+  const { data } = await createSupabaseServiceRoleClient()
+    .from("billing_subscriptions")
+    .select("*")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false });
+
+  return (data ?? []) as BillingSubscriptionRow[];
+}
+
+async function syncStripeSubscriptionsForCustomer(customerId: string) {
+  const stripe = getStripeClient();
+  let startingAfter: string | undefined;
+
+  do {
+    const page = await stripe.subscriptions.list({
+      customer: customerId,
+      status: "all",
+      limit: 100,
+      starting_after: startingAfter,
+    });
+
+    for (const subscription of page.data) {
+      await syncStripeSubscriptionRecord(subscription);
+    }
+
+    if (!page.has_more || page.data.length === 0) {
+      break;
+    }
+
+    startingAfter = page.data.at(-1)?.id;
+  } while (startingAfter);
+}
+
+async function resolveUserSubscriptionState(params: {
+  userId: string;
+  stripeCustomerId: string | null;
+  subscriptions?: BillingSubscriptionRow[];
+}) {
+  let subscriptions = params.subscriptions ?? (await getSubscriptionsForUser(params.userId));
+  let subscription = getActiveSubscription(subscriptions);
+
+  if (!subscription && params.stripeCustomerId) {
+    try {
+      await syncStripeSubscriptionsForCustomer(params.stripeCustomerId);
+      subscriptions = await getSubscriptionsForUser(params.userId);
+      subscription = getActiveSubscription(subscriptions);
+    } catch (error) {
+      console.error("Stripe subscription reconciliation failed", {
+        userId: params.userId,
+        stripeCustomerId: params.stripeCustomerId,
+        error,
+      });
+    }
+  }
+
+  return {
+    subscriptions,
+    subscription,
+    hasPaidAccess: hasPaidAccess(subscription),
+  };
+}
+
 export async function getViewerAppState() {
   const supabase = await createSupabaseServerClient();
   const {
@@ -100,16 +163,20 @@ export async function getViewerAppState() {
 
   const typedProfile = (profile ?? null) as ProfileRow | null;
   const typedSubscriptions = (subscriptions ?? []) as BillingSubscriptionRow[];
-  const subscription = getActiveSubscription(typedSubscriptions);
+  const billingState = await resolveUserSubscriptionState({
+    userId: user.id,
+    stripeCustomerId: typedProfile?.stripe_customer_id ?? null,
+    subscriptions: typedSubscriptions,
+  });
   const onboardingComplete = Boolean(typedProfile?.onboarding_completed_at);
 
   return {
     user,
     profile: typedProfile,
-    subscriptions: typedSubscriptions,
-    subscription,
+    subscriptions: billingState.subscriptions,
+    subscription: billingState.subscription,
     onboardingComplete,
-    hasPaidAccess: hasPaidAccess(subscription),
+    hasPaidAccess: billingState.hasPaidAccess,
   };
 }
 
@@ -279,11 +346,21 @@ export function createBillingRequiredResponse(message = "A paid plan is required
 }
 
 export async function hasPaidAccessForUserId(userId: string) {
-  const { data } = await createSupabaseServiceRoleClient()
-    .from("billing_subscriptions")
-    .select("*")
-    .eq("user_id", userId)
-    .order("updated_at", { ascending: false });
+  const service = createSupabaseServiceRoleClient();
+  const [{ data: profile }, { data: subscriptions }] = await Promise.all([
+    service.from("profiles").select("stripe_customer_id").eq("id", userId).maybeSingle(),
+    service
+      .from("billing_subscriptions")
+      .select("*")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false }),
+  ]);
 
-  return hasPaidAccess(getActiveSubscription((data ?? []) as BillingSubscriptionRow[]));
+  const billingState = await resolveUserSubscriptionState({
+    userId,
+    stripeCustomerId: (profile as { stripe_customer_id: string | null } | null)?.stripe_customer_id ?? null,
+    subscriptions: (subscriptions ?? []) as BillingSubscriptionRow[],
+  });
+
+  return billingState.hasPaidAccess;
 }
