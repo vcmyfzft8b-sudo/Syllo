@@ -359,7 +359,6 @@ async function generateCardsForConceptBatch(params: {
 
   const batch = await generateStructuredObject({
     schema: generatedCardBatchSchema,
-    schemaName: `coverage_cards_unit_${params.unit.unitIndex}`,
     maxOutputTokens: Math.max(2600, targetCount * 560),
     instructions:
       `${languageInstruction}

@@ -5,7 +5,6 @@ import { z } from "zod";
 
 import { isRetryableAiError } from "@/lib/ai/errors";
 import { requireGeminiEnv } from "@/lib/server-env";
-import type { TranscriptResult } from "@/lib/types";
 
 const GEMINI_GENERATION_MAX_ATTEMPTS = 4;
 const GEMINI_EMBEDDING_DIMENSION = 1536;
@@ -277,97 +276,4 @@ export async function createGeminiEmbeddings(texts: string[]) {
   });
 
   return (response.embeddings ?? []).map((embedding) => embedding.values ?? []);
-}
-
-const geminiTranscriptSegmentSchema = z.object({
-  startMs: z.number().int().min(0),
-  endMs: z.number().int().min(0),
-  speakerLabel: z.string().min(1).nullable(),
-  text: z.string().min(1),
-});
-
-const geminiTranscriptSchema = z.object({
-  segments: z.array(geminiTranscriptSegmentSchema).min(1),
-});
-
-export async function transcribeAudioWithGemini(input: {
-  file: File;
-  languageHint: string | null;
-  durationSeconds?: number | null;
-}): Promise<TranscriptResult> {
-  const ai = getGeminiClient();
-  const env = requireGeminiEnv();
-  const tempPath = `/tmp/${crypto.randomUUID()}-${input.file.name || "lecture.bin"}`;
-  const bytes = Buffer.from(await input.file.arrayBuffer());
-  const fs = await import("node:fs/promises");
-
-  await fs.writeFile(tempPath, bytes);
-
-  let uploadedFileName: string | null = null;
-
-  try {
-    const uploaded = await ai.files.upload({
-      file: tempPath,
-      config: {
-        mimeType: input.file.type || "audio/mp4",
-      },
-    });
-
-    uploadedFileName = uploaded.name ?? null;
-
-    const response = await ai.models.generateContent({
-      model: env.GEMINI_TRANSCRIPTION_MODEL,
-      contents: [
-        `Transcribe this lecture audio in ${input.languageHint ?? "the original language"}.
-Return a complete transcript as timestamped sequential segments.
-Timestamps must reflect the real audio timeline in milliseconds.
-Do not summarize. Do not omit the ending. Merge tiny fragments into readable segments.
-Every segment must include startMs, endMs, speakerLabel (or null), and text.
-Produce only valid JSON that matches the requested schema.`,
-        createPartFromUri(
-          uploaded.uri ?? "",
-          uploaded.mimeType ?? input.file.type ?? "audio/mp4",
-        ),
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: z.toJSONSchema(geminiTranscriptSchema),
-        maxOutputTokens: 8192,
-      },
-    });
-
-    const transcript = geminiTranscriptSchema.parse(
-      JSON.parse(stripCodeFences(response.text ?? "")),
-    );
-
-    const segments = transcript.segments
-      .map((segment, index) => ({
-        idx: index,
-        startMs: segment.startMs,
-        endMs: Math.max(segment.endMs, segment.startMs),
-        speakerLabel: segment.speakerLabel,
-        text: segment.text.trim(),
-      }))
-      .filter((segment) => segment.text.length > 0);
-
-    const lastEndMs = segments.reduce(
-      (maxEndMs, segment) => Math.max(maxEndMs, segment.endMs),
-      0,
-    );
-
-    return {
-      text: segments.map((segment) => segment.text).join(" ").trim(),
-      durationSeconds: Math.max(
-        Math.round(lastEndMs / 1000),
-        Math.round(input.durationSeconds ?? 0),
-      ),
-      segments,
-    };
-  } finally {
-    await fs.rm(tempPath, { force: true }).catch(() => null);
-
-    if (uploadedFileName) {
-      await ai.files.delete({ name: uploadedFileName }).catch(() => null);
-    }
-  }
 }

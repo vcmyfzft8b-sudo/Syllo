@@ -4,23 +4,13 @@ import { z } from "zod";
 
 import { getPublicEnv } from "@/lib/public-env";
 
-const aiProviderSchema = z.enum(["openai", "gemini"]);
-const transcriptionProviderSchema = z.enum(["openai", "gemini", "soniox"]);
-
 const serverEnvSchema = z.object({
-  AI_PROVIDER: aiProviderSchema.default("openai"),
-  TRANSCRIPTION_PROVIDER: transcriptionProviderSchema.optional(),
   NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-  OPENAI_API_KEY: z.string().optional(),
-  OPENAI_TEXT_MODEL: z.string().default("gpt-4.1-mini"),
-  OPENAI_TRANSCRIPTION_MODEL: z.string().default("gpt-4o-transcribe-diarize"),
-  OPENAI_EMBEDDING_MODEL: z.string().default("text-embedding-3-small"),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_TEXT_MODEL: z.string().default("gemini-2.5-flash-lite"),
-  GEMINI_TRANSCRIPTION_MODEL: z.string().default("gemini-2.5-flash"),
   GEMINI_EMBEDDING_MODEL: z.string().default("gemini-embedding-001"),
   SONIOX_API_KEY: z.string().optional(),
   SONIOX_MODEL: z.string().default("stt-async-v4"),
@@ -36,19 +26,12 @@ const serverEnvSchema = z.object({
 
 export function getServerEnv() {
   return serverEnvSchema.parse({
-    AI_PROVIDER: process.env.AI_PROVIDER,
-    TRANSCRIPTION_PROVIDER: process.env.TRANSCRIPTION_PROVIDER,
     NEXT_PUBLIC_SITE_URL: getPublicEnv().siteUrl,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-    OPENAI_TEXT_MODEL: process.env.OPENAI_TEXT_MODEL,
-    OPENAI_TRANSCRIPTION_MODEL: process.env.OPENAI_TRANSCRIPTION_MODEL,
-    OPENAI_EMBEDDING_MODEL: process.env.OPENAI_EMBEDDING_MODEL,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
     GEMINI_TEXT_MODEL: process.env.GEMINI_TEXT_MODEL,
-    GEMINI_TRANSCRIPTION_MODEL: process.env.GEMINI_TRANSCRIPTION_MODEL,
     GEMINI_EMBEDDING_MODEL: process.env.GEMINI_EMBEDDING_MODEL,
     SONIOX_API_KEY: process.env.SONIOX_API_KEY,
     SONIOX_MODEL: process.env.SONIOX_MODEL,
@@ -64,30 +47,15 @@ export function getServerEnv() {
 }
 
 export function hasServerAiEnv() {
-  return Boolean(
-    process.env.OPENAI_API_KEY ||
-      process.env.GEMINI_API_KEY ||
-      process.env.SONIOX_API_KEY,
-  );
+  return Boolean(process.env.GEMINI_API_KEY || process.env.SONIOX_API_KEY);
 }
 
 export function getAiProvider() {
-  return getServerEnv().AI_PROVIDER;
+  return "gemini" as const;
 }
 
 export function getTranscriptionProviderName() {
-  const env = getServerEnv();
-  return env.TRANSCRIPTION_PROVIDER ?? env.AI_PROVIDER;
-}
-
-export function requireOpenAiEnv() {
-  const env = getServerEnv();
-
-  if (!env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured.");
-  }
-
-  return env;
+  return "soniox" as const;
 }
 
 export function requireGeminiEnv() {

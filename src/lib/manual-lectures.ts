@@ -8,7 +8,6 @@ import { z } from "zod";
 
 import { toUserFacingAiErrorMessage } from "@/lib/ai/errors";
 import { generateStructuredObjectWithGeminiFile } from "@/lib/ai/gemini";
-import { generateStructuredObject } from "@/lib/ai/json";
 import {
   isDocxDocument,
   isHtmlDocument,
@@ -18,7 +17,7 @@ import {
 } from "@/lib/document-files";
 import { enqueueLectureProcessingStage } from "@/lib/jobs";
 import { generateNotesFromTranscript } from "@/lib/note-generation";
-import { getAiProvider, getServerEnv } from "@/lib/server-env";
+import { getServerEnv } from "@/lib/server-env";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import {
   buildSyntheticTranscriptFromTextSource,
@@ -358,7 +357,6 @@ export async function fetchReadableWebpage(params: { url: string }) {
 
 export async function extractTextFromPdf(file: File) {
   const fileBytes = new Uint8Array(await file.arrayBuffer());
-  const buffer = Buffer.from(fileBytes);
   try {
     const pdfjs = await getPdfJs();
     const loadingTask = pdfjs.getDocument({
@@ -436,44 +434,19 @@ export async function extractTextFromPdf(file: File) {
       await loadingTask.destroy();
     }
   } catch (error) {
-    console.warn("PDF.js extraction failed, falling back to OpenAI file extraction.", error);
+    console.warn("PDF.js extraction failed, falling back to Gemini file extraction.", error);
   }
 
   const fallbackInstructions =
     "Extract as much readable text from this PDF as possible into plain text. Do not summarize. Preserve the source language, preserve examples and important details, and ignore repeated headers, footers, and page numbers when possible. Return a concise title plus the document text.";
-  const provider = getAiProvider();
   const env = getServerEnv();
-  const fallback =
-    provider === "gemini"
-      ? await generateStructuredObjectWithGeminiFile({
-          schema: pdfExtractionSchema,
-          instructions: `${fallbackInstructions}\n\nExtract the document text as faithfully and completely as possible so it can be turned into detailed study notes and flashcards.`,
-          file,
-          model: env.GEMINI_TEXT_MODEL,
-          maxOutputTokens: 7000,
-        })
-      : await generateStructuredObject({
-          schema: pdfExtractionSchema,
-          schemaName: "pdf_extraction",
-          maxOutputTokens: 7000,
-          instructions: fallbackInstructions,
-          input: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "input_text",
-                  text: "Extract the document text as faithfully and completely as possible so it can be turned into detailed study notes and flashcards.",
-                },
-                {
-                  type: "input_file",
-                  filename: file.name,
-                  file_data: `data:${file.type || "application/pdf"};base64,${buffer.toString("base64")}`,
-                },
-              ],
-            },
-          ],
-        });
+  const fallback = await generateStructuredObjectWithGeminiFile({
+    schema: pdfExtractionSchema,
+    instructions: `${fallbackInstructions}\n\nExtract the document text as faithfully and completely as possible so it can be turned into detailed study notes and flashcards.`,
+    file,
+    model: env.GEMINI_TEXT_MODEL,
+    maxOutputTokens: 7000,
+  });
 
   return {
     title: fallback.title,
@@ -529,43 +502,17 @@ export async function extractTextFromDocument(file: File) {
 }
 
 export async function extractTextFromImage(file: File) {
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const provider = getAiProvider();
   const env = getServerEnv();
   const instructions =
     "Extract all readable text from this photo of notes or printed material. Do not summarize. Preserve the original language, headings, bullet points, equations, labels, and important details. Ignore decorative background elements. If handwriting is uncertain, make the best faithful reading instead of inventing content. Return a short title and the extracted text.";
 
-  const extracted =
-    provider === "gemini"
-      ? await generateStructuredObjectWithGeminiFile({
-          schema: imageExtractionSchema,
-          instructions,
-          file,
-          model: env.GEMINI_TEXT_MODEL,
-          maxOutputTokens: 6000,
-        })
-      : await generateStructuredObject({
-          schema: imageExtractionSchema,
-          schemaName: "image_extraction",
-          maxOutputTokens: 6000,
-          instructions,
-          input: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "input_text",
-                  text: "Extract the text from this image as faithfully as possible for note generation.",
-                },
-                {
-                  type: "input_image",
-                  image_url: `data:${file.type || "image/jpeg"};base64,${buffer.toString("base64")}`,
-                  detail: "auto",
-                },
-              ],
-            },
-          ],
-        });
+  const extracted = await generateStructuredObjectWithGeminiFile({
+    schema: imageExtractionSchema,
+    instructions,
+    file,
+    model: env.GEMINI_TEXT_MODEL,
+    maxOutputTokens: 6000,
+  });
 
   return {
     title: extracted.title,

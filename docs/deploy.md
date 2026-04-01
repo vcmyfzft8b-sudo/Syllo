@@ -14,7 +14,8 @@ Use a Linux VPS with Docker and a reverse proxy in front of the app:
 - App container listens on port `3000`
 - Nginx or Caddy terminates HTTPS on `443`
 - Supabase stays managed remotely
-- OpenAI is used through `OPENAI_API_KEY`
+- Gemini is used through `GEMINI_API_KEY`
+- Soniox is optional through `SONIOX_API_KEY`
 
 This is the fastest path to getting the app reachable on a real server without changing the product architecture.
 
@@ -28,7 +29,7 @@ Required values:
 - `NEXT_PUBLIC_SUPABASE_URL=...`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY=...`
 - `SUPABASE_SERVICE_ROLE_KEY=...`
-- `OPENAI_API_KEY=...`
+- `GEMINI_API_KEY=...`
 
 Recommended production values:
 

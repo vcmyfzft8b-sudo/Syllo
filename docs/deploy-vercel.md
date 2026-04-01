@@ -8,7 +8,7 @@ You need:
 
 - a Vercel account
 - a Supabase project with the existing migrations applied
-- an OpenAI API key
+- a Gemini API key
 - a real production domain or a Vercel preview URL to test against
 
 Recommended for production:
@@ -42,10 +42,11 @@ Add these in the Vercel project settings:
 - `NEXT_PUBLIC_SUPABASE_URL=...`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY=...`
 - `SUPABASE_SERVICE_ROLE_KEY=...`
-- `OPENAI_API_KEY=...`
-- `OPENAI_TEXT_MODEL=gpt-4.1-mini`
-- `OPENAI_TRANSCRIPTION_MODEL=gpt-4o-transcribe-diarize`
-- `OPENAI_EMBEDDING_MODEL=text-embedding-3-small`
+- `GEMINI_API_KEY=...`
+- `GEMINI_TEXT_MODEL=gemini-2.5-flash-lite`
+- `GEMINI_EMBEDDING_MODEL=gemini-embedding-001`
+- `SONIOX_API_KEY=...`
+- `SONIOX_MODEL=stt-async-v4`
 
 Strongly recommended on Vercel:
 
@@ -117,4 +118,5 @@ For a stable Vercel production deployment, use:
 - Vercel for the Next.js app
 - Supabase for auth, database, and storage
 - Inngest for background work
-- OpenAI for transcription and generation
+- Gemini for generation and embeddings
+- Soniox for transcription if enabled

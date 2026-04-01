@@ -14,8 +14,8 @@ The canonical production domain is `https://memoai.eu`.
   - links / web sources
   - PDFs and other supported document files
   - manual note input
-- Transcribe long audio with `Soniox` or `Gemini`
-- Generate summaries, structured notes, flashcards, quizzes, and practice tests with `Gemini`
+- Transcribe long audio and preserve chunk metadata for processing
+- Generate summaries, structured notes, flashcards, quizzes, and practice tests
 - Chat against lecture-specific notes and transcript context
 - Export notes as PDF
 - Organize lectures into folders and manage retry / regeneration flows
@@ -30,8 +30,10 @@ The canonical production domain is `https://memoai.eu`.
 - `Supabase` for Auth, Postgres, Storage, and RLS
 - `Stripe` for subscriptions and billing portal
 - `Inngest` for background jobs when configured
-- `Google Gemini` for note generation, embeddings, document extraction, chat, and study tools
-- `Soniox` for transcription when enabled
+- AI providers:
+  - `OpenAI`
+  - `Google Gemini`
+  - `Soniox` for transcription
 
 ## Project structure
 
@@ -59,21 +61,39 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
-GEMINI_API_KEY=...
 ```
 
-3. Configure AI and transcription:
+3. Configure at least one AI provider.
+
+OpenAI:
 
 ```bash
-GEMINI_TEXT_MODEL=gemini-2.5-flash-lite
-GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+AI_PROVIDER=openai
+OPENAI_API_KEY=...
+OPENAI_TEXT_MODEL=gpt-4.1-mini
+OPENAI_TRANSCRIPTION_MODEL=gpt-4o-transcribe-diarize
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+```
 
-# required for transcription
+Gemini:
+
+```bash
+AI_PROVIDER=gemini
+GEMINI_API_KEY=...
+GEMINI_TEXT_MODEL=gemini-2.5-flash-lite
+GEMINI_TRANSCRIPTION_MODEL=gemini-2.5-flash
+GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+```
+
+Optional transcription override:
+
+```bash
+TRANSCRIPTION_PROVIDER=openai
+# or gemini
+# or soniox
 SONIOX_API_KEY=...
 SONIOX_MODEL=stt-async-v4
 ```
-
-Transcription is handled by `Soniox`. Generation, chat, extraction, and embeddings use `Gemini`.
 
 4. Add billing and job-processing env vars as needed:
 
@@ -127,9 +147,9 @@ Paid actions are gated behind `/app/start`, which combines onboarding questions 
 
 Current plan values in code:
 
-- Weekly: `EUR 9`
-- Monthly: `EUR 18`
-- Yearly: `EUR 119`
+- Weekly: `€9`
+- Monthly: `€18`
+- Yearly: `€119`
 
 To set up Stripe:
 

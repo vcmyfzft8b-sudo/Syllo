@@ -108,7 +108,6 @@ export async function generateNotesFromTranscript(
     windows.map((window, index) =>
       generateStructuredObject({
         schema: chunkSummarySchema,
-        schemaName: "chunk_summary",
         maxOutputTokens: sourceType === "audio" ? 1900 : 1400,
         instructions: chunkInstructions,
         input: `Source chunk ${index + 1} of ${windows.length}.\nTime range: ${window.startMs}-${window.endMs} ms.\nText:\n${window.text}`,
@@ -118,7 +117,6 @@ export async function generateNotesFromTranscript(
 
   const result = await generateStructuredObject({
     schema: noteArtifactSchema,
-    schemaName: "note_artifact",
     maxOutputTokens: sourceType === "audio" ? 12000 : 9000,
     instructions: finalInstructions,
     input: JSON.stringify(
