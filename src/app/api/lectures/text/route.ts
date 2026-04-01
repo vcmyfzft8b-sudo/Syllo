@@ -25,11 +25,11 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Choose a plan before turning text into notes.");
+    return createBillingRequiredResponse("Pred pretvorbo besedila v zapiske izberi paket.");
   }
 
   const limited = await enforceRateLimit({
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       }
 
       if (!lecture) {
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
+        return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
       }
     }
 
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "The text could not be processed.",
+          error instanceof Error ? error.message : "Besedila ni bilo mogoče obdelati.",
       },
       { status: 500 },
     );

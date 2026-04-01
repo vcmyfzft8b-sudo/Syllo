@@ -42,7 +42,7 @@ export function EmailEntryForm({
         name="email"
         required
         defaultValue={email}
-        placeholder="Enter email address"
+        placeholder="Vnesi e-naslov"
         autoComplete="email"
         className="email-entry-input"
         aria-disabled={isSubmitting}
@@ -55,7 +55,7 @@ export function EmailEntryForm({
         aria-busy={isSubmitting}
       >
         {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : null}
-        <span>{isSubmitting ? "Sending code..." : "Continue"}</span>
+        <span>{isSubmitting ? "Pošiljam kodo..." : "Nadaljuj"}</span>
       </button>
     </form>
   );

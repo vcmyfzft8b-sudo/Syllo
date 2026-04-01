@@ -21,7 +21,7 @@ type BillingPlanCard = {
 };
 
 const AGE_OPTIONS = [
-  { value: "under_16", label: "Under 16" },
+  { value: "under_16", label: "Manj kot 16" },
   { value: "16_18", label: "16-18" },
   { value: "19_22", label: "19-22" },
   { value: "23_29", label: "23-29" },
@@ -29,11 +29,11 @@ const AGE_OPTIONS = [
 ] as const;
 
 const EDUCATION_OPTIONS = [
-  { value: "high_school", label: "High school" },
-  { value: "university", label: "University" },
-  { value: "masters", label: "Master's" },
-  { value: "self_study", label: "Self-study" },
-  { value: "other", label: "Other" },
+  { value: "high_school", label: "Srednja šola" },
+  { value: "university", label: "Fakulteta" },
+  { value: "masters", label: "Magisterij" },
+  { value: "self_study", label: "Samostojno učenje" },
+  { value: "other", label: "Drugo" },
 ] as const;
 
 function CheckoutBanner({ state }: { state: string | null }) {
@@ -41,7 +41,7 @@ function CheckoutBanner({ state }: { state: string | null }) {
     return (
       <div className="app-start-banner success">
         <Check className="h-4 w-4" />
-        Payment received. Stripe is finalizing the subscription now.
+        Plačilo prejeto. Stripe trenutno zaključuje aktivacijo naročnine.
       </div>
     );
   }
@@ -50,7 +50,7 @@ function CheckoutBanner({ state }: { state: string | null }) {
     return (
       <div className="app-start-banner">
         <EmojiIcon symbol="🧾" size="1rem" />
-        Checkout was cancelled. You can pick a plan again below.
+        Plačilo je bilo preklicano. Spodaj lahko ponovno izbereš paket.
       </div>
     );
   }
@@ -88,9 +88,9 @@ export function OnboardingPaywall({
 
   const onboardingSteps = [
     {
-      overline: "Step 1",
-      title: "How old are you?",
-      copy: "We use this to adjust the tone, pacing, and examples to you.",
+      overline: "Korak 1",
+      title: "Koliko si star?",
+      copy: "To uporabimo za prilagoditev tona, tempa in primerov tebi.",
       body: (
         <div className="app-start-choice-grid">
           {AGE_OPTIONS.map((option) => (
@@ -107,9 +107,9 @@ export function OnboardingPaywall({
       ),
     },
     {
-      overline: "Step 2",
-      title: "What level of student are you?",
-      copy: "This helps us match the explanation style and study intensity to you.",
+      overline: "Korak 2",
+      title: "Na kateri stopnji izobraževanja si?",
+      copy: "To nam pomaga prilagoditi način razlage in intenzivnost učenja tebi.",
       body: (
         <div className="app-start-choice-grid">
           {EDUCATION_OPTIONS.map((option) => (
@@ -126,49 +126,49 @@ export function OnboardingPaywall({
       ),
     },
     {
-      overline: "Step 3",
-      title: "What is your current average grade?",
-      copy: "Use the grading format you already think in: GPA, percentage, or a verbal scale.",
+      overline: "Korak 3",
+      title: "Kakšna je tvoja trenutna povprečna ocena?",
+      copy: "Uporabi obliko ocenjevanja, ki ti je domača: povprečje, odstotki ali opisna lestvica.",
       body: (
         <label className="app-start-field">
-          <span>What is your current average grade?</span>
+          <span>Kakšna je tvoja trenutna povprečna ocena?</span>
           <input
             value={form.currentAverageGrade}
             onChange={(event) =>
               setForm((current) => ({ ...current, currentAverageGrade: event.target.value }))
             }
-            placeholder="Example: 7.8 / 10"
+            placeholder="Primer: 7,8 / 10"
             maxLength={40}
           />
         </label>
       ),
     },
     {
-      overline: "Step 4",
-      title: "What grade do you want, and what is your goal?",
-      copy: "We use this to keep the app focused on the result you want from day one.",
+      overline: "Korak 4",
+      title: "Kakšno oceno želiš in kaj je tvoj cilj?",
+      copy: "To uporabimo, da je aplikacija že od prvega dne usmerjena v rezultat, ki ga želiš.",
       body: (
         <div className="app-start-field-stack">
           <label className="app-start-field">
-            <span>What grade do you want?</span>
+            <span>Kakšno oceno želiš?</span>
             <input
               value={form.targetGrade}
               onChange={(event) =>
                 setForm((current) => ({ ...current, targetGrade: event.target.value }))
               }
-              placeholder="Example: 9 / 10"
+              placeholder="Primer: 9 / 10"
               maxLength={40}
             />
           </label>
 
           <label className="app-start-field">
-            <span>What is your main study goal?</span>
+            <span>Kateri je tvoj glavni študijski cilj?</span>
             <textarea
               value={form.studyGoal}
               onChange={(event) =>
                 setForm((current) => ({ ...current, studyGoal: event.target.value }))
               }
-              placeholder="Example: Stay consistent and stop falling behind on lecture notes."
+              placeholder="Primer: Ostati dosleden in ne zaostajati več z zapiski predavanj."
               rows={4}
               maxLength={240}
             />
@@ -191,7 +191,7 @@ export function OnboardingPaywall({
       });
 
       if (!response.ok) {
-        throw new Error("Could not save onboarding.");
+        throw new Error("Onboardinga ni bilo mogoče shraniti.");
       }
 
       setIsPersonalizing(true);
@@ -220,7 +220,7 @@ export function OnboardingPaywall({
       const payload = (await response.json()) as { url?: string; error?: string };
 
       if (!response.ok || !payload.url) {
-        throw new Error(payload.error ?? "Could not start checkout.");
+        throw new Error(payload.error ?? "Plačila ni bilo mogoče začeti.");
       }
 
       window.location.href = payload.url;
@@ -239,7 +239,7 @@ export function OnboardingPaywall({
       const payload = (await response.json()) as { url?: string; error?: string };
 
       if (!response.ok || !payload.url) {
-        throw new Error(payload.error ?? "Could not open billing portal.");
+        throw new Error(payload.error ?? "Portala za obračun ni bilo mogoče odpreti.");
       }
 
       window.location.href = payload.url;
@@ -254,11 +254,11 @@ export function OnboardingPaywall({
         <section className="app-start-panel app-start-panel-fullscreen app-start-panel-survey">
           <div className="app-start-wizard app-start-wizard-fullscreen app-start-wizard-survey app-start-personalizing">
             <div className="app-start-personalizing-orb" aria-hidden="true" />
-            <p className="app-start-kicker">Customizing your app</p>
-            <h2>Building your setup around you.</h2>
+            <p className="app-start-kicker">Prilagajamo tvojo aplikacijo</p>
+            <h2>Nastavljamo jo po tvoji meri.</h2>
             <p>
-              We&apos;re tuning the app to your age, study level, current grade, and goal so it
-              feels personal from the start.
+              Aplikacijo prilagajamo tvoji starosti, ravni študija, trenutni oceni in cilju, da
+              bo od začetka delovala osebno in uporabno.
             </p>
             <div className="app-start-personalizing-bars" aria-hidden="true">
               <span />
@@ -303,7 +303,7 @@ export function OnboardingPaywall({
               onClick={() => setStep((current) => Math.max(0, current - 1))}
               disabled={step === 0 || savingProfile}
             >
-              Back
+              Nazaj
             </button>
 
             {isLastStep ? (
@@ -314,7 +314,7 @@ export function OnboardingPaywall({
                 disabled={!canFinish || savingProfile}
               >
                 {savingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Finish setup
+                Zaključi nastavitev
               </button>
             ) : (
               <button
@@ -322,7 +322,7 @@ export function OnboardingPaywall({
                 className="app-start-primary-button"
                 onClick={() => setStep((current) => Math.min(onboardingSteps.length - 1, current + 1))}
               >
-                Continue
+                Nadaljuj
               </button>
             )}
           </div>
@@ -339,7 +339,7 @@ export function OnboardingPaywall({
             type="button"
             className="app-start-close-button"
             onClick={() => router.push("/app")}
-            aria-label="Close paywall"
+            aria-label="Zapri ponudbo naročnine"
           >
             <EmojiIcon symbol="✕" size="0.95rem" />
           </button>
@@ -361,7 +361,7 @@ export function OnboardingPaywall({
                 <div>
                   <p className="app-start-price-name">{plan.label}</p>
                   {plan.originalDisplayAmount ? (
-                    <p className="app-start-price-original">Usually €{plan.originalDisplayAmount}</p>
+                  <p className="app-start-price-original">Običajno €{plan.originalDisplayAmount}</p>
                   ) : null}
                   <h2>€{plan.displayAmount ?? plan.amount}</h2>
                   <p className="app-start-price-cadence">{plan.cadence}</p>
@@ -372,11 +372,11 @@ export function OnboardingPaywall({
                     <p className="app-start-price-billing-note">{plan.billingNote}</p>
                   ) : null}
                 </div>
-                {plan.id === "monthly" ? <span className="app-start-badge">Default</span> : null}
+                {plan.id === "monthly" ? <span className="app-start-badge">Privzeto</span> : null}
               </div>
 
               <p className="app-start-price-blurb">{plan.blurb}</p>
-              <p className="app-start-price-footnote">Effective yearly spend: €{plan.annualizedAmount}</p>
+              <p className="app-start-price-footnote">Letni strošek: €{plan.annualizedAmount}</p>
 
               <button
                 type="button"
@@ -385,7 +385,7 @@ export function OnboardingPaywall({
                 disabled={checkoutPlan !== null || activePlan}
               >
                 {checkoutPlan === plan.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {activePlan ? "Current plan" : `Choose ${plan.label.toLowerCase()}`}
+                {activePlan ? "Trenutni paket" : `Izberi ${plan.label.toLowerCase()}`}
               </button>
             </article>
           );
@@ -393,18 +393,18 @@ export function OnboardingPaywall({
       </div>
 
       <p className="app-start-discount-note">
-        Have a discount code? Enter it in Stripe Checkout before completing payment.
+        Imaš kodo za popust? Vnesi jo v Stripe Checkout pred zaključkom plačila.
       </p>
 
       {subscription ? (
         <div className="app-start-subscription-status">
           <div>
-            <p className="app-start-overline">Current billing state</p>
+            <p className="app-start-overline">Trenutno stanje naročnine</p>
             <h3>{subscription.status.replaceAll("_", " ")}</h3>
             <p>
-              {subscription.plan} plan
+              Paket {subscription.plan}
               {subscription.current_period_end
-                ? ` until ${new Date(subscription.current_period_end).toLocaleDateString()}`
+                ? ` do ${new Date(subscription.current_period_end).toLocaleDateString()}`
                 : ""}
             </p>
           </div>
@@ -416,7 +416,7 @@ export function OnboardingPaywall({
             disabled={portalLoading}
           >
             {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Manage billing
+            Uredi naročnino
           </button>
         </div>
       ) : null}

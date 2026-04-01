@@ -20,11 +20,11 @@ export async function GET(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Choose a plan before generating quizzes.");
+    return createBillingRequiredResponse("Pred ustvarjanjem kvizov izberi paket.");
   }
 
   const limited = await enforceRateLimit({
@@ -41,7 +41,7 @@ export async function GET(
   const parsedParams = routeIdParamSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return NextResponse.json({ error: "Invalid lecture id." }, { status: 400 });
+    return NextResponse.json({ error: "Neveljaven ID zapiska." }, { status: 400 });
   }
 
   const { id } = parsedParams.data;
@@ -51,7 +51,7 @@ export async function GET(
   });
 
   if (!detail) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
   }
 
   return NextResponse.json({
@@ -72,7 +72,7 @@ export async function POST(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   const limited = await enforceRateLimit({
@@ -89,7 +89,7 @@ export async function POST(
   const parsedParams = routeIdParamSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return NextResponse.json({ error: "Invalid lecture id." }, { status: 400 });
+    return NextResponse.json({ error: "Neveljaven ID zapiska." }, { status: 400 });
   }
 
   const { id } = parsedParams.data;
@@ -99,12 +99,12 @@ export async function POST(
   });
 
   if (!lecture) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
   }
 
   if (lecture.status !== "ready") {
     return NextResponse.json(
-      { error: "Quiz creation is available after the note is ready." },
+      { error: "Ustvarjanje kviza je na voljo, ko je zapisek pripravljen." },
       { status: 409 },
     );
   }
@@ -114,7 +114,7 @@ export async function POST(
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Quiz creation could not be queued.",
+        error: error instanceof Error ? error.message : "Ustvarjanja kviza ni bilo mogoče uvrstiti v čakalno vrsto.",
       },
       { status: 500 },
     );

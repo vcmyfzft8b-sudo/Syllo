@@ -27,35 +27,35 @@ export const BILLING_PLANS: Record<
 > = {
   weekly: {
     id: "weekly",
-    label: "Weekly",
-    cadence: "per week",
+    label: "Tedensko",
+    cadence: "na teden",
     amount: 9,
     originalDisplayAmount: "10",
-    discountNote: "10% off right now",
+    discountNote: "Trenutno 10 % popusta",
     annualizedAmount: 468,
-    blurb: "Fastest way to try the full product.",
+    blurb: "Najhitrejši način, da preizkusiš celoten izdelek.",
   },
   monthly: {
     id: "monthly",
-    label: "Monthly",
-    cadence: "per month",
+    label: "Mesečno",
+    cadence: "na mesec",
     amount: 18,
     originalDisplayAmount: "20",
-    discountNote: "10% off right now",
+    discountNote: "Trenutno 10 % popusta",
     annualizedAmount: 216,
-    blurb: "Best default for most students.",
+    blurb: "Najboljša privzeta izbira za večino študentov.",
   },
   yearly: {
     id: "yearly",
-    label: "Yearly",
-    cadence: "per month",
+    label: "Letno",
+    cadence: "na mesec",
     amount: 119,
     displayAmount: "9.92",
     originalDisplayAmount: "11.02",
-    discountNote: "10% off right now",
-    billingNote: "Billed annually",
+    discountNote: "Trenutno 10 % popusta",
+    billingNote: "Obračunano letno",
     annualizedAmount: 119,
-    blurb: "Lowest effective price if they stay through the year.",
+    blurb: "Najnižja dejanska cena, če uporabljaš aplikacijo celo leto.",
   },
 };
 
@@ -334,7 +334,7 @@ export function getPaywallPath() {
   return "/app/start";
 }
 
-export function createBillingRequiredResponse(message = "A paid plan is required for this action.") {
+export function createBillingRequiredResponse(message = "Za to dejanje je potreben plačljiv paket.") {
   return NextResponse.json(
     {
       error: message,

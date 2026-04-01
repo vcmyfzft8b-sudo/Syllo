@@ -75,7 +75,7 @@ export async function POST(request: Request) {
   const requestSecret = getSecretFromRequest(request);
 
   if (!env.INTERNAL_JOB_SECRET || requestSecret !== env.INTERNAL_JOB_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   const parsed = await parseJsonRequest(request, requestSchema, {

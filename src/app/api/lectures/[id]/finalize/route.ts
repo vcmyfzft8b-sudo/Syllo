@@ -31,7 +31,7 @@ export async function POST(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   const limited = await enforceRateLimit({
@@ -48,7 +48,7 @@ export async function POST(
   const parsedParams = routeIdParamSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return NextResponse.json({ error: "Invalid lecture id." }, { status: 400 });
+    return NextResponse.json({ error: "Neveljaven ID zapiska." }, { status: 400 });
   }
 
   const { id } = parsedParams.data;
@@ -58,7 +58,7 @@ export async function POST(
   });
 
   if (!lecture) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
   }
 
   const parsed = await parseJsonRequest(request, finalizeSchema, {
@@ -77,7 +77,7 @@ export async function POST(
     })
   ) {
     return NextResponse.json(
-      { error: "Invalid storage path." },
+      { error: "Neveljavna pot do shrambe." },
       { status: 400 },
     );
   }

@@ -17,17 +17,17 @@ const OPTIONS: Array<{
 }> = [
   {
     value: "system",
-    label: "System",
+    label: "Sistem",
     icon: "💻",
   },
   {
     value: "light",
-    label: "Light",
+    label: "Svetla",
     icon: "☀️",
   },
   {
     value: "dark",
-    label: "Dark",
+    label: "Temna",
     icon: "🌙",
   },
 ];

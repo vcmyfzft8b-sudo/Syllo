@@ -66,18 +66,18 @@ function readAudioDuration(file: File) {
 
     audio.onerror = () => {
       cleanup();
-      reject(new Error("The recording duration could not be read."));
+      reject(new Error("Dolžine posnetka ni bilo mogoče prebrati."));
     };
   });
 }
 
 function validateAudio(file: File, durationSeconds: number) {
   if (file.size > MAX_AUDIO_BYTES) {
-    throw new Error("The recording is too large. The current limit is 300 MB.");
+    throw new Error("Posnetek je prevelik. Trenutna omejitev je 300 MB.");
   }
 
   if (durationSeconds > MAX_AUDIO_SECONDS) {
-    throw new Error("The recording is too long. The current limit is 3 hours.");
+    throw new Error("Posnetek je predolg. Trenutna omejitev je 3 ure.");
   }
 }
 
@@ -156,7 +156,7 @@ export function CaptureStudio({
       setError(
         validationError instanceof Error
           ? validationError.message
-          : "Invalid recording.",
+          : "Neveljaven posnetek.",
       );
     }
   }
@@ -181,7 +181,7 @@ export function CaptureStudio({
       setError(
         uploadError instanceof Error
           ? uploadError.message
-          : "The file could not be prepared.",
+          : "Datoteke ni bilo mogoče pripraviti.",
       );
     } finally {
       event.target.value = "";
@@ -190,12 +190,12 @@ export function CaptureStudio({
 
   async function startRecording() {
     if (!recordingSupported) {
-      setError("This browser does not support in-app recording.");
+      setError("Ta brskalnik ne podpira snemanja znotraj aplikacije.");
       return;
     }
 
     if (!consent) {
-      setError("Confirm recording permission before you start.");
+      setError("Pred začetkom potrdi dovoljenje za snemanje.");
       return;
     }
 
@@ -259,7 +259,7 @@ export function CaptureStudio({
       setError(
         recordError instanceof Error
           ? recordError.message
-          : "Recording could not be started.",
+          : "Snemanja ni bilo mogoče začeti.",
       );
     }
   }
@@ -278,12 +278,12 @@ export function CaptureStudio({
 
   async function handleSubmit() {
     if (!consent) {
-      setError("Confirm recording and processing permission before uploading.");
+      setError("Pred nalaganjem potrdi dovoljenje za snemanje in obdelavo.");
       return;
     }
 
     if (!source) {
-      setError("Upload or record audio first.");
+      setError("Najprej naloži ali posnemi zvok.");
       return;
     }
 
@@ -332,7 +332,7 @@ export function CaptureStudio({
         setError(
           submitError instanceof Error
             ? submitError.message
-            : "Processing could not be started.",
+            : "Obdelave ni bilo mogoče začeti.",
         );
       }
     } finally {
@@ -358,7 +358,7 @@ export function CaptureStudio({
     setIsUploading(false);
     setStage("idle");
     setIsCancelling(false);
-    setError("Creation cancelled.");
+    setError("Ustvarjanje je preklicano.");
   }
 
   return (
@@ -384,7 +384,7 @@ export function CaptureStudio({
               <Mic className="h-5 w-5" />
             </div>
             <p className="mt-5 text-lg font-semibold tracking-tight text-stone-950">
-              Recording
+              Snemanje
             </p>
           </button>
 
@@ -407,7 +407,7 @@ export function CaptureStudio({
               <UploadCloud className="h-5 w-5" />
             </div>
             <p className="mt-5 text-lg font-semibold tracking-tight text-stone-950">
-              Upload
+              Naloži
             </p>
           </button>
         </div>
@@ -417,7 +417,7 @@ export function CaptureStudio({
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="section-title">
-                {captureMode === "record" ? "Record a lecture" : "Upload a recording"}
+                {captureMode === "record" ? "Posnemi predavanje" : "Naloži posnetek"}
               </h2>
             </div>
             <div className="rounded-full bg-[var(--brand-soft)] p-3 text-blue-700">
@@ -433,8 +433,8 @@ export function CaptureStudio({
               className="mt-1 h-4 w-4 rounded border-stone-300 text-blue-700"
             />
             <span>
-              I confirm that I have permission to record this lecture and process
-              the recording in this app.
+              Potrjujem, da imam dovoljenje za snemanje tega predavanja in za
+              obdelavo posnetka v tej aplikaciji.
             </span>
           </label>
 
@@ -458,7 +458,7 @@ export function CaptureStudio({
                         : "border border-blue-200 bg-[var(--brand-soft)] text-blue-800"
                     }`}
                   >
-                    {isRecording ? "Recording live" : "Ready"}
+                    {isRecording ? "Snemanje v teku" : "Pripravljeno"}
                   </span>
                   {isRecording ? (
                     <PauseCircle className="h-7 w-7" />
@@ -469,12 +469,12 @@ export function CaptureStudio({
 
                 <div>
                   <p className="text-[2rem] font-semibold tracking-tight text-stone-950">
-                    {isRecording ? "Stop recording" : "Start recording"}
+                    {isRecording ? "Ustavi snemanje" : "Začni snemanje"}
                   </p>
                   <p className="mt-2 text-sm leading-7 text-stone-500">
                     {isRecording
-                      ? `Recording time: ${formatTimestamp(elapsedSeconds * 1000)}`
-                      : "The microphone stays on while the page stays open."}
+                      ? `Čas snemanja: ${formatTimestamp(elapsedSeconds * 1000)}`
+                      : "Mikrofon ostane vklopljen, dokler je stran odprta."}
                   </p>
                 </div>
 
@@ -497,14 +497,14 @@ export function CaptureStudio({
               <label className="flex min-h-64 cursor-pointer flex-col justify-between rounded-[30px] border border-stone-200 bg-white p-7 transition hover:border-blue-300 hover:bg-[var(--brand-soft)]">
                 <div className="flex items-center justify-between gap-4">
                   <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-stone-700">
-                    File
+                    Datoteka
                   </span>
                   <UploadCloud className="h-7 w-7 text-blue-700" />
                 </div>
 
                 <div>
                   <p className="text-[2rem] font-semibold tracking-tight text-stone-950">
-                    Choose an audio file
+                    Izberi zvočno datoteko
                   </p>
                   <p className="mt-2 text-sm leading-7 text-stone-500">
                     MP3, M4A, WAV, OGG, WEBM.
@@ -524,7 +524,7 @@ export function CaptureStudio({
 
           {recordingSupported === false && (
             <p className="mt-4 text-sm leading-7 text-amber-800">
-              This browser does not support `MediaRecorder`. File uploads still work.
+              Ta brskalnik ne podpira `MediaRecorder`. Nalaganje datotek še vedno deluje.
             </p>
           )}
 
@@ -538,10 +538,10 @@ export function CaptureStudio({
                 className="primary-button w-full px-5 py-3.5 text-sm sm:w-auto sm:min-w-64"
               >
                 {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {stage === "creating" && "Creating lecture"}
-                {stage === "uploading" && "Uploading audio"}
-                {stage === "finalizing" && "Starting processing"}
-                {stage === "idle" && "Create notes"}
+                {stage === "creating" && "Ustvarjam zapisek"}
+                {stage === "uploading" && "Nalagam zvok"}
+                {stage === "finalizing" && "Začenjam obdelavo"}
+                {stage === "idle" && "Ustvari zapiske"}
               </button>
               {isUploading ? (
                 <button
@@ -551,7 +551,7 @@ export function CaptureStudio({
                   className="ios-secondary-button w-full sm:min-w-64"
                 >
                   {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Cancel
+                  Prekliči
                 </button>
               ) : null}
             </div>

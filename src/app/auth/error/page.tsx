@@ -19,14 +19,14 @@ export default async function AuthErrorPage({
     <main className="landing-shell auth-shell">
       <header className="ios-nav landing-nav">
         <div className="ios-nav-inner landing-nav-inner">
-          <Link href="/" className="landing-brand-link" aria-label={`${BRAND_NAME} home`}>
+          <Link href="/" className="landing-brand-link" aria-label={`Domov ${BRAND_NAME}`}>
             <BrandLogo compact />
           </Link>
 
           <div className="landing-nav-actions">
             <Link href="/" className="app-back-button">
               <ChevronLeft className="h-5 w-5" />
-              Back
+              Nazaj
             </Link>
           </div>
         </div>
@@ -38,19 +38,19 @@ export default async function AuthErrorPage({
             <div className="auth-check-icon error">
               <AlertCircle className="h-6 w-6" />
             </div>
-            <p className="auth-eyebrow">Authentication error</p>
-            <h1 className="auth-title">We couldn&apos;t sign you in</h1>
+            <p className="auth-eyebrow">Napaka pri prijavi</p>
+            <h1 className="auth-title">Prijava ni uspela</h1>
             <p className="auth-copy">
               {message ??
-                "Try another sign-in method or check that your auth providers are configured correctly."}
+                "Poskusi drugo metodo prijave ali preveri, ali so ponudniki prijave pravilno nastavljeni."}
             </p>
 
             <div className="auth-check-actions">
               <Link href="/auth/login?next=/app/start" className="ios-primary-button auth-submit-button">
-                Back to login
+                Nazaj na prijavo
               </Link>
               <Link href="/auth/signup?next=/app/start" className="auth-secondary-link">
-                Create account
+                Ustvari račun
               </Link>
             </div>
           </div>

@@ -6,27 +6,27 @@ const statusMap: Record<
   { label: string; className: string }
 > = {
   uploading: {
-    label: "Uploading",
+    label: "Nalaganje",
     className: "bg-[var(--tertiary-background)] text-[var(--secondary-label)]",
   },
   queued: {
-    label: "Queued",
+    label: "V čakalni vrsti",
     className: "bg-[var(--tertiary-background)] text-[var(--secondary-label)]",
   },
   transcribing: {
-    label: "Transcribing",
+    label: "Prepisovanje",
     className: "bg-[var(--tertiary-background)] text-[var(--secondary-label)]",
   },
   generating_notes: {
-    label: "Generating notes",
+    label: "Ustvarjanje zapiskov",
     className: "bg-[var(--tertiary-background)] text-[var(--secondary-label)]",
   },
   ready: {
-    label: "Ready",
+    label: "Pripravljeno",
     className: "bg-[var(--green-soft)] text-[var(--green)]",
   },
   failed: {
-    label: "Error",
+    label: "Napaka",
     className: "bg-[var(--red-soft)] text-[var(--red)]",
   },
 };

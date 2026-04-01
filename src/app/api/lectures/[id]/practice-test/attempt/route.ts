@@ -17,11 +17,11 @@ export async function POST(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Choose a plan before starting practice tests.");
+    return createBillingRequiredResponse("Pred začetkom preizkusov znanja izberi paket.");
   }
 
   const limited = await enforceRateLimit({
@@ -38,7 +38,7 @@ export async function POST(
   const parsedParams = routeIdParamSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return NextResponse.json({ error: "Invalid lecture id." }, { status: 400 });
+    return NextResponse.json({ error: "Neveljaven ID zapiska." }, { status: 400 });
   }
 
   const lecture = await ensureUserOwnsLecture({
@@ -47,7 +47,7 @@ export async function POST(
   });
 
   if (!lecture) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
   }
 
   try {
@@ -59,7 +59,7 @@ export async function POST(
     return NextResponse.json(attempt);
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Practice test could not be started." },
+      { error: error instanceof Error ? error.message : "Preizkusa znanja ni bilo mogoče zagnati." },
       { status: 400 },
     );
   }

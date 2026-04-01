@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     retryUrl.searchParams.set("mode", "login");
     retryUrl.searchParams.set("next", "/app");
     retryUrl.searchParams.set("messageType", "error");
-    retryUrl.searchParams.set("message", "Malformed or oversized form submission.");
+    retryUrl.searchParams.set("message", "Obrazec je neveljaven ali prevelik.");
     return NextResponse.redirect(retryUrl, { status: 303 });
   }
 
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     retryUrl.searchParams.set("messageType", "error");
     retryUrl.searchParams.set(
       "message",
-      parsed.error.issues[0]?.message ?? "Enter the verification code from your email.",
+      parsed.error.issues[0]?.message ?? "Vnesi potrditveno kodo iz e-pošte.",
     );
     return NextResponse.redirect(retryUrl, { status: 303 });
   }

@@ -19,11 +19,11 @@ export async function POST(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Choose a plan before regenerating flashcards.");
+    return createBillingRequiredResponse("Pred ponovnim ustvarjanjem kartic izberi paket.");
   }
 
   const limited = await enforceRateLimit({
@@ -40,7 +40,7 @@ export async function POST(
   const parsedParams = routeIdParamSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return NextResponse.json({ error: "Invalid lecture id." }, { status: 400 });
+    return NextResponse.json({ error: "Neveljaven ID zapiska." }, { status: 400 });
   }
 
   const { id } = parsedParams.data;
@@ -50,12 +50,12 @@ export async function POST(
   });
 
   if (!lecture) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
   }
 
   if (lecture.status !== "ready") {
     return NextResponse.json(
-      { error: "Study tools can be regenerated after the note is ready." },
+      { error: "Učna orodja je mogoče ponovno ustvariti, ko je zapisek pripravljen." },
       { status: 409 },
     );
   }

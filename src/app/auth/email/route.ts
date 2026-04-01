@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       email: "",
       mode: "login",
       next: "/app",
-      message: "Malformed or oversized form submission.",
+      message: "Obrazec je neveljaven ali prevelik.",
       messageType: "error",
       sentAt: 0,
     });
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
       email: String(formData.get("email") ?? ""),
       mode: formData.get("mode") === "signup" ? "signup" : "login",
       next: normalizeNextPath(typeof nextField === "string" ? nextField : null),
-      message: "Enter a valid email address.",
+      message: "Vnesi veljaven e-naslov.",
       messageType: "error",
       sentAt: 0,
     });
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
       email: parsed.data.email,
       mode: parsed.data.mode,
       next,
-      message: "Email sign-in is not enabled for this project.",
+      message: "Prijava z e-pošto za ta projekt ni omogočena.",
       messageType: "error",
       sentAt: 0,
     });
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
       email: parsed.data.email,
       mode: parsed.data.mode,
       next,
-      message: "We couldn’t check the email send limit. Try again.",
+      message: "Omejitve pošiljanja e-pošte ni bilo mogoče preveriti. Poskusi znova.",
       messageType: "error",
       sentAt: 0,
     });
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
       email: parsed.data.email,
       mode: parsed.data.mode,
       next,
-      message: "You can request another code once the 1-minute timer ends.",
+      message: "Novo kodo lahko zahtevaš, ko se izteče 1-minutni časovnik.",
       messageType: "error",
       sentAt: new Date(recentMinuteRequest.created_at).getTime(),
       cooldownSeconds: EMAIL_AUTH_MINUTE_LIMIT_SECONDS,
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
       email: parsed.data.email,
       mode: parsed.data.mode,
       next,
-      message: "This email has requested too many codes recently. Try again when the timer ends.",
+      message: "Ta e-naslov je pred kratkim zahteval preveč kod. Poskusi znova, ko se časovnik izteče.",
       messageType: "error",
       sentAt: oldestAllowedTime,
       cooldownSeconds: EMAIL_AUTH_HOURLY_LIMIT_SECONDS,
@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
       email: parsed.data.email,
       mode: parsed.data.mode,
       next,
-      message: "We sent the code, but couldn’t update the resend timer. Wait a minute before trying again.",
+      message: "Kodo smo poslali, vendar časovnika za ponovno pošiljanje ni bilo mogoče posodobiti. Počakaj minuto in poskusi znova.",
       messageType: "info",
     });
     return applyCookies(NextResponse.redirect(retryUrl, { status: 303 }));
@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
     email: normalizedEmail,
     mode: parsed.data.mode,
     next,
-    message: "Code sent. Enter it below to continue.",
+    message: "Koda je poslana. Za nadaljevanje jo vnesi spodaj.",
     messageType: "info",
     cooldownSeconds: EMAIL_AUTH_MINUTE_LIMIT_SECONDS,
   });

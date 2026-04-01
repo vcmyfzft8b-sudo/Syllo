@@ -1,228 +1,228 @@
 export type HelpArticle = {
   slug: string;
   title: string;
-  category: "Popular" | "Recording and notes" | "Account and access";
+  category: "Pogosto" | "Snemanje in zapiski" | "Račun in dostop";
   content: string;
 };
 
 export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "terms-of-use",
-    title: "Terms of use",
-    category: "Account and access",
-    content: `# Terms of use
+    title: "Pogoji uporabe",
+    category: "Račun in dostop",
+    content: `# Pogoji uporabe
 
-By creating an account or continuing into Nota, you agree to these terms.
+Z ustvarjanjem računa ali nadaljevanjem v Nota se strinjaš s temi pogoji.
 
-## Your responsibilities
+## Tvoje odgovornosti
 
-- you may only upload, record, paste, or link material that you own or are authorized to use
-- you are responsible for the legality of the content you submit
-- you must not use Nota to upload malware, abuse third-party systems, scrape private systems, or violate school, workplace, or platform rules
+- nalagaš, snemaš, lepiš ali povezuješ lahko samo gradivo, ki ga imaš v lasti ali ga smeš uporabljati
+- odgovoren si za zakonitost vsebine, ki jo pošlješ
+- Note ne smeš uporabljati za nalaganje zlonamerne programske opreme, zlorabo sistemov tretjih oseb, zajemanje zasebnih sistemov ali kršenje šolskih, službenih ali platformnih pravil
 
-## AI processing
+## AI obdelava
 
-Nota is an AI-powered study tool. To provide transcripts, summaries, flashcards, quizzes, chat answers, and document extraction, Nota may process your content with third-party AI and infrastructure providers.
+Nota je AI učno orodje. Za prepise, povzetke, kartice, kvize, odgovore v klepetu in izluščanje vsebine iz dokumentov lahko Nota tvojo vsebino obdela pri zunanjih AI in infrastrukturnih ponudnikih.
 
-That can include:
+To lahko vključuje:
 
-- audio recordings and uploaded audio
-- pasted text and notes
-- PDFs and other supported documents
-- public webpage links you ask Nota to read
-- metadata needed to run, secure, and improve the service
+- zvočne posnetke in naložene zvočne datoteke
+- prilepljeno besedilo in zapiske
+- PDF-je in druge podprte dokumente
+- javne spletne povezave, za katere želiš, da jih Nota prebere
+- metapodatke, potrebne za delovanje, varnost in izboljšave storitve
 
-By continuing, you instruct Nota to process that content for those product functions.
+Z nadaljevanjem soglašaš, da Nota to vsebino obdela za navedene funkcije izdelka.
 
-## No guarantees
+## Brez jamstev
 
-Nota may generate mistakes, incomplete answers, or misleading study material. You are responsible for reviewing outputs before relying on them for exams, coursework, medical, legal, financial, compliance, or safety-critical decisions.
+Nota lahko ustvari napake, nepopolne odgovore ali zavajajoče učno gradivo. Preden se zaneseš na rezultate pri izpitih, seminarskih nalogah, medicinskih, pravnih, finančnih, skladnostnih ali varnostno kritičnih odločitvah, jih moraš preveriti sam.
 
-## Account and enforcement
+## Račun in ukrepanje
 
-We may suspend access, limit features, or remove content when use appears abusive, unlawful, insecure, or harmful to the service or other users.
+Dostop lahko začasno omejimo, onemogočimo nekatere funkcije ali odstranimo vsebino, kadar je uporaba videti zlorabna, nezakonita, nevarna ali škodljiva za storitev ali druge uporabnike.
 
-## Changes
+## Spremembe
 
-These terms may be updated as the product changes. Continued use after an update means you accept the revised terms.
+Ti pogoji se lahko posodobijo, ko se izdelek spreminja. Če po posodobitvi nadaljuješ z uporabo, to pomeni, da sprejemaš posodobljeno različico.
 
-## Legal note
+## Pravno obvestilo
 
-This page is a product-level baseline, not legal advice. If you need jurisdiction-specific language, retention commitments, education-sector terms, or enterprise terms, get counsel to review and replace this text before relying on it.`,
+Ta stran je osnovno produktno besedilo in ni pravni nasvet. Če potrebuješ besedilo za specifično jurisdikcijo, zaveze glede hrambe, pogoje za izobraževalni sektor ali enterprise pogodbe, naj jih pred uporabo pregleda pravni strokovnjak.`,
   },
   {
     slug: "family-plan",
-    title: "Family plan?",
-    category: "Popular",
-    content: `# Family plan
+    title: "Družinski paket?",
+    category: "Pogosto",
+    content: `# Družinski paket
 
-A shared family workspace is not supported yet.
+Skupni družinski delovni prostor še ni podprt.
 
-For now, each account has its own note library, processing history, and exports.
+Za zdaj ima vsak račun svojo knjižnico zapiskov, zgodovino obdelav in izvoze.
 
-## What you can do now
+## Kaj lahko narediš zdaj
 
-- sign in with the account that should own the notes
-- share exported PDF or Markdown files manually
-- use the same language settings for more consistent results`,
+- prijavi se z računom, ki naj bo lastnik zapiskov
+- izvožene PDF ali Markdown datoteke deli ročno
+- za bolj dosledne rezultate uporabljaj enake jezikovne nastavitve`,
   },
   {
     slug: "gift-coconote",
-    title: "Can I gift Nota?",
-    category: "Popular",
-    content: `# Gifting access
+    title: "Ali lahko podarim Nota?",
+    category: "Pogosto",
+    content: `# Podarjanje dostopa
 
-Gift codes are not included in this version yet.
+Darilne kode v tej različici še niso na voljo.
 
-If you want someone else to use Nota, the most practical option right now is to create their own account or share exported notes.
+Če želiš, da Nota uporablja nekdo drug, je trenutno najbolj praktično, da si ustvari svoj račun ali da mu deliš izvožene zapiske.
 
-## What comes next
+## Kaj sledi
 
-When the code flow is ready, it will connect to the **Redeem code** option in Settings.`,
+Ko bo sistem kod pripravljen, bo povezan z možnostjo **Unovči kodo** v nastavitvah.`,
   },
   {
     slug: "supported-language",
-    title: "Do you support my language?",
-    category: "Popular",
-    content: `# Supported languages
+    title: "Ali podpirate moj jezik?",
+    category: "Pogosto",
+    content: `# Podprti jeziki
 
-The app can process multilingual material, but results are best when you pick the correct source language before creating a note.
+Aplikacija lahko obdela večjezično gradivo, vendar so rezultati najboljši, če pred ustvarjanjem zapiska izbereš pravi izvorni jezik.
 
-## Recommendations
+## Priporočila
 
-- choose the actual language of the recording or text before submitting
-- shorter recordings help when languages are mixed
-- technical English terms may stay in the final output when they are part of the source`,
+- pred oddajo izberi dejanski jezik posnetka ali besedila
+- pri mešanju jezikov pomagajo krajši posnetki
+- tehnični angleški izrazi lahko ostanejo v končnem rezultatu, kadar so del izvorne vsebine`,
   },
   {
     slug: "feature-request",
-    title: "Feature request",
-    category: "Popular",
-    content: `# Suggest an improvement
+    title: "Predlog funkcije",
+    category: "Pogosto",
+    content: `# Predlagaj izboljšavo
 
-The most useful request is a short, concrete description of your workflow.
+Najbolj uporaben predlog je kratek in konkreten opis tvojega načina uporabe.
 
-It helps to include:
+Koristno je vključiti:
 
-- what you were trying to achieve
-- where you got stuck
-- what result you expected
-- whether the issue is about audio, text, PDF, or a link`,
+- kaj si želel doseči
+- kje si se zataknil
+- kakšen rezultat si pričakoval
+- ali gre za težavo pri zvoku, besedilu, PDF-ju ali povezavi`,
   },
   {
     slug: "video-isnt-working",
-    title: "Video link is not working",
-    category: "Recording and notes",
-    content: `# Video link issues
+    title: "Video povezava ne deluje",
+    category: "Snemanje in zapiski",
+    content: `# Težave z video povezavo
 
-Nota can only process content that is publicly accessible and readable enough to summarize.
+Nota lahko obdela samo vsebino, ki je javno dostopna in dovolj berljiva za povzemanje.
 
-## Try this
+## Poskusi to
 
-- verify that the page does not require sign-in
-- use the direct page URL
-- if you have the material elsewhere, upload a PDF or paste the text`,
+- preveri, da stran ne zahteva prijave
+- uporabi neposreden URL strani
+- če imaš gradivo drugje, naloži PDF ali prilepi besedilo`,
   },
   {
     slug: "audio-upload-issue",
-    title: "I cannot upload audio",
-    category: "Recording and notes",
-    content: `# Audio upload issues
+    title: "Ne morem naložiti zvoka",
+    category: "Snemanje in zapiski",
+    content: `# Težave pri nalaganju zvoka
 
-Supported formats are MP3, M4A, WAV, OGG, and WEBM.
+Podprti formati so MP3, M4A, WAV, OGG in WEBM.
 
-## Checklist
+## Kontrolni seznam
 
-- verify that the file is not corrupted
-- stay under the current size limit
-- if the audio came from a screen recorder, export it again
-- try again from the home screen if the upload stopped earlier`,
+- preveri, da datoteka ni poškodovana
+- ostani pod trenutno omejitvijo velikosti
+- če je zvok nastal s snemanjem zaslona, ga ponovno izvozi
+- če se je nalaganje prej ustavilo, poskusi znova z domače strani`,
   },
   {
     slug: "transcript-cut-short",
-    title: "The transcript is too short or inaccurate",
-    category: "Recording and notes",
-    content: `# Transcript quality
+    title: "Prepis je prekratek ali netočen",
+    category: "Snemanje in zapiski",
+    content: `# Kakovost prepisa
 
-Transcript quality depends on audio clarity, overlapping speakers, and the selected source language.
+Kakovost prepisa je odvisna od čistosti zvoka, prekrivanja govorcev in izbranega izvornega jezika.
 
-## How to improve results
+## Kako izboljšati rezultate
 
-- choose the correct language before processing
-- enable multi-speaker capture for conversations
-- reduce background noise
-- split very long recordings into smaller parts`,
+- pred obdelavo izberi pravilen jezik
+- pri pogovorih omogoči zajem več govorcev
+- zmanjša ozadni hrup
+- zelo dolge posnetke razdeli na manjše dele`,
   },
   {
     slug: "redeem-code",
-    title: "Redeem code",
-    category: "Account and access",
-    content: `# Redeeming a code
+    title: "Unovči kodo",
+    category: "Račun in dostop",
+    content: `# Unovčenje kode
 
-Promo and gift codes will be added in a later phase.
+Promocijske in darilne kode bodo dodane v kasnejši fazi.
 
-The entry point already exists in Settings so the flow can be connected without another redesign.`,
+Vstopna točka že obstaja v nastavitvah, zato bo mogoče potek povezati brez nove prenove.`,
   },
   {
     slug: "privacy-policy",
-    title: "Privacy policy",
-    category: "Account and access",
-    content: `# Privacy policy
+    title: "Politika zasebnosti",
+    category: "Račun in dostop",
+    content: `# Politika zasebnosti
 
-Your notes stay tied to your account. Uploaded material is used for transcription, summaries, structured notes, exports, flashcards, quizzes, and in-app chat responses.
+Tvoji zapiski ostanejo povezani s tvojim računom. Naloženo gradivo se uporablja za prepise, povzetke, strukturirane zapiske, izvoze, kartice, kvize in odgovore v klepetu znotraj aplikacije.
 
-## What you provide
+## Kaj posreduješ
 
-Depending on how you use the app, you may provide:
+Glede na način uporabe aplikacije lahko posreduješ:
 
-- account details such as email address and authentication data
-- audio recordings and uploaded audio files
-- pasted text, notes, prompts, and chat messages
-- PDFs, documents, and exported artifacts
-- public links you ask Nota to read
+- podatke o računu, kot so e-naslov in avtentikacijski podatki
+- zvočne posnetke in naložene zvočne datoteke
+- prilepljeno besedilo, zapiske, pozive in sporočila v klepetu
+- PDF-je, dokumente in izvožene datoteke
+- javne povezave, za katere želiš, da jih Nota prebere
 
-## How the service uses your content
+## Kako storitev uporablja tvojo vsebino
 
-We use your content to:
+Tvojo vsebino uporabljamo za:
 
-- authenticate your account and keep your session active
-- store and organize your note library
-- transcribe and analyze source material
-- generate summaries, notes, flashcards, quizzes, exports, and chat responses
-- operate background jobs, rate limiting, and abuse prevention
+- prijavo v račun in ohranjanje aktivne seje
+- shranjevanje in urejanje tvoje knjižnice zapiskov
+- prepisovanje in analizo izvornega gradiva
+- ustvarjanje povzetkov, zapiskov, kartic, kvizov, izvozov in odgovorov v klepetu
+- izvajanje ozadnih opravil, omejevanje zahtevkov in preprečevanje zlorab
 
-## Third-party processing
+## Obdelava pri tretjih ponudnikih
 
-To deliver AI features, Nota may send relevant content to third-party providers that support transcription, document extraction, embeddings, text generation, hosting, storage, and authentication.
+Za izvajanje AI funkcij lahko Nota ustrezno vsebino pošlje zunanjim ponudnikom, ki podpirajo prepisovanje, izluščanje dokumentov, embeddinge, generiranje besedila, gostovanje, shranjevanje in avtentikacijo.
 
-That may include the files, text, audio, and prompts you submit when needed to produce the feature you requested.
+To lahko po potrebi vključuje datoteke, besedilo, zvok in pozive, ki jih pošlješ za funkcijo, ki jo zahtevaš.
 
-## Your choices
+## Tvoje možnosti
 
-If you do not want that processing to happen, do not upload, paste, record, or link that content in Nota.
+Če ne želiš, da pride do takšne obdelave, te vsebine v Nota ne nalagaj, ne lepi, ne snemaj in ne poveži.
 
-## Retention and deletion
+## Hramba in brisanje
 
-Content remains associated with your account until it is deleted through the product or removed through support or operational cleanup. If you need stricter retention, deletion, or contract terms, do not rely on this default policy alone.
+Vsebina ostane povezana s tvojim računom, dokler je ne izbrišeš v izdelku ali je ne odstranimo prek podpore ali operativnega čiščenja. Če potrebuješ strožje pogoje glede hrambe, brisanja ali pogodbenih določil, se ne zanašaj samo na to privzeto politiko.
 
-## Legal note
+## Pravno obvestilo
 
-This is a product-facing summary, not legal advice. Have counsel review it before treating it as a final production privacy policy.`,
+To je povzetek za uporabniški vmesnik izdelka in ni pravni nasvet. Preden ga obravnavaš kot končno produkcijsko politiko zasebnosti, naj ga pregleda pravni strokovnjak.`,
   },
 ];
 
 export const HELP_SECTIONS = [
   {
-    title: "Popular",
-    items: HELP_ARTICLES.filter((article) => article.category === "Popular"),
+    title: "Pogosto",
+    items: HELP_ARTICLES.filter((article) => article.category === "Pogosto"),
   },
   {
-    title: "Recording and notes",
-    items: HELP_ARTICLES.filter((article) => article.category === "Recording and notes"),
+    title: "Snemanje in zapiski",
+    items: HELP_ARTICLES.filter((article) => article.category === "Snemanje in zapiski"),
   },
   {
-    title: "Account and access",
-    items: HELP_ARTICLES.filter((article) => article.category === "Account and access"),
+    title: "Račun in dostop",
+    items: HELP_ARTICLES.filter((article) => article.category === "Račun in dostop"),
   },
 ];
 

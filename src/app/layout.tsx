@@ -8,7 +8,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: BRAND_NAME,
   description:
-    "AI lecture notes with recording, transcription, summaries, and chat.",
+    "AI zapiski predavanj s snemanjem, prepisom, povzetki in klepetom.",
   applicationName: BRAND_NAME,
   appleWebApp: {
     capable: true,
@@ -50,7 +50,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="sl" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{

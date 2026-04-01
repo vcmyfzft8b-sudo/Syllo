@@ -23,11 +23,11 @@ export async function GET(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Choose a plan before generating practice tests.");
+    return createBillingRequiredResponse("Pred ustvarjanjem preizkusov znanja izberi paket.");
   }
 
   const limited = await enforceRateLimit({
@@ -44,7 +44,7 @@ export async function GET(
   const parsedParams = routeIdParamSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return NextResponse.json({ error: "Invalid lecture id." }, { status: 400 });
+    return NextResponse.json({ error: "Neveljaven ID zapiska." }, { status: 400 });
   }
 
   const detail = await getLectureDetailForUser({
@@ -53,7 +53,7 @@ export async function GET(
   });
 
   if (!detail) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
   }
 
   return NextResponse.json({
@@ -76,7 +76,7 @@ export async function POST(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   const limited = await enforceRateLimit({
@@ -93,7 +93,7 @@ export async function POST(
   const parsedParams = routeIdParamSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return NextResponse.json({ error: "Invalid lecture id." }, { status: 400 });
+    return NextResponse.json({ error: "Neveljaven ID zapiska." }, { status: 400 });
   }
 
   const lecture = await ensureUserOwnsLecture({
@@ -102,12 +102,12 @@ export async function POST(
   });
 
   if (!lecture) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
   }
 
   if (lecture.status !== "ready") {
     return NextResponse.json(
-      { error: "Practice tests are available after the note is ready." },
+      { error: "Preizkusi znanja so na voljo, ko je zapisek pripravljen." },
       { status: 409 },
     );
   }

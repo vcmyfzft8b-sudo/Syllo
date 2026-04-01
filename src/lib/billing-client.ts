@@ -20,12 +20,12 @@ export async function parseApiResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     if (response.status === 402 && payload?.redirectTo) {
       throw new BillingRequiredError(
-        payload.error ?? "A paid plan is required for this action.",
+        payload.error ?? "Za to dejanje je potreben plačljiv paket.",
         payload.redirectTo,
       );
     }
 
-    throw new Error(payload?.error ?? "The request could not be completed.");
+    throw new Error(payload?.error ?? "Zahteve ni bilo mogoče dokončati.");
   }
 
   return (payload ?? {}) as T;

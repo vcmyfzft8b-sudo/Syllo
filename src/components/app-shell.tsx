@@ -10,56 +10,56 @@ import { InstantLink } from "@/components/instant-link";
 import { BRAND_NAME } from "@/lib/brand";
 
 const TAB_ITEMS = [
-  { href: "/app", displayLabel: "Home", icon: "🏠" },
-  { href: "/app/support", displayLabel: "Help", icon: "❓" },
-  { href: "/app/settings", displayLabel: "Settings", icon: "⚙️" },
+  { href: "/app", displayLabel: "Domov", icon: "🏠" },
+  { href: "/app/support", displayLabel: "Pomoč", icon: "❓" },
+  { href: "/app/settings", displayLabel: "Nastavitve", icon: "⚙️" },
 ];
 const PULL_REFRESH_SPOKES = Array.from({ length: 8 }, (_, index) => index);
 
 function getChrome(pathname: string) {
   if (pathname === "/app/start") {
     return {
-      title: "Get Started",
-      subtitle: "Personalize the app and choose a plan",
+      title: "Začni",
+      subtitle: "Prilagodi aplikacijo in izberi paket",
       backHref: null,
     };
   }
 
   if (pathname.startsWith("/app/lectures/")) {
     return {
-      title: "Note",
-      subtitle: "Review, export, and chat with the content",
+      title: "Zapisek",
+      subtitle: "Preglej, izvozi in klepetaj o vsebini",
       backHref: "/app",
     };
   }
 
   if (pathname.startsWith("/app/support/") && pathname !== "/app/support") {
     return {
-      title: "Help",
-      subtitle: "Usage guide",
+      title: "Pomoč",
+      subtitle: "Vodnik za uporabo",
       backHref: "/app/support",
     };
   }
 
   if (pathname === "/app/support") {
     return {
-      title: "Help",
-      subtitle: "Guides",
+      title: "Pomoč",
+      subtitle: "Vodniki",
       backHref: null,
     };
   }
 
   if (pathname === "/app/settings") {
     return {
-      title: "Settings",
-      subtitle: "Theme and account",
+      title: "Nastavitve",
+      subtitle: "Tema in račun",
       backHref: null,
     };
   }
 
   return {
-    title: "Notes",
-    subtitle: "Your full library in one place",
+    title: "Zapiski",
+    subtitle: "Celotna knjižnica na enem mestu",
     backHref: null,
   };
 }
@@ -263,14 +263,14 @@ export function AppShell({
           {chrome.backHref ? (
             <InstantLink href={chrome.backHref} className="app-back-button desktop-brandline-back">
               <ChevronLeft className="h-5 w-5" />
-              Back
+              Nazaj
             </InstantLink>
           ) : null}
 
           {showSubscribeCta ? (
             <InstantLink href={subscribeHref} className="app-subscribe-cta">
               <EmojiIcon symbol="✨" size="1rem" />
-              <span>Subscribe</span>
+              <span>Naročnina</span>
             </InstantLink>
           ) : null}
         </div>
@@ -285,11 +285,11 @@ export function AppShell({
           {showCreateCta ? (
             <InstantLink href={createHref} className="nota-sidebar-cta">
               <EmojiIcon symbol="➕" size="1rem" />
-              New note
+            Nov zapisek
             </InstantLink>
           ) : null}
 
-          <nav className="desktop-sidebar-nav" aria-label="Sidebar navigation">
+          <nav className="desktop-sidebar-nav" aria-label="Stranska navigacija">
             {TAB_ITEMS.map((item) => {
               const active =
                 item.href === "/app"
@@ -318,7 +318,7 @@ export function AppShell({
         <div className="app-shell-pull-content" style={mobilePullContentStyle}>
           <header className="ios-nav app-topbar">
             <div className="ios-nav-inner app-topbar-inner">
-              <InstantLink href="/app" className="app-topbar-brand" aria-label={`${BRAND_NAME} home`}>
+              <InstantLink href="/app" className="app-topbar-brand" aria-label={`Domov ${BRAND_NAME}`}>
                 <BrandLogo compact />
               </InstantLink>
 
@@ -331,7 +331,7 @@ export function AppShell({
                 <div className="ios-nav-actions">
                   <InstantLink href={chrome.backHref} className="app-back-button">
                     <ChevronLeft className="h-5 w-5" />
-                    Back
+                    Nazaj
                   </InstantLink>
                 </div>
               ) : null}
@@ -340,7 +340,7 @@ export function AppShell({
                 <div className="ios-nav-actions app-topbar-subscribe-actions">
                   <InstantLink href={subscribeHref} className="app-subscribe-cta">
                     <EmojiIcon symbol="✨" size="1rem" />
-                    <span>Subscribe</span>
+                    <span>Naročnina</span>
                   </InstantLink>
                 </div>
               ) : null}
@@ -349,7 +349,7 @@ export function AppShell({
                 <div className="ios-nav-actions app-topbar-actions">
                   <InstantLink href={createHref} className="app-topbar-cta">
                     <EmojiIcon symbol="➕" size="1rem" />
-                    <span>New note</span>
+                    <span>Nov zapisek</span>
                   </InstantLink>
                 </div>
               ) : null}
@@ -360,7 +360,7 @@ export function AppShell({
         </div>
       </div>
 
-      <nav className="ios-tabbar" aria-label="Main navigation">
+      <nav className="ios-tabbar" aria-label="Glavna navigacija">
         <div className="ios-tabbar-inner">
           {TAB_ITEMS.map((item) => {
             const active =

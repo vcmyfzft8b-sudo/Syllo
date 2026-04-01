@@ -19,11 +19,11 @@ export async function POST(request: Request) {
   const appState = await getViewerAppState();
 
   if (!appState) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   if (!appState.onboardingComplete) {
-    return NextResponse.json({ error: "Complete onboarding first." }, { status: 400 });
+    return NextResponse.json({ error: "Najprej dokončaj uvodno nastavitev." }, { status: 400 });
   }
 
   const parsed = await parseJsonRequest(request, checkoutSchema, {
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Could not create checkout session.",
+        error: error instanceof Error ? error.message : "Checkout seje ni bilo mogoče ustvariti.",
       },
       { status: 500 },
     );

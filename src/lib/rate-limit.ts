@@ -146,7 +146,7 @@ export async function enforceRateLimit(params: {
     if (!result?.allowed) {
       return NextResponse.json(
         {
-          error: "Too many requests.",
+          error: "Preveč zahtevkov.",
           retryAfterSeconds: result?.retry_after_seconds ?? rule.windowSeconds,
         },
         {

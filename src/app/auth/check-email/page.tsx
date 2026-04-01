@@ -25,7 +25,7 @@ export default async function CheckEmailPage({
   const normalizedEmail = typeof params?.email === "string"
     ? sanitizeUserInput(params.email).slice(0, 320)
     : "";
-  const email = normalizedEmail || "your inbox";
+  const email = normalizedEmail || "tvoj e-naslov";
   const mode = params?.mode === "signup" ? "signup" : "login";
   const next = normalizeNextPath(params?.next);
   const message = typeof params?.message === "string"
@@ -40,20 +40,20 @@ export default async function CheckEmailPage({
       <div className="check-email-topbar">
         <Link href="/" className="app-back-button">
           <ChevronLeft className="h-5 w-5" />
-          Back
+          Nazaj
         </Link>
       </div>
 
       <section className="landing-auth-wrap check-email-wrap">
-        <Link href="/" className="landing-auth-brand check-email-brand" aria-label={`${BRAND_NAME} home`}>
+        <Link href="/" className="landing-auth-brand check-email-brand" aria-label={`Domov ${BRAND_NAME}`}>
           <BrandLogo compact imageSizes="(max-width: 768px) 4.6rem, 7rem" priority />
         </Link>
 
         <div className="check-email-hero">
-          <p className="check-email-eyebrow">Check your email</p>
-          <h1 className="check-email-title">Enter your code</h1>
+          <p className="check-email-eyebrow">Preveri e-pošto</p>
+          <h1 className="check-email-title">Vnesi kodo</h1>
           <p className="check-email-copy">
-            We sent a verification code to <strong>{email}</strong>. Enter it below to continue.
+            Na <strong>{email}</strong> smo poslali potrditveno kodo. Vnesi jo spodaj za nadaljevanje.
           </p>
         </div>
 

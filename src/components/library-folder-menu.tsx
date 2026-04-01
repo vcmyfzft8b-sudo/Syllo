@@ -125,10 +125,10 @@ function toggleLectureId(currentIds: string[], lectureId: string) {
 
 function lectureSummary(count: number) {
   if (count === 1) {
-    return "1 lecture";
+    return "1 predavanje";
   }
 
-  return `${count} lectures`;
+  return `${count} predavanj`;
 }
 
 export function LibraryFolderMenu({
@@ -343,7 +343,7 @@ export function LibraryFolderMenu({
           <Folder open={isOpen} size={0.5} />
         </span>
         <span className="library-folder-trigger-label">
-          {selectedFolder?.name ?? "All Notes"}
+          {selectedFolder?.name ?? "Vsi zapiski"}
         </span>
         <EmojiIcon className={`library-folder-chevron ${isOpen ? "open" : ""}`} symbol="▾" size="0.95rem" />
       </button>
@@ -361,7 +361,7 @@ export function LibraryFolderMenu({
                   <span className="library-folder-option-icon">
                     <Folder open={false} size={0.34} />
                   </span>
-                  <span>All Notes</span>
+                  <span>Vsi zapiski</span>
                 </span>
               </button>
 
@@ -397,7 +397,7 @@ export function LibraryFolderMenu({
                   <span className="library-folder-option-icon">
                     <EmojiIcon symbol="➕" size="0.95rem" />
                   </span>
-                  <span>New folder</span>
+                  <span>Nova mapa</span>
                 </span>
                 <span className="library-folder-option-icon">
                   <EmojiIcon symbol="›" size="1.1rem" />
@@ -413,7 +413,7 @@ export function LibraryFolderMenu({
                   <span className="library-folder-option-icon">
                     <EmojiIcon symbol="✏️" size="0.95rem" />
                   </span>
-                  <span>Edit folders</span>
+                  <span>Uredi mape</span>
                 </span>
                 <span className="library-folder-option-icon">
                   <EmojiIcon symbol="›" size="1.1rem" />
@@ -442,14 +442,14 @@ export function LibraryFolderMenu({
                 type="button"
                 className="app-close-button library-folder-modal-close"
                 onClick={() => setIsCreateModalOpen(false)}
-                aria-label="Close new folder dialog"
+                aria-label="Zapri okno za novo mapo"
               >
                 <EmojiIcon symbol="✖️" size="1rem" />
               </button>
 
               <div className="library-folder-modal-header">
                 <h3 id="new-folder-title" className="library-folder-modal-title">
-                  New Folder
+                  Nova mapa
                 </h3>
                 <div className="library-folder-modal-icon">
                   <Folder open size={1.35} />
@@ -458,17 +458,17 @@ export function LibraryFolderMenu({
 
               <div className="library-folder-modal-body">
                 <label className="library-folder-modal-field">
-                  <span>Name</span>
+                  <span>Ime</span>
                   <input
                     value={folderName}
                     onChange={(event) => setFolderName(event.target.value)}
-                    placeholder="Biology, Maths, History..."
+                    placeholder="Biologija, Matematika, Zgodovina..."
                     className="ios-input"
                   />
                 </label>
 
                 <div className="library-folder-modal-field">
-                  <span>Add lectures</span>
+                  <span>Dodaj predavanja</span>
                   <div className="library-folder-lecture-picker modal">
                     {lectures.length > 0 ? (
                       lectures.map((lecture) => (
@@ -484,7 +484,7 @@ export function LibraryFolderMenu({
                           />
                           <span>
                             <span className="library-folder-lecture-title">
-                              {lecture.title ?? "Untitled note"}
+                              {lecture.title ?? "Neimenovan zapisek"}
                             </span>
                             <span className="library-folder-lecture-meta">
                               {formatRelativeDate(lecture.created_at)}
@@ -494,7 +494,7 @@ export function LibraryFolderMenu({
                       ))
                     ) : (
                       <p className="library-folder-empty">
-                        Create notes first, then group them into folders.
+                        Najprej ustvari zapiske, nato jih razporedi v mape.
                       </p>
                     )}
                   </div>
@@ -506,7 +506,7 @@ export function LibraryFolderMenu({
                 className="library-folder-primary-button modal"
                 onClick={handleCreateFolder}
               >
-                Create
+                Ustvari
               </button>
             </div>
           </div>
@@ -531,14 +531,14 @@ export function LibraryFolderMenu({
               type="button"
               className="app-close-button library-folder-modal-close"
               onClick={handleCancelEdit}
-              aria-label="Close edit folder dialog"
+              aria-label="Zapri okno za urejanje map"
             >
               <EmojiIcon symbol="✖️" size="1rem" />
             </button>
 
             <div className="library-folder-modal-header">
               <h3 id="edit-folder-title" className="library-folder-modal-title">
-                Edit Folder
+                Uredi mapo
               </h3>
               <div className="library-folder-modal-icon">
                 <Folder open size={1.35} />
@@ -548,7 +548,7 @@ export function LibraryFolderMenu({
             <div className="library-folder-modal-body">
               {folders.length > 1 ? (
                 <div className="library-folder-modal-field">
-                  <span>Choose folder</span>
+                  <span>Izberi mapo</span>
                   <div className="library-folder-modal-folder-list">
                     {folders.map((folder) => (
                       <button
@@ -570,7 +570,7 @@ export function LibraryFolderMenu({
               ) : null}
 
               <label className="library-folder-modal-field">
-                <span>Name</span>
+                <span>Ime</span>
                 <input
                   value={editingName}
                   onChange={(event) => setEditingName(event.target.value)}
@@ -579,7 +579,7 @@ export function LibraryFolderMenu({
               </label>
 
               <div className="library-folder-modal-field">
-                <span>Add lectures</span>
+                <span>Dodaj predavanja</span>
                 <div className="library-folder-lecture-picker modal">
                   {lectures.length > 0 ? (
                     lectures.map((lecture) => (
@@ -595,7 +595,7 @@ export function LibraryFolderMenu({
                         />
                         <span>
                           <span className="library-folder-lecture-title">
-                            {lecture.title ?? "Untitled note"}
+                            {lecture.title ?? "Neimenovan zapisek"}
                           </span>
                           <span className="library-folder-lecture-meta">
                             {formatRelativeDate(lecture.created_at)}
@@ -605,7 +605,7 @@ export function LibraryFolderMenu({
                     ))
                   ) : (
                     <p className="library-folder-empty">
-                      Create notes first, then group them into folders.
+                      Najprej ustvari zapiske, nato jih razporedi v mape.
                     </p>
                   )}
                 </div>
@@ -618,14 +618,14 @@ export function LibraryFolderMenu({
                 className="library-folder-primary-button modal"
                 onClick={handleSaveFolder}
               >
-                Save changes
+                Shrani spremembe
               </button>
               <button
                 type="button"
                 className="library-folder-secondary-button"
                 onClick={handleCancelEdit}
               >
-                Cancel
+                Prekliči
               </button>
               <button
                 type="button"
@@ -637,7 +637,7 @@ export function LibraryFolderMenu({
                 }}
               >
                 <EmojiIcon symbol="🗑️" size="0.95rem" />
-                Delete folder
+                Izbriši mapo
               </button>
             </div>
             </div>

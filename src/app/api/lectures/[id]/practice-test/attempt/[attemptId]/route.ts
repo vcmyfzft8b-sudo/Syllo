@@ -21,7 +21,7 @@ export async function GET(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   const limited = await enforceRateLimit({
@@ -38,7 +38,7 @@ export async function GET(
   const parsedParams = paramsSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return NextResponse.json({ error: "Invalid params." }, { status: 400 });
+    return NextResponse.json({ error: "Neveljavni parametri." }, { status: 400 });
   }
 
   const lecture = await ensureUserOwnsLecture({
@@ -47,7 +47,7 @@ export async function GET(
   });
 
   if (!lecture) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
   }
 
   try {
@@ -60,7 +60,7 @@ export async function GET(
     return NextResponse.json(attempt);
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Attempt not found." },
+      { error: error instanceof Error ? error.message : "Poskus ni bil najden." },
       { status: 404 },
     );
   }

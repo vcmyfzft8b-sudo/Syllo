@@ -11,7 +11,7 @@ export async function POST() {
   const appState = await getViewerAppState();
 
   if (!appState) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   try {
@@ -32,7 +32,7 @@ export async function POST() {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Could not create billing portal session.",
+        error: error instanceof Error ? error.message : "Seje za portal naročnine ni bilo mogoče ustvariti.",
       },
       { status: 500 },
     );

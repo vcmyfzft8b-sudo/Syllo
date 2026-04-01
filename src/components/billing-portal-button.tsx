@@ -18,7 +18,7 @@ export function BillingPortalButton() {
       const payload = (await response.json()) as { url?: string; error?: string };
 
       if (!response.ok || !payload.url) {
-        throw new Error(payload.error ?? "Could not open billing portal.");
+        throw new Error(payload.error ?? "Portala za obračun ni bilo mogoče odpreti.");
       }
 
       window.location.href = payload.url;
@@ -30,7 +30,7 @@ export function BillingPortalButton() {
   return (
     <button type="button" className="settings-inline-action" onClick={handleClick} disabled={loading}>
       {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <EmojiIcon symbol="💳" size="0.95rem" />}
-      Manage billing
+      Uredi naročnino
     </button>
   );
 }

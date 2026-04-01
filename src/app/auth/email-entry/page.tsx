@@ -34,20 +34,20 @@ export default async function EmailEntryPage({
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a href="/" className="app-back-button">
           <ChevronLeft className="h-5 w-5" />
-          Back
+          Nazaj
         </a>
       </div>
 
       <section className="landing-auth-wrap email-entry-wrap">
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <a href="/" className="landing-auth-brand email-entry-brand" aria-label={`${BRAND_NAME} home`}>
+        <a href="/" className="landing-auth-brand email-entry-brand" aria-label={`Domov ${BRAND_NAME}`}>
           <BrandLogo compact imageSizes="(max-width: 768px) 4.6rem, 7rem" priority />
         </a>
 
         <div className="landing-auth-hero email-entry-copy">
-          <h1 className="landing-auth-title email-entry-title">What&apos;s your email?</h1>
+          <h1 className="landing-auth-title email-entry-title">Kateri je tvoj e-naslov?</h1>
           <p className="landing-auth-copy email-entry-text">
-            Enter your email address and we&apos;ll send you a verification code.
+            Vnesi svoj e-naslov in poslali ti bomo potrditveno kodo.
           </p>
         </div>
 

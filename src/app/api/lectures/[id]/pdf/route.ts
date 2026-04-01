@@ -72,7 +72,7 @@ export async function GET(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   const limited = await enforceRateLimit({
@@ -89,7 +89,7 @@ export async function GET(
   const parsedParams = routeIdParamSchema.safeParse(await context.params);
 
   if (!parsedParams.success) {
-    return NextResponse.json({ error: "Invalid lecture id." }, { status: 400 });
+    return NextResponse.json({ error: "Neveljaven ID zapiska." }, { status: 400 });
   }
 
   const { id } = parsedParams.data;
@@ -99,16 +99,16 @@ export async function GET(
   });
 
   if (!detail || !detail.artifact) {
-    return NextResponse.json({ error: "Lecture not found." }, { status: 404 });
+    return NextResponse.json({ error: "Predavanje ni bilo najdeno." }, { status: 404 });
   }
 
   const docDefinition: TDocumentDefinitions = {
     info: {
-      title: detail.lecture.title ?? "Lecture",
+      title: detail.lecture.title ?? "Predavanje",
     },
     content: [
       {
-        text: detail.lecture.title ?? "Lecture",
+        text: detail.lecture.title ?? "Predavanje",
         style: "title",
       },
       {
@@ -116,7 +116,7 @@ export async function GET(
         style: "meta",
       },
       {
-        text: "Summary",
+        text: "Povzetek",
         style: "heading",
       },
       {
@@ -124,7 +124,7 @@ export async function GET(
         style: "body",
       },
       {
-        text: "Key topics",
+        text: "Ključne teme",
         style: "heading",
       },
       {
@@ -132,7 +132,7 @@ export async function GET(
         style: "body",
       },
       {
-        text: "Notes",
+        text: "Zapiski",
         style: "heading",
       },
       {
@@ -153,7 +153,7 @@ export async function GET(
   };
 
   const pdfBuffer = await buildPdfBuffer(docDefinition);
-  const fileName = sanitizeFileName(detail.lecture.title ?? "note");
+  const fileName = sanitizeFileName(detail.lecture.title ?? "zapisek");
 
   return new NextResponse(new Uint8Array(pdfBuffer), {
     status: 200,

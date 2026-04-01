@@ -51,10 +51,10 @@ export async function GET(request: NextRequest) {
     fallbackUrl.searchParams.set("message", sanitizeUserInput(
       authErrorDescription ??
         (authErrorCode === "otp_expired"
-          ? "This sign-in link has expired. Request a new email and try again."
+          ? "Ta prijavna povezava je potekla. Zahtevaj novo e-pošto in poskusi znova."
           : authError
-            ? "Authentication was canceled or denied."
-            : "Missing authentication code."),
+            ? "Prijava je bila preklicana ali zavrnjena."
+            : "Manjka avtentikacijska koda."),
     ).slice(0, 240));
     return NextResponse.redirect(fallbackUrl, { status: 303 });
   }
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
           type: otpType,
         })
       : {
-          error: new Error("Invalid email verification type."),
+          error: new Error("Neveljavna vrsta potrditve e-pošte."),
         };
 
   if (error) {

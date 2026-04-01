@@ -481,7 +481,7 @@ export async function extractTextFromDocument(file: File) {
   if (isRtfDocument(file)) {
     const rtf = await file.text();
     return {
-      title: file.name.replace(/\.[^.]+$/i, "") || "RTF document",
+      title: file.name.replace(/\.[^.]+$/i, "") || "RTF dokument",
       text: rtfToText(rtf),
       pages: [] as Array<{ pageNumber: number; text: string }>,
     };
@@ -492,13 +492,13 @@ export async function extractTextFromDocument(file: File) {
     const extracted = await mammoth.extractRawText({ buffer });
 
     return {
-      title: file.name.replace(/\.[^.]+$/i, "") || "Word document",
+      title: file.name.replace(/\.[^.]+$/i, "") || "Word dokument",
       text: normalizeWhitespace(extracted.value),
       pages: [] as Array<{ pageNumber: number; text: string }>,
     };
   }
 
-  throw new Error("Unsupported document type. Use PDF, TXT, Markdown, HTML, RTF, or DOCX.");
+  throw new Error("Nepodprta vrsta dokumenta. Uporabi PDF, TXT, Markdown, HTML, RTF ali DOCX.");
 }
 
 export async function extractTextFromImage(file: File) {
@@ -613,7 +613,7 @@ export async function createLectureFromTextSource(params: {
         .single();
 
       if (lectureError || !lecture) {
-        throw new Error(lectureError?.message ?? "Could not create note.");
+        throw new Error(lectureError?.message ?? "Zapiska ni bilo mogoče ustvariti.");
       }
 
       lectureId = (lecture as { id: string }).id;

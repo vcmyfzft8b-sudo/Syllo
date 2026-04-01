@@ -9,7 +9,7 @@ export default function SupportPage() {
       <section className="dashboard-section">
         <div className="dashboard-section-heading">
           <div>
-            <h1 className="dashboard-page-title">Help</h1>
+            <h1 className="dashboard-page-title">Pomoč</h1>
           </div>
         </div>
       </section>

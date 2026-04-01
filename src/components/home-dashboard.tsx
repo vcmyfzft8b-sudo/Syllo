@@ -28,29 +28,29 @@ import { formatCalendarDate } from "@/lib/utils";
 const QUICK_ACTIONS = [
   {
     id: "record" as const,
-    label: "Record lecture",
-    detail: "Start in one tap",
+    label: "Posnemi predavanje",
+    detail: "Začni z enim dotikom",
     icon: "🎙️",
     accent: "record",
   },
   {
     id: "upload" as const,
-    label: "Upload audio",
-    detail: "MP3, M4A, WAV, or WEBM",
+    label: "Naloži zvok",
+    detail: "MP3, M4A, WAV ali WEBM",
     icon: "📤",
     accent: "default",
   },
   {
     id: "text" as const,
-    label: "Paste text or PDF",
-    detail: "Turn source material into structured notes",
+    label: "Prilepi besedilo ali PDF",
+    detail: "Pretvori gradivo v strukturirane zapiske",
     icon: "📄",
     accent: "default",
   },
   {
     id: "link" as const,
-    label: "Add link",
-    detail: "Web article or source",
+    label: "Dodaj povezavo",
+    detail: "Spletni članek ali vir",
     icon: "🔗",
     accent: "default",
   },
@@ -58,18 +58,18 @@ const QUICK_ACTIONS = [
 
 function sourceLabel(sourceType: string) {
   if (sourceType === "link") {
-    return "Link";
+    return "Povezava";
   }
 
   if (sourceType === "text") {
-    return "Text";
+    return "Besedilo";
   }
 
   if (sourceType === "pdf") {
     return "PDF";
   }
 
-  return "Audio";
+  return "Zvok";
 }
 
 function SourceIcon({ sourceType }: { sourceType: string }) {
@@ -123,7 +123,7 @@ const NoteRow = memo(function NoteRow({
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="ios-row-title truncate font-medium">{lecture.title ?? "Untitled note"}</p>
+          <p className="ios-row-title truncate font-medium">{lecture.title ?? "Neimenovan zapisek"}</p>
           <p className="ios-row-subtitle mt-1">
             {sourceLabel(lecture.source_type)} • {formatCalendarDate(lecture.created_at)}
           </p>
@@ -137,7 +137,7 @@ const NoteRow = memo(function NoteRow({
       <div ref={isMenuOpen ? attachMenuRef : undefined} className="dashboard-note-actions">
         <button
           type="button"
-          aria-label={`Open actions for ${lecture.title ?? "note"}`}
+          aria-label={`Odpri dejanja za ${lecture.title ?? "zapisek"}`}
           aria-expanded={isMenuOpen}
           disabled={isBusy}
           onClick={() => onToggleMenu(lecture.id)}
@@ -156,21 +156,21 @@ const NoteRow = memo(function NoteRow({
               type="button"
               onClick={() => onOpenRename(lecture)}
               className="dashboard-note-menu-item"
-              aria-label="Rename note"
-              title="Rename note"
+              aria-label="Preimenuj zapisek"
+              title="Preimenuj zapisek"
             >
               <EmojiIcon symbol="✏️" size="0.95rem" />
-              <span>Rename</span>
+              <span>Preimenuj</span>
             </button>
             <button
               type="button"
               onClick={() => onOpenDelete(lecture)}
               className="dashboard-note-menu-item danger"
-              aria-label="Delete note"
-              title="Delete note"
+              aria-label="Izbriši zapisek"
+              title="Izbriši zapisek"
             >
               <EmojiIcon symbol="🗑️" size="0.95rem" />
-              <span>Delete</span>
+              <span>Izbriši</span>
             </button>
           </div>
         ) : null}
@@ -301,7 +301,7 @@ export function HomeDashboard({
   function openRenameModal(lecture: AppLectureListItem) {
     setOpenMenuLectureId(null);
     setRenameTarget(lecture);
-    setRenameValue(lecture.title?.trim() || "Untitled note");
+    setRenameValue(lecture.title?.trim() || "Neimenovan zapisek");
   }
 
   function closeRenameModal() {
@@ -361,7 +361,7 @@ export function HomeDashboard({
       return;
     }
 
-    const currentTitle = renameTarget.title?.trim() || "Untitled note";
+    const currentTitle = renameTarget.title?.trim() || "Neimenovan zapisek";
     const nextTitle = renameValue.trim();
 
     if (!nextTitle || nextTitle === currentTitle) {
@@ -428,7 +428,7 @@ export function HomeDashboard({
       <div className="home-dashboard pb-8">
         <section className="dashboard-section">
           <div className="dashboard-section-heading">
-            <h2 className="dashboard-section-title">New note</h2>
+            <h2 className="dashboard-section-title">Nov zapisek</h2>
           </div>
 
           <div className="note-action-grid">
@@ -458,7 +458,7 @@ export function HomeDashboard({
 
         <section className="dashboard-section mt-4">
           <div className="dashboard-section-heading mb-4">
-            <h2 className="dashboard-section-title">My notes</h2>
+            <h2 className="dashboard-section-title">Moji zapiski</h2>
           </div>
 
           <div className="dashboard-toolbar library-toolbar">
@@ -477,7 +477,7 @@ export function HomeDashboard({
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search by title, source, or error"
+                placeholder="Išči po naslovu, viru ali napaki"
               />
             </div>
           </div>
@@ -485,7 +485,7 @@ export function HomeDashboard({
           {failedLectures.length > 0 ? (
             <div className="dashboard-subsection">
               <div className="dashboard-subsection-heading">
-                <h3 className="dashboard-subsection-title">Needs attention</h3>
+                <h3 className="dashboard-subsection-title">Potrebno pozornosti</h3>
               </div>
 
               {failedLectures.map((lecture) => (
@@ -495,10 +495,10 @@ export function HomeDashboard({
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="ios-row-title text-[var(--red)] font-medium">
-                      {lecture.error_message ? "Error processing note" : "Error creating note"}
+                      {lecture.error_message ? "Napaka pri obdelavi zapiska" : "Napaka pri ustvarjanju zapiska"}
                     </p>
                     <p className="ios-row-subtitle mt-1" style={{ fontSize: "0.8rem", color: "var(--label)" }}>
-                      {lecture.error_message ?? "Retry the note or remove it from the library."}
+                      {lecture.error_message ?? "Poskusi znova ali odstrani zapisek iz knjižnice."}
                     </p>
                   </div>
 
@@ -513,7 +513,7 @@ export function HomeDashboard({
                       {busyLectureId === lecture.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : null}
-                      Delete
+                      Izbriši
                     </button>
                     {lecture.status === "failed" ? (
                       <button
@@ -526,7 +526,7 @@ export function HomeDashboard({
                         {busyLectureId === lecture.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : null}
-                        Retry
+                        Poskusi znova
                       </button>
                     ) : null}
                   </div>
@@ -557,17 +557,17 @@ export function HomeDashboard({
               </div>
               <p className="ios-row-title">
                 {search
-                  ? "No matching notes"
+                  ? "Ni ujemajočih zapiskov"
                   : selectedFolderId
-                    ? "This folder is empty"
-                    : "Your library is empty"}
+                    ? "Ta mapa je prazna"
+                    : "Tvoja knjižnica je prazna"}
               </p>
               <p className="ios-row-subtitle mt-2">
                 {search
-                  ? "Try a shorter search term or clear the query."
+                  ? "Poskusi krajši iskalni izraz ali počisti iskanje."
                   : selectedFolderId
-                    ? "Add lectures to this folder or switch back to all notes."
-                    : "Start with a recording, audio upload, PDF, text, or link."}
+                    ? "Dodaj predavanja v to mapo ali se vrni na vse zapiske."
+                    : "Začni s posnetkom, zvočno datoteko, PDF-jem, besedilom ali povezavo."}
               </p>
               {!search && !selectedFolderId ? (
                 <button
@@ -575,7 +575,7 @@ export function HomeDashboard({
                   onClick={() => setManualModal("record")}
                   className="app-home-highlight-link"
                 >
-                  <span>Create your first note</span>
+                  <span>Ustvari svoj prvi zapisek</span>
                   <EmojiIcon symbol="›" size="1.1rem" />
                 </button>
               ) : null}
@@ -609,13 +609,13 @@ export function HomeDashboard({
                 >
                   <div className="ios-sheet-header">
                     <h2 id="rename-note-title" className="ios-sheet-title">
-                      Rename note
+                      Preimenuj zapisek
                     </h2>
                     <button
                       type="button"
                       className="app-close-button ios-sheet-header-close"
                       onClick={closeRenameModal}
-                      aria-label="Close rename note dialog"
+                      aria-label="Zapri okno za preimenovanje zapiska"
                       disabled={busyLectureId === renameTarget.id}
                     >
                       <X className="h-4 w-4" />
@@ -630,17 +630,17 @@ export function HomeDashboard({
                     }}
                   >
                     <p className="ios-subtitle dashboard-note-dialog-copy">
-                      Give this note a clearer title without leaving the page.
+                      Daj temu zapisku bolj jasen naslov, ne da zapustiš stran.
                     </p>
 
                     <label className="dashboard-note-dialog-field">
-                      <span>Title</span>
+                      <span>Naslov</span>
                       <input
                         autoFocus
                         value={renameValue}
                         onChange={(event) => setRenameValue(event.target.value)}
                         className="ios-input"
-                        placeholder="Untitled note"
+                        placeholder="Neimenovan zapisek"
                       />
                     </label>
 
@@ -651,13 +651,13 @@ export function HomeDashboard({
                         disabled={
                           busyLectureId === renameTarget.id ||
                           !renameValue.trim() ||
-                          renameValue.trim() === (renameTarget.title?.trim() || "Untitled note")
+                          renameValue.trim() === (renameTarget.title?.trim() || "Neimenovan zapisek")
                         }
                       >
                         {busyLectureId === renameTarget.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : null}
-                        Save title
+                        Shrani naslov
                       </button>
                       <button
                         type="button"
@@ -665,7 +665,7 @@ export function HomeDashboard({
                         onClick={closeRenameModal}
                         disabled={busyLectureId === renameTarget.id}
                       >
-                        Cancel
+                        Prekliči
                       </button>
                     </div>
                   </form>
@@ -694,13 +694,13 @@ export function HomeDashboard({
                 >
                   <div className="ios-sheet-header">
                     <h2 id="delete-note-title" className="ios-sheet-title">
-                      Delete note
+                      Izbriši zapisek
                     </h2>
                     <button
                       type="button"
                       className="app-close-button ios-sheet-header-close"
                       onClick={closeDeleteModal}
-                      aria-label="Close delete note dialog"
+                      aria-label="Zapri okno za brisanje zapiska"
                       disabled={busyLectureId === deleteTarget.id}
                     >
                       <X className="h-4 w-4" />
@@ -709,11 +709,11 @@ export function HomeDashboard({
 
                   <div className="dashboard-note-dialog-body">
                     <p className="ios-subtitle dashboard-note-dialog-copy">
-                      Delete{" "}
+                      Izbriši{" "}
                       <span className="dashboard-note-dialog-highlight">
-                        {deleteTarget.title?.trim() || "Untitled note"}
+                        {deleteTarget.title?.trim() || "Neimenovan zapisek"}
                       </span>
-                      ? This cannot be undone.
+                      ? Tega ni mogoče razveljaviti.
                     </p>
 
                     <div className="dashboard-note-dialog-actions">
@@ -726,7 +726,7 @@ export function HomeDashboard({
                         {busyLectureId === deleteTarget.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : null}
-                        Delete note
+                        Izbriši zapisek
                       </button>
                       <button
                         type="button"
@@ -734,7 +734,7 @@ export function HomeDashboard({
                         onClick={closeDeleteModal}
                         disabled={busyLectureId === deleteTarget.id}
                       >
-                        Cancel
+                        Prekliči
                       </button>
                     </div>
                   </div>

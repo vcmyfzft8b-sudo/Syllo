@@ -28,11 +28,11 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Choose a plan before importing documents.");
+    return createBillingRequiredResponse("Pred uvozom dokumentov izberi paket.");
   }
 
   const limited = await enforceRateLimit({
@@ -78,13 +78,13 @@ export async function POST(request: Request) {
   const { lectureId, originalFileName, languageHint } = parsedFields.data;
 
   if (!(inputFile instanceof File)) {
-    return NextResponse.json({ error: "Missing document file." }, { status: 400 });
+    return NextResponse.json({ error: "Manjka datoteka dokumenta." }, { status: 400 });
   }
 
   if (!isSupportedDocumentFile(inputFile)) {
     return NextResponse.json(
       {
-        error: "Unsupported document type. Use PDF, TXT, Markdown, HTML, RTF, or DOCX.",
+        error: "Nepodprta vrsta dokumenta. Uporabi PDF, TXT, Markdown, HTML, RTF ali DOCX.",
       },
       { status: 400 },
     );
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
       }
 
       if (!lecture) {
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
+        return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
       }
     }
 
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       sourceType,
       text: extracted.text,
       blocks: extracted.pages.map((page) => ({
-        label: `Page ${page.pageNumber}`,
+        label: `Stran ${page.pageNumber}`,
         pageNumber: page.pageNumber,
         text: page.text,
       })),
@@ -141,7 +141,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "The document could not be processed.",
+          error instanceof Error ? error.message : "Dokumenta ni bilo mogoče obdelati.",
       },
       { status: 500 },
     );

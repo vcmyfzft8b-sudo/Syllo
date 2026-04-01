@@ -57,14 +57,14 @@ export default async function HomePage() {
   return (
     <main className="landing-shell landing-auth-page">
       <div className="landing-auth-wrap">
-        <Link href="/" className="landing-auth-brand" aria-label={`${BRAND_NAME} home`}>
+        <Link href="/" className="landing-auth-brand" aria-label={`Domov ${BRAND_NAME}`}>
           <BrandLogo compact imageSizes="(max-width: 768px) 4.6rem, 7rem" priority />
         </Link>
 
         <section className="landing-auth-hero">
-          <h1 className="landing-auth-title">Sign in</h1>
+          <h1 className="landing-auth-title">Prijava</h1>
           <p className="landing-auth-copy">
-            Sign in or create a new account. It&apos;s free.
+            Prijavi se ali ustvari nov račun. Brezplačno je.
           </p>
         </section>
 
@@ -74,7 +74,7 @@ export default async function HomePage() {
               <input type="hidden" name="next" value="/app/start" />
               <button type="submit" className="landing-provider-button primary">
                 <GoogleMark />
-                <span>Continue with Google</span>
+                <span>Nadaljuj z Google</span>
               </button>
             </form>
           ) : null}
@@ -84,7 +84,7 @@ export default async function HomePage() {
               <input type="hidden" name="next" value="/app/start" />
               <button type="submit" className="landing-provider-button secondary">
                 <AppleMark />
-                <span>Continue with Apple</span>
+                <span>Nadaljuj z Apple</span>
               </button>
             </form>
           ) : null}
@@ -95,23 +95,23 @@ export default async function HomePage() {
               className="landing-provider-button tertiary"
             >
               <Mail className="auth-provider-icon" />
-              <span>Continue with email</span>
+              <span>Nadaljuj z e-pošto</span>
             </a>
           ) : null}
         </div>
 
         <p className="landing-auth-legal">
-          By continuing, you agree to {`${BRAND_NAME}'s`}{" "}
-          <Link href="/app/support/terms-of-use">Terms of use</Link> and{" "}
-          <Link href="/app/support/privacy-policy">Privacy policy</Link>, including AI
-          processing of the audio, text, documents, and links you submit to generate
-          transcripts, notes, flashcards, quizzes, and chat responses.
+          Z nadaljevanjem se strinjaš s {`${BRAND_NAME}`}{" "}
+          <Link href="/app/support/terms-of-use">pogoji uporabe</Link> in{" "}
+          <Link href="/app/support/privacy-policy">politiko zasebnosti</Link>, vključno z AI
+          obdelavo zvoka, besedila, dokumentov in povezav, ki jih pošlješ za ustvarjanje
+          prepisov, zapiskov, kartic, kvizov in odgovorov v klepetu.
         </p>
 
         {!hasPublicSupabaseEnv ? (
           <div className="dashboard-surface-card landing-env-warning">
             <p className="ios-info ios-danger">
-              Missing public `Supabase` environment variables. Fill in `.env.local`.
+              Manjkajo javne `Supabase` okoljske spremenljivke. Izpolni `.env.local`.
             </p>
           </div>
         ) : null}

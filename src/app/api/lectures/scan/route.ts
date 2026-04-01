@@ -15,11 +15,11 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Choose a plan before scanning study material.");
+    return createBillingRequiredResponse("Pred skeniranjem učnega gradiva izberi paket.");
   }
 
   const limited = await enforceRateLimit({
@@ -38,16 +38,16 @@ export async function POST(request: Request) {
     const fileCandidate = formData.get("file");
 
     if (!(fileCandidate instanceof File)) {
-      return NextResponse.json({ error: "Add a photo to scan first." }, { status: 400 });
+      return NextResponse.json({ error: "Najprej dodaj fotografijo za skeniranje." }, { status: 400 });
     }
 
     if (!fileCandidate.type.startsWith("image/")) {
-      return NextResponse.json({ error: "Use an image file for scanning." }, { status: 400 });
+      return NextResponse.json({ error: "Za skeniranje uporabi slikovno datoteko." }, { status: 400 });
     }
 
     if (fileCandidate.size > MAX_SCAN_IMAGE_BYTES) {
       return NextResponse.json(
-        { error: "The scan image is too large. The limit is 8 MB." },
+        { error: "Slika za skeniranje je prevelika. Omejitev je 8 MB." },
         { status: 400 },
       );
     }
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
 
     if (!extracted.text.trim()) {
       return NextResponse.json(
-        { error: "No readable text was found in the photo." },
+        { error: "Na fotografiji ni bilo mogoče najti berljivega besedila." },
         { status: 400 },
       );
     }
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "The photo could not be scanned.",
+        error: error instanceof Error ? error.message : "Fotografije ni bilo mogoče skenirati.",
       },
       { status: 500 },
     );

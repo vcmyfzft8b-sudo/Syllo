@@ -43,10 +43,10 @@ const MODES: Array<{
   id: NoteSourceMode;
   label: string;
 }> = [
-  { id: "record", label: "Record" },
-  { id: "upload", label: "Upload" },
-  { id: "text", label: "Docs" },
-  { id: "link", label: "Link" },
+  { id: "record", label: "Snemaj" },
+  { id: "upload", label: "Naloži" },
+  { id: "text", label: "Dokumenti" },
+  { id: "link", label: "Povezava" },
 ];
 
 function pickRecorderMimeType() {
@@ -96,35 +96,35 @@ function readAudioDuration(file: File) {
 
     audio.onerror = () => {
       cleanup();
-      reject(new Error("The audio duration could not be read."));
+      reject(new Error("Dolžine zvočne datoteke ni bilo mogoče prebrati."));
     };
   });
 }
 
 function validateAudio(file: File, durationSeconds: number) {
   if (file.size > MAX_AUDIO_BYTES) {
-    throw new Error("The audio file is too large. The limit is 300 MB.");
+    throw new Error("Zvočna datoteka je prevelika. Omejitev je 300 MB.");
   }
 
   if (durationSeconds > MAX_AUDIO_SECONDS) {
-    throw new Error("The audio file is too long. The limit is 3 hours.");
+    throw new Error("Zvočna datoteka je predolga. Omejitev je 3 ure.");
   }
 }
 
 function sheetTitle(mode: NoteSourceMode) {
   if (mode === "record") {
-    return "Record lecture";
+    return "Posnemi predavanje";
   }
 
   if (mode === "upload") {
-    return "Upload audio";
+    return "Naloži zvok";
   }
 
   if (mode === "link") {
-    return "Add link";
+    return "Dodaj povezavo";
   }
 
-  return "Paste text or document";
+  return "Prilepi besedilo ali dokument";
 }
 
 function sheetDescription() {
@@ -252,7 +252,7 @@ export function NoteSourceModal({
       setError(
         validationError instanceof Error
           ? validationError.message
-          : "The audio could not be prepared.",
+          : "Zvoka ni bilo mogoče pripraviti.",
       );
     }
   }, [audioSource]);
@@ -343,7 +343,7 @@ export function NoteSourceModal({
     cancelRequestedRef.current = true;
     activeRequestControllerRef.current?.abort();
     setIsCancelling(true);
-    setBusyLabel((current) => current ?? "Cancelling...");
+    setBusyLabel((current) => current ?? "Preklicujem...");
     await deleteCreatedLecture();
     setBusyLabel(null);
     setIsCancelling(false);
@@ -420,7 +420,7 @@ export function NoteSourceModal({
       setError(
         uploadError instanceof Error
           ? uploadError.message
-          : "The file could not be prepared.",
+          : "Datoteke ni bilo mogoče pripraviti.",
       );
     } finally {
       event.target.value = "";
@@ -434,7 +434,7 @@ export function NoteSourceModal({
     }
 
     if (!recordingSupported) {
-      setError("This browser does not support in-app recording.");
+      setError("Ta brskalnik ne podpira snemanja znotraj aplikacije.");
       return;
     }
 
@@ -501,7 +501,7 @@ export function NoteSourceModal({
       setError(
         recordError instanceof Error
           ? recordError.message
-          : "Recording could not be started.",
+          : "Snemanja ni bilo mogoče začeti.",
       );
     }
   }
@@ -589,7 +589,7 @@ export function NoteSourceModal({
 
   async function createAudioLecture() {
     if (!audioSource) {
-      setError("Choose or record audio first.");
+      setError("Najprej izberi ali posnemi zvok.");
       return;
     }
 
@@ -633,7 +633,7 @@ export function NoteSourceModal({
         setError(
           submitError instanceof Error
             ? submitError.message
-            : "The audio note could not be created.",
+            : "Zvočnega zapiska ni bilo mogoče ustvariti.",
         );
       }
     } finally {
@@ -645,12 +645,12 @@ export function NoteSourceModal({
 
   async function createTextLecture() {
     if (trimmedTextValue.length < 120) {
-      setError("Paste at least a short text sample.");
+      setError("Prilepi vsaj krajši vzorec besedila.");
       return;
     }
 
     try {
-      setBusyLabel("Preparing...");
+      setBusyLabel("Pripravljam...");
       setError(null);
       cancelRequestedRef.current = false;
       const lectureId = await createManualLecture("text");
@@ -662,7 +662,7 @@ export function NoteSourceModal({
 
       const controller = new AbortController();
       activeRequestControllerRef.current = controller;
-      setBusyLabel("Creating notes...");
+      setBusyLabel("Ustvarjam zapiske...");
 
       const response = await fetch("/api/lectures/text", {
         method: "POST",
@@ -694,7 +694,7 @@ export function NoteSourceModal({
         setError(
           submitError instanceof Error
             ? submitError.message
-            : "The text note could not be created.",
+            : "Besedilnega zapiska ni bilo mogoče ustvariti.",
         );
       }
     } finally {
@@ -706,12 +706,12 @@ export function NoteSourceModal({
 
   async function createLinkLecture() {
     if (!trimmedLinkValue) {
-      setError("Paste a link first.");
+      setError("Najprej prilepi povezavo.");
       return;
     }
 
     try {
-      setBusyLabel("Preparing...");
+      setBusyLabel("Pripravljam...");
       setError(null);
       cancelRequestedRef.current = false;
       const lectureId = await createManualLecture("link");
@@ -723,7 +723,7 @@ export function NoteSourceModal({
 
       const controller = new AbortController();
       activeRequestControllerRef.current = controller;
-      setBusyLabel("Reading page...");
+      setBusyLabel("Berem stran...");
 
       const response = await fetch("/api/lectures/link", {
         method: "POST",
@@ -755,7 +755,7 @@ export function NoteSourceModal({
         setError(
           submitError instanceof Error
             ? submitError.message
-            : "The web note could not be created.",
+            : "Spletnega zapiska ni bilo mogoče ustvariti.",
         );
       }
     } finally {
@@ -780,14 +780,14 @@ export function NoteSourceModal({
 
     try {
       if (!file.type.startsWith("image/")) {
-        throw new Error("Use a photo or image for scanning.");
+        throw new Error("Za skeniranje uporabi fotografijo ali sliko.");
       }
 
       if (file.size > MAX_SCAN_IMAGE_BYTES) {
-        throw new Error("The scan image is too large. The limit is 8 MB.");
+        throw new Error("Slika za skeniranje je prevelika. Omejitev je 8 MB.");
       }
 
-      setBusyLabel("Scanning text...");
+      setBusyLabel("Skeniram besedilo...");
       setError(null);
 
       const formData = new FormData();
@@ -811,7 +811,7 @@ export function NoteSourceModal({
       }
 
       setError(
-        scanError instanceof Error ? scanError.message : "The photo could not be scanned.",
+        scanError instanceof Error ? scanError.message : "Fotografije ni bilo mogoče skenirati.",
       );
     } finally {
       setBusyLabel(null);
@@ -834,11 +834,11 @@ export function NoteSourceModal({
 
     try {
       if (!isSupportedDocumentFile(file)) {
-        throw new Error("Use PDF, TXT, Markdown, HTML, RTF, or DOCX.");
+        throw new Error("Uporabi PDF, TXT, Markdown, HTML, RTF ali DOCX.");
       }
 
       if (file.size > MAX_DOCUMENT_BYTES) {
-        throw new Error("The document file is too large. The current limit is 4 MB.");
+        throw new Error("Datoteka dokumenta je prevelika. Trenutna omejitev je 4 MB.");
       }
 
       setPdfSource(file);
@@ -849,7 +849,7 @@ export function NoteSourceModal({
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "The document could not be prepared.",
+          : "Dokumenta ni bilo mogoče pripraviti.",
       );
     } finally {
       event.target.value = "";
@@ -858,12 +858,12 @@ export function NoteSourceModal({
 
   async function createPdfLecture() {
     if (!pdfSource) {
-      setError("Choose a document first.");
+      setError("Najprej izberi dokument.");
       return;
     }
 
     try {
-      setBusyLabel("Preparing...");
+      setBusyLabel("Pripravljam...");
       setError(null);
       cancelRequestedRef.current = false;
       const lectureId = await createManualLecture("pdf");
@@ -890,7 +890,7 @@ export function NoteSourceModal({
 
       const controller = new AbortController();
       activeRequestControllerRef.current = controller;
-      setBusyLabel("Reading document...");
+      setBusyLabel("Berem dokument...");
 
       const response = await fetch("/api/lectures/pdf", {
         method: "POST",
@@ -915,7 +915,7 @@ export function NoteSourceModal({
         setError(
           submitError instanceof Error
             ? submitError.message
-            : "The document note could not be created.",
+            : "Zapiska iz dokumenta ni bilo mogoče ustvariti.",
         );
       }
     } finally {
@@ -939,7 +939,7 @@ export function NoteSourceModal({
           onClick={() => void handleCancelBusyAction()}
         >
           {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Cancel
+          Prekliči
         </button>
       );
     }
@@ -959,7 +959,7 @@ export function NoteSourceModal({
         }}
       >
         <EmojiIcon symbol={params.generateIcon} size="1rem" />
-        Generate
+        Ustvari
       </button>
     );
   }
@@ -976,7 +976,7 @@ export function NoteSourceModal({
           <p className="note-source-busy-title">{busyLabel}</p>
         </div>
         <p className="note-source-busy-copy">
-          Do not close this screen. It will close automatically when everything is ready.
+          Ne zapiraj tega zaslona. Ko bo vse pripravljeno, se bo zaprl samodejno.
         </p>
         <button
           type="button"
@@ -985,7 +985,7 @@ export function NoteSourceModal({
           onClick={() => void handleCancelBusyAction()}
         >
           {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Cancel
+          Prekliči
         </button>
       </div>
     );
@@ -1006,7 +1006,7 @@ export function NoteSourceModal({
         className="ios-sheet-wrap note-source-modal-wrap"
         role="dialog"
         aria-modal="true"
-        aria-label="New note"
+        aria-label="Nov zapisek"
       >
         <div className="ios-sheet-stack note-source-modal-stack">
           <section className="ios-sheet note-source-sheet note-source-modal">
@@ -1018,14 +1018,14 @@ export function NoteSourceModal({
                     className="note-source-back-button"
                     onClick={() => setShowAudioImportGuide(false)}
                     disabled={Boolean(busyLabel) || isCancelling}
-                    aria-label="Back to audio options"
+                    aria-label="Nazaj na možnosti zvoka"
                   >
                     <ChevronLeft className="h-4 w-4" />
-                    Back
+                    Nazaj
                   </button>
                 ) : null}
                 <h2 className="ios-sheet-title">
-                  {showAudioImportGuide ? "Import audio from your phone" : sheetTitle(selectedMode)}
+                  {showAudioImportGuide ? "Uvozi zvok iz telefona" : sheetTitle(selectedMode)}
                 </h2>
               </div>
               <button
@@ -1033,7 +1033,7 @@ export function NoteSourceModal({
                 onClick={requestClose}
                 disabled={isCancelling}
                 className="app-close-button ios-sheet-header-close"
-                aria-label="Close"
+                aria-label="Zapri"
               >
                 <EmojiIcon symbol="✖️" size="1rem" />
               </button>
@@ -1050,63 +1050,52 @@ export function NoteSourceModal({
             ) : showAudioImportGuide ? (
               <div className="mt-6 space-y-4 note-source-modal-body">
                 <section className="ios-card note-source-guide-hero">
-                  <p className="note-source-card-label">Why this exists</p>
+                  <p className="note-source-card-label">Zakaj to obstaja</p>
                   <p className="note-source-guide-title">
-                    Record the lecture with your phone screen off, then upload it later.
+                    Posnemi predavanje, tudi ko je zaslon telefona ugasnjen, nato pa posnetek naloži kasneje.
                   </p>
                   <p className="note-source-guide-copy">
-                    In-app recording only works while this app stays open. For long lectures, the
-                    easier option is to record in your phone&apos;s native audio app first, move the
-                    recording into your Files app, and then upload that file here.
+                    Snemanje znotraj aplikacije deluje le, dokler je ta aplikacija odprta. Pri daljših predavanjih je lažje, da najprej snemaš v privzeti aplikaciji telefona, nato posnetek premakneš v aplikacijo Datoteke in ga tukaj naložiš.
                   </p>
                 </section>
 
                 <section className="ios-card note-source-guide-section">
-                  <p className="note-source-card-label">Step 1</p>
-                  <p className="note-source-guide-step-title">Record in your phone&apos;s normal audio app</p>
+                  <p className="note-source-card-label">Korak 1</p>
+                  <p className="note-source-guide-step-title">Posnemi v običajni aplikaciji za zvok na telefonu</p>
                   <p className="note-source-guide-copy">
-                    On iPhone, use Voice Memos. On Android, use your Recorder app or any built-in
-                    audio recorder that saves a file on your device.
+                    Na iPhonu uporabi Diktafon. Na Androidu uporabi Recorder ali katerokoli vgrajeno aplikacijo za snemanje, ki shrani datoteko na napravo.
                   </p>
                   <p className="note-source-guide-copy">
-                    Start recording there before class. You can lock your phone, turn the screen
-                    off, or leave this app completely. The recording keeps running in the native
-                    recorder, not in this app.
+                    Snemanje tam zaženi pred začetkom predavanja. Telefon lahko zakleneš, ugasneš zaslon ali popolnoma zapreš to aplikacijo. Snemanje bo teklo v sistemski aplikaciji, ne v tej aplikaciji.
                   </p>
                 </section>
 
                 <section className="ios-card note-source-guide-section">
-                  <p className="note-source-card-label">Step 2</p>
-                  <p className="note-source-guide-step-title">Move that recording into your Files app</p>
+                  <p className="note-source-card-label">Korak 2</p>
+                  <p className="note-source-guide-step-title">Premakni posnetek v aplikacijo Datoteke</p>
                   <p className="note-source-guide-copy">
-                    After the lecture, open the recording in your phone&apos;s recorder app and look for
-                    options like Share, Export, Save to Files, Download, or Copy to Files.
+                    Po predavanju odpri posnetek v aplikaciji za snemanje in poišči možnosti, kot so Deli, Izvozi, Shrani v Datoteke, Prenesi ali Kopiraj v Datoteke.
                   </p>
                   <p className="note-source-guide-copy">
-                    Save the audio somewhere easy to find, like Downloads, On My iPhone, iCloud
-                    Drive, or your Android Files folder. If your phone shows a different name for
-                    this step, use the option that saves the recording as a file.
+                    Zvok shrani na mesto, ki ga boš hitro našel, na primer Prenosi, Na mojem iPhonu, iCloud Drive ali mapo Datoteke na Androidu. Če tvoj telefon ta korak poimenuje drugače, uporabi možnost, ki posnetek shrani kot datoteko.
                   </p>
                 </section>
 
                 <section className="ios-card note-source-guide-section">
-                  <p className="note-source-card-label">Step 3</p>
-                  <p className="note-source-guide-step-title">Upload it here from the file picker</p>
+                  <p className="note-source-card-label">Korak 3</p>
+                  <p className="note-source-guide-step-title">Tukaj ga naloži prek izbirnika datotek</p>
                   <p className="note-source-guide-copy">
-                    Come back to this app, open the audio note flow, switch to <strong>Upload</strong>,
-                    tap <strong>Choose audio file</strong>, and pick the recording you saved in Files.
+                    Vrni se v to aplikacijo, odpri potek za zvočni zapisek, preklopi na <strong>Naloži</strong>, pritisni <strong>Izberi zvočno datoteko</strong> in izberi posnetek, ki si ga shranil v Datoteke.
                   </p>
                   <p className="note-source-guide-copy">
-                    Once the file is selected, tap <strong>Generate</strong>. The app will turn that
-                    lecture audio into notes and the rest of your study material.
+                    Ko je datoteka izbrana, pritisni <strong>Ustvari</strong>. Aplikacija bo ta zvok predavanja pretvorila v zapiske in ostalo učno gradivo.
                   </p>
                 </section>
 
                 <section className="ios-card note-source-guide-section">
-                  <p className="note-source-card-label">In short</p>
+                  <p className="note-source-card-label">Na kratko</p>
                   <p className="note-source-guide-copy">
-                    Native recorder for class. Files app to save the audio. Upload tab here to turn
-                    it into notes.
+                    Za predavanje uporabi sistemski snemalnik. Zvok shrani v Datoteke. Nato ga tukaj v zavihku za nalaganje pretvori v zapiske.
                   </p>
                 </section>
               </div>
@@ -1135,10 +1124,10 @@ export function NoteSourceModal({
                     >
                       <div className="note-source-guide-entry-copy">
                         <p className="note-source-guide-entry-title">
-                          Record with your phone off
+                          Snemaj tudi z ugasnjenim telefonom
                         </p>
                         <p className="note-source-guide-entry-text">
-                          Save it, then upload it here later.
+                          Shrani posnetek in ga tukaj naloži kasneje.
                         </p>
                       </div>
                       <span className="note-source-guide-entry-arrow" aria-hidden="true">
@@ -1150,7 +1139,7 @@ export function NoteSourceModal({
                   {!isRecording ? (
                     <div>
                       <label className="note-source-field-label">
-                        Language
+                        Jezik
                       </label>
                       <div className="relative note-source-select-wrap">
                         <select
@@ -1173,7 +1162,7 @@ export function NoteSourceModal({
                     <>
                       {preparedRecording ? (
                         <div className="ios-card">
-                          <p className="note-source-card-label">Prepared recording</p>
+                          <p className="note-source-card-label">Pripravljen posnetek</p>
                           <p className="ios-row-title mt-3">{preparedRecording.file.name}</p>
                           <p className="ios-row-subtitle">
                             {formatTimestamp(preparedRecording.durationSeconds * 1000)}
@@ -1183,9 +1172,9 @@ export function NoteSourceModal({
 
                       {isRecording ? (
                         <div className="ios-card">
-                          <p className="note-source-card-label">Recording</p>
+                          <p className="note-source-card-label">Snemanje</p>
                           <p className="ios-row-title mt-3">
-                            {isPaused ? "Recording paused" : "Recording in progress"}
+                            {isPaused ? "Snemanje je začasno ustavljeno" : "Snemanje poteka"}
                           </p>
                           <p className="ios-row-subtitle">
                             {formatTimestamp(elapsedSeconds * 1000)}
@@ -1220,7 +1209,7 @@ export function NoteSourceModal({
                             }}
                           >
                             <EmojiIcon symbol={isPaused ? "▶️" : "⏸️"} size="1rem" />
-                            {isPaused ? "Resume recording" : "Pause recording"}
+                            {isPaused ? "Nadaljuj snemanje" : "Začasno ustavi snemanje"}
                           </button>
 
                           <button
@@ -1240,7 +1229,7 @@ export function NoteSourceModal({
                             ) : (
                               <EmojiIcon symbol="🎙️" size="1rem" />
                             )}
-                            {busyLabel ?? "Stop recording"}
+                            {busyLabel ?? "Ustavi snemanje"}
                           </button>
                         </div>
                       ) : null}
@@ -1262,7 +1251,7 @@ export function NoteSourceModal({
                               void startRecording();
                             }}
                           >
-                            Record again
+                            Posnemi znova
                           </button>
                         </>
                       ) : null}
@@ -1279,7 +1268,7 @@ export function NoteSourceModal({
                           ) : (
                             <EmojiIcon symbol="🎙️" size="1rem" />
                           )}
-                          {busyLabel ?? "Start recording"}
+                          {busyLabel ?? "Začni snemanje"}
                         </button>
                       ) : null}
                     </>
@@ -1289,7 +1278,7 @@ export function NoteSourceModal({
                     <>
                       {preparedUpload ? (
                         <div className="ios-card">
-                          <p className="note-source-card-label">Selected file</p>
+                          <p className="note-source-card-label">Izbrana datoteka</p>
                           <p className="ios-row-title mt-3">{preparedUpload.file.name}</p>
                           <p className="ios-row-subtitle">
                             {formatTimestamp(preparedUpload.durationSeconds * 1000)}
@@ -1319,7 +1308,7 @@ export function NoteSourceModal({
                           }}
                       >
                         <EmojiIcon symbol="📤" size="1rem" />
-                        {preparedUpload ? "Choose another audio file" : "Choose audio file"}
+                        {preparedUpload ? "Izberi drugo zvočno datoteko" : "Izberi zvočno datoteko"}
                       </button>
 
                       {renderBusyOrGenerateButton({
@@ -1334,7 +1323,7 @@ export function NoteSourceModal({
                     <>
                       <div>
                         <label className="note-source-field-label">
-                          Link
+                          Povezava
                         </label>
                         <div className="ios-search">
                           <EmojiIcon symbol="🔎" size="0.95rem" />
@@ -1358,20 +1347,20 @@ export function NoteSourceModal({
                     <>
                       {pdfSource ? (
                         <div className="ios-card note-source-docs-file-card">
-                          <p className="note-source-card-label">Document selected</p>
+                          <p className="note-source-card-label">Izbran dokument</p>
                           <p className="ios-row-title note-source-docs-file-name">{pdfSource.name}</p>
                           <p className="ios-row-subtitle note-source-docs-file-copy">
-                            Used until you start typing again.
+                            Uporabljen bo, dokler ponovno ne začneš tipkati.
                           </p>
                         </div>
                       ) : null}
 
                       {!pdfSource && scannedFileName ? (
                         <div className="ios-card note-source-docs-file-card">
-                          <p className="note-source-card-label">Scanned text ready</p>
+                          <p className="note-source-card-label">Skenirano besedilo je pripravljeno</p>
                           <p className="ios-row-title note-source-docs-file-name">{scannedFileName}</p>
                           <p className="ios-row-subtitle note-source-docs-file-copy">
-                            Review and edit the extracted text before generating notes.
+                            Pred ustvarjanjem zapiskov preglej in uredi izluščeno besedilo.
                           </p>
                         </div>
                       ) : null}
@@ -1393,7 +1382,7 @@ export function NoteSourceModal({
                             setTextValue(nextValue);
                           }}
                           className="ios-textarea note-source-inline-textarea"
-                          placeholder="Paste notes or text here..."
+                          placeholder="Sem prilepi zapiske ali besedilo..."
                         />
                       </div>
 
@@ -1429,7 +1418,7 @@ export function NoteSourceModal({
                           }}
                         >
                           <EmojiIcon symbol="📤" size="1rem" />
-                          File
+                          Datoteka
                         </button>
 
                         <button
@@ -1446,7 +1435,7 @@ export function NoteSourceModal({
                           }}
                         >
                           <EmojiIcon symbol="📷" size="1rem" />
-                          Scan
+                          Skeniraj
                         </button>
                       </div>
 
@@ -1500,13 +1489,13 @@ export function NoteSourceModal({
               >
                 <div className="ios-sheet-header">
                   <h2 id="paste-text-title" className="ios-sheet-title">
-                    Paste text
+                    Prilepi besedilo
                   </h2>
                   <button
                     type="button"
                     className="app-close-button ios-sheet-header-close"
                     onClick={() => setIsTextEditorOpen(false)}
-                    aria-label="Close paste text dialog"
+                    aria-label="Zapri okno za lepljenje besedila"
                     disabled={Boolean(busyLabel)}
                   >
                     <EmojiIcon symbol="✖️" size="1rem" />
@@ -1515,7 +1504,7 @@ export function NoteSourceModal({
 
                 <div className="dashboard-note-dialog-body">
                   <p className="ios-subtitle dashboard-note-dialog-copy">
-                    Paste lecture notes, slides, article text, or review scanned text here.
+                    Sem prilepi zapiske predavanja, prosojnice, besedilo članka ali preglej skenirano besedilo.
                   </p>
 
                   <textarea
@@ -1534,7 +1523,7 @@ export function NoteSourceModal({
                       setTextValue(nextValue);
                     }}
                     className="ios-textarea note-source-subsheet-textarea"
-                    placeholder="Paste lecture or article content..."
+                    placeholder="Prilepi vsebino predavanja ali članka..."
                     autoFocus
                   />
 
@@ -1545,7 +1534,7 @@ export function NoteSourceModal({
                       disabled={Boolean(busyLabel)}
                       onClick={() => setIsTextEditorOpen(false)}
                     >
-                      Done
+                      Končano
                     </button>
                     {textValue.trim().length > 0 ? (
                       <button
@@ -1557,7 +1546,7 @@ export function NoteSourceModal({
                           setScannedFileName(null);
                         }}
                       >
-                        Clear text
+                        Počisti besedilo
                       </button>
                     ) : null}
                   </div>

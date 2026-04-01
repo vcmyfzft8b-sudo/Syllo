@@ -62,23 +62,23 @@ export async function AuthPageShell(props: {
 }) {
   const providers = await getAuthProviderAvailability();
   const loginMode = props.mode === "login";
-  const title = loginMode ? "Welcome back" : "Create your account";
+  const title = loginMode ? "Dobrodošel nazaj" : "Ustvari svoj račun";
   const copy = loginMode
-    ? "Pick up where you left off with transcript, notes, flashcards, and chat."
-    : "Start with one lecture and get transcript, summary, flashcards, and chat in one workspace.";
-  const googleLabel = loginMode ? "Sign in with Google" : "Create account with Google";
-  const appleLabel = loginMode ? "Sign in with Apple" : "Create account with Apple";
-  const emailLabel = loginMode ? "Email me a sign-in link" : "Email me a sign-up link";
+    ? "Nadaljuj tam, kjer si ostal, s prepisom, zapiski, karticami in klepetom."
+    : "Začni z enim predavanjem in v enem prostoru dobi prepis, povzetek, kartice in klepet.";
+  const googleLabel = loginMode ? "Prijava z Google" : "Ustvari račun z Google";
+  const appleLabel = loginMode ? "Prijava z Apple" : "Ustvari račun z Apple";
+  const emailLabel = loginMode ? "Pošlji mi prijavno povezavo" : "Pošlji mi povezavo za registracijo";
   const switchHref = loginMode ? "/auth/signup" : "/auth/login";
-  const switchLabel = loginMode ? "Create account" : "Log in";
-  const switchCopy = loginMode ? "New here?" : "Already have an account?";
+  const switchLabel = loginMode ? "Ustvari račun" : "Prijava";
+  const switchCopy = loginMode ? "Si tukaj prvič?" : "Že imaš račun?";
 
   return (
     <main className="landing-shell auth-shell">
       <header className="ios-nav landing-nav">
         <div className="ios-nav-inner landing-nav-inner">
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a href="/" className="landing-brand-link" aria-label={`${BRAND_NAME} home`}>
+          <a href="/" className="landing-brand-link" aria-label={`Domov ${BRAND_NAME}`}>
             <BrandLogo compact />
           </a>
 
@@ -86,7 +86,7 @@ export async function AuthPageShell(props: {
             {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a href="/" className="app-back-button">
               <ChevronLeft className="h-5 w-5" />
-              Back
+              Nazaj
             </a>
           </div>
         </div>
@@ -95,7 +95,7 @@ export async function AuthPageShell(props: {
       <div className="ios-content">
         <section className="auth-stage">
           <div className="auth-panel">
-            <p className="auth-eyebrow">{loginMode ? "Log in" : "Sign up"}</p>
+            <p className="auth-eyebrow">{loginMode ? "Prijava" : "Registracija"}</p>
             <h1 className="auth-title">{title}</h1>
             <p className="auth-copy">{copy}</p>
 
@@ -119,7 +119,7 @@ export async function AuthPageShell(props: {
             {providers.email ? (
               <>
                 <div className="auth-divider">
-                  <span>or</span>
+                  <span>ali</span>
                 </div>
 
                 <form action="/auth/email" method="post" className="auth-email-form">
@@ -133,7 +133,7 @@ export async function AuthPageShell(props: {
                       name="email"
                       required
                       defaultValue={props.prefilledEmail}
-                      placeholder="Enter your email"
+                      placeholder="Vnesi svoj e-naslov"
                       autoComplete="email"
                     />
                   </label>
@@ -144,17 +144,17 @@ export async function AuthPageShell(props: {
                 </form>
 
                 <p className="auth-helper-copy">
-                  We&apos;ll send a verification code to your inbox.
+                  Na tvoj e-naslov bomo poslali potrditveno kodo.
                 </p>
               </>
             ) : null}
 
             <p className="auth-legal-copy">
-              By continuing, you agree to {`${BRAND_NAME}'s`}{" "}
-              <Link href="/app/support/terms-of-use">Terms of use</Link> and{" "}
-              <Link href="/app/support/privacy-policy">Privacy policy</Link>, including
-              processing the audio, text, documents, and links you submit with AI providers
-              to generate transcripts, notes, flashcards, quizzes, and chat responses.
+              Z nadaljevanjem se strinjaš s {`${BRAND_NAME}`}{" "}
+              <Link href="/app/support/terms-of-use">pogoji uporabe</Link> in{" "}
+              <Link href="/app/support/privacy-policy">politiko zasebnosti</Link>, vključno
+              z obdelavo zvoka, besedila, dokumentov in povezav pri AI ponudnikih za
+              ustvarjanje prepisov, zapiskov, kartic, kvizov in odgovorov v klepetu.
             </p>
 
             <p className="auth-switch-copy">

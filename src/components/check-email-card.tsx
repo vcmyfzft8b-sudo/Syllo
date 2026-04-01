@@ -57,7 +57,7 @@ export function CheckEmailCard(props: {
             minLength={6}
             maxLength={8}
             autoComplete="one-time-code"
-            placeholder="Enter code"
+            placeholder="Vnesi kodo"
             className="auth-code-input check-email-code-input"
             value={code}
             onChange={(event) => {
@@ -68,13 +68,13 @@ export function CheckEmailCard(props: {
         </label>
 
         <button type="submit" className="ios-primary-button auth-submit-button check-email-submit">
-          Continue
+          Nadaljuj
         </button>
       </form>
 
       <p className={`auth-status-note check-email-status-note ${props.messageType === "error" ? "error" : ""}`}>
         {props.message ??
-          "The code expires automatically. If you didn’t get it, you can request a new one after the timer ends."}
+          "Koda samodejno poteče. Če je nisi prejel, lahko po izteku časovnika zahtevaš novo."}
       </p>
 
       <div className="auth-check-actions check-email-actions">
@@ -88,11 +88,11 @@ export function CheckEmailCard(props: {
             disabled={secondsLeft > 0}
             aria-disabled={secondsLeft > 0}
           >
-            {secondsLeft > 0 ? `Send new code in ${formatCountdown(secondsLeft)}` : "Send new code"}
+            {secondsLeft > 0 ? `Novo kodo pošlji čez ${formatCountdown(secondsLeft)}` : "Pošlji novo kodo"}
           </button>
         </form>
         <Link href="/" className="auth-secondary-link auth-tertiary-button check-email-secondary">
-          Use another method
+          Uporabi drugo metodo
         </Link>
       </div>
     </div>

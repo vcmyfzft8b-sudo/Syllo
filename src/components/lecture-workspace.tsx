@@ -84,17 +84,17 @@ function getTabItems({
     label: string;
     icon: string;
   }> = [
-    { id: "notes", label: "Notes", icon: "📝" },
-    { id: "study", label: "Study", icon: "🧠" },
-    { id: "chat", label: "Chat", icon: "💬" },
+    { id: "notes", label: "Zapiski", icon: "📝" },
+    { id: "study", label: "Učenje", icon: "🧠" },
+    { id: "chat", label: "Klepet", icon: "💬" },
   ];
 
   if (showsTranscript) {
-    items.push({ id: "transcript", label: "Transcript", icon: "📜" });
+    items.push({ id: "transcript", label: "Prepis", icon: "📜" });
   }
 
   if (hasAudio) {
-    items.push({ id: "audio", label: "Audio", icon: "🎧" });
+    items.push({ id: "audio", label: "Zvok", icon: "🎧" });
   }
 
   return items;
@@ -223,9 +223,9 @@ function mergeLectureDetailWithStoredStudySession(detail: LectureDetail) {
 
 function confidenceLabel(value: FlashcardConfidenceBucket) {
   if (value === "again") {
-    return "Didn't know";
+    return "Nisem vedel";
   }
-  return "Knew it";
+  return "Vedel sem";
 }
 
 function confidenceIcon(value: FlashcardConfidenceBucket) {
@@ -274,80 +274,80 @@ function stripLeadingRedundantHeading(markdown: string, title?: string | null) {
 }
 
 function sanitizeFileName(value?: string | null) {
-  return value?.replace(/[\\/:*?"<>|]+/g, "").trim() || "note";
+  return value?.replace(/[\\/:*?"<>|]+/g, "").trim() || "zapisek";
 }
 
 function sourceLabel(sourceType: string) {
   if (sourceType === "link") {
-    return "Web link";
+    return "Spletna povezava";
   }
 
   if (sourceType === "text") {
-    return "Text";
+    return "Besedilo";
   }
 
   if (sourceType === "pdf") {
-    return "PDF document";
+    return "PDF dokument";
   }
 
-  return "Audio recording";
+  return "Zvočni posnetek";
 }
 
 function studyStageLabel(stage: unknown) {
   if (stage === "building_sections") {
-    return "Building study sections";
+    return "Gradim učne sklope";
   }
 
   if (stage === "planning_coverage") {
-    return "Extracting concepts";
+    return "Izluščujem pojme";
   }
 
   if (stage === "generating_cards") {
-    return "Generating cards";
+    return "Ustvarjam kartice";
   }
 
   if (stage === "repairing_coverage") {
-    return "Repairing gaps";
+    return "Zapolnjujem vrzeli";
   }
 
   if (stage === "publishing_deck") {
-    return "Validating coverage";
+    return "Preverjam pokritost";
   }
 
-  return "Preparing study tools";
+  return "Pripravljam učna orodja";
 }
 
 function quizStageLabel(stage: unknown) {
   if (stage === "generating_questions") {
-    return "Generating quiz";
+    return "Ustvarjam kviz";
   }
 
   if (stage === "publishing_quiz") {
-    return "Publishing quiz";
+    return "Objavljam kviz";
   }
 
   if (stage === "ready") {
-    return "Quiz ready";
+    return "Kviz je pripravljen";
   }
 
-  return "Preparing quiz";
+  return "Pripravljam kviz";
 }
 
 function studyAssetStatusLabel(status: StudyAssetStatus | null | undefined) {
   if (status === "queued") {
-    return "Preparing";
+    return "Priprava";
   }
 
   if (status === "generating") {
-    return "Generating";
+    return "Ustvarjanje";
   }
 
   if (status === "failed") {
-    return "Failed";
+    return "Napaka";
   }
 
   if (status === "ready") {
-    return "Ready";
+    return "Pripravljeno";
   }
 
   return null;
@@ -1257,7 +1257,7 @@ export function LectureWorkspace({
       }
 
       setIsAwaitingStudyGeneration(false);
-      setStudyError(error instanceof Error ? error.message : "Study tools could not be regenerated.");
+      setStudyError(error instanceof Error ? error.message : "Učnih orodij ni bilo mogoče ponovno ustvariti.");
       return;
     }
 
@@ -1281,7 +1281,7 @@ export function LectureWorkspace({
       }
 
       setIsAwaitingQuizGeneration(false);
-      setStudyError(error instanceof Error ? error.message : "Quiz could not be created.");
+      setStudyError(error instanceof Error ? error.message : "Kviza ni bilo mogoče ustvariti.");
       return;
     }
 
@@ -1311,7 +1311,7 @@ export function LectureWorkspace({
 
       setIsAwaitingPracticeTestGeneration(false);
       setStudyError(
-        error instanceof Error ? error.message : "A new practice test could not be started.",
+        error instanceof Error ? error.message : "Novega preizkusa ni bilo mogoče začeti.",
       );
       return;
     }
@@ -1382,7 +1382,7 @@ export function LectureWorkspace({
     setIsSubmittingPracticeTest(false);
 
     if (!response.ok) {
-      setStudyError(payload?.error ?? "The practice test could not be submitted.");
+      setStudyError(payload?.error ?? "Preizkusa ni bilo mogoče oddati.");
       return;
     }
 
@@ -1529,7 +1529,7 @@ export function LectureWorkspace({
       setReviewQueue(previousReviewQueue);
       setRepeatQueue(previousRepeatQueue);
       setFlashcardRoundSummary(previousRoundSummary);
-      setStudyError(payload?.error ?? "Flashcard progress could not be saved.");
+      setStudyError(payload?.error ?? "Napredka pri karticah ni bilo mogoče shraniti.");
       return;
     }
 
@@ -1699,7 +1699,7 @@ export function LectureWorkspace({
     setIsSending(false);
 
     if (!response.ok) {
-      setChatError(payload.error ?? "The answer could not be generated.");
+      setChatError(payload.error ?? "Odgovora ni bilo mogoče ustvariti.");
       setDetail((current) => ({
         ...current,
         chatMessages: current.chatMessages.filter(
@@ -1767,7 +1767,7 @@ export function LectureWorkspace({
               {cleanedStructuredNotes ? (
                 <MarkdownRenderer content={cleanedStructuredNotes} />
               ) : (
-                <p className="ios-info">Notes are not ready yet.</p>
+                <p className="ios-info">Zapiski še niso pripravljeni.</p>
               )}
             </div>
           </div>
@@ -1813,9 +1813,9 @@ export function LectureWorkspace({
 
             <div className="ios-segmented lecture-study-mode-switch">
               {([
-                { id: "flashcards", label: "Flashcards" },
-                { id: "quiz", label: "Quiz" },
-                { id: "practice_test", label: "Practice test" },
+                { id: "flashcards", label: "Kartice" },
+                { id: "quiz", label: "Kviz" },
+                { id: "practice_test", label: "Preizkus" },
               ] as const).map((item) => (
                 <button
                   key={item.id}
@@ -1838,19 +1838,19 @@ export function LectureWorkspace({
                 <div className="empty-state lecture-empty-card lecture-study-empty">
                   <p className="ios-row-title">
                     {detail.lecture.status !== "ready"
-                      ? "Study tools unlock after note processing finishes."
+                      ? "Učna orodja se odklenejo, ko je obdelava zapiska končana."
                       : isStudyGenerating
-                        ? "Creating flashcards."
+                        ? "Ustvarjam kartice."
                         : detail.studyAsset?.status === "failed"
-                          ? "Flashcard creation failed."
-                          : "Create flashcards when you're ready."}
+                          ? "Ustvarjanje kartic ni uspelo."
+                          : "Ustvari kartice, ko si pripravljen."}
                   </p>
                   <p className="ios-row-subtitle">
                     {detail.lecture.status !== "ready"
-                      ? "Notes are created first. After that, you can generate flashcards manually."
+                      ? "Najprej nastanejo zapiski. Nato lahko kartice ustvariš ročno."
                       : isStudyGenerating
-                        ? "This view refreshes automatically as your deck is prepared."
-                        : "Build a study deck from the same language and content as your notes."}
+                        ? "Ta pogled se samodejno osvežuje, medtem ko se pripravlja komplet kartic."
+                        : "Ustvari učni komplet v istem jeziku in iz iste vsebine kot tvoji zapiski."}
                   </p>
                   {detail.lecture.status === "ready" && !isStudyGenerating ? (
                     <button
@@ -1862,7 +1862,7 @@ export function LectureWorkspace({
                       {isRegeneratingStudy ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : null}
-                      Create flashcards
+                      Ustvari kartice
                     </button>
                   ) : null}
                   {detail.lecture.status === "ready" && isAwaitingStudyGeneration ? (
@@ -1872,7 +1872,7 @@ export function LectureWorkspace({
                       className="lecture-study-refresh lecture-study-create-button"
                     >
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Create flashcards
+                      Ustvari kartice
                     </button>
                   ) : null}
                   {shouldPollAsset(detail.studyAsset?.status) ? (
@@ -1966,18 +1966,18 @@ export function LectureWorkspace({
                 <StudyCompletionCard
                   eyebrow={
                     flashcardRoundSummary.missed === 0
-                      ? "Completed"
-                      : `Round ${flashcardRoundSummary.cycle} complete`
+                      ? "Zaključeno"
+                      : `Krog ${flashcardRoundSummary.cycle} zaključen`
                   }
                   title={
                     flashcardRoundSummary.missed === 0
-                      ? "All flashcards cleared"
-                      : "Review the ones you missed"
+                      ? "Vse kartice so predelane"
+                      : "Ponovi kartice, ki si jih zgrešil"
                   }
                   percentage={flashcardRoundSummary.missed === 0 ? 100 : flashcardRoundPercent}
-                  percentageLabel={flashcardRoundSummary.missed === 0 ? "Deck cleared" : "Round score"}
+                  percentageLabel={flashcardRoundSummary.missed === 0 ? "Komplet opravljen" : "Rezultat kroga"}
                   primaryMetric={{
-                    label: "Knew this round",
+                    label: "Pravilno v tem krogu",
                     value: `${flashcardRoundSummary.known}/${flashcardRoundSummary.total}`,
                   }}
                   actions={
@@ -1986,11 +1986,11 @@ export function LectureWorkspace({
                         type="button"
                         onClick={restartFlashcardReview}
                         className="lecture-study-refresh lecture-study-restart"
-                        aria-label="Start over"
-                        title="Start over"
+                        aria-label="Začni znova"
+                        title="Začni znova"
                       >
                         <EmojiIcon symbol="🔄" size="1rem" />
-                        Restart deck
+                        Začni komplet znova
                       </button>
                     ) : (
                       <button
@@ -1999,20 +1999,20 @@ export function LectureWorkspace({
                         className="lecture-study-refresh lecture-study-restart"
                       >
                         <EmojiIcon symbol="🔄" size="1rem" />
-                        Review {flashcardRoundSummary.missed}{" "}
-                        {flashcardRoundSummary.missed === 1 ? "missed card" : "missed cards"}
+                        Ponovi {flashcardRoundSummary.missed}{" "}
+                        {flashcardRoundSummary.missed === 1 ? "zgrešeno kartico" : "zgrešene kartice"}
                       </button>
                     )
                   }
                 />
               ) : (
                 <StudyCompletionCard
-                  eyebrow="Completed"
-                  title="Flashcard session complete"
+                  eyebrow="Zaključeno"
+                  title="Učenje s karticami je končano"
                   percentage={flashcardConfidencePercent}
-                  percentageLabel="Score"
+                  percentageLabel="Rezultat"
                   primaryMetric={{
-                    label: "Correct answers",
+                    label: "Pravilni odgovori",
                     value: `${flashcardFirstPassKnownCount}/${totalFlashcards}`,
                   }}
                   actions={
@@ -2020,11 +2020,11 @@ export function LectureWorkspace({
                       type="button"
                       onClick={restartFlashcardReview}
                       className="lecture-study-refresh lecture-study-restart"
-                      aria-label="Start over"
-                      title="Start over"
+                      aria-label="Začni znova"
+                      title="Začni znova"
                     >
                       <EmojiIcon symbol="🔄" size="1rem" />
-                      Restart deck
+                      Začni komplet znova
                     </button>
                   }
                 />
@@ -2034,19 +2034,19 @@ export function LectureWorkspace({
                 <div className="empty-state lecture-empty-card lecture-study-empty">
                   <p className="ios-row-title">
                     {detail.lecture.status !== "ready"
-                      ? "Study tools unlock after note processing finishes."
+                      ? "Učna orodja se odklenejo, ko je obdelava zapiska končana."
                       : isQuizGenerating
-                        ? "Creating quiz."
+                        ? "Ustvarjam kviz."
                         : detail.quizAsset?.status === "failed"
-                          ? "Quiz creation failed."
-                          : "Create a quiz when you're ready."}
+                          ? "Ustvarjanje kviza ni uspelo."
+                          : "Ustvari kviz, ko si pripravljen."}
                   </p>
                   <p className="ios-row-subtitle">
                     {detail.lecture.status !== "ready"
-                      ? "Notes are created first. After that, you can generate quizzes manually."
+                      ? "Najprej nastanejo zapiski. Nato lahko kvize ustvariš ročno."
                       : isQuizGenerating
-                        ? "This view refreshes automatically as your quiz is prepared."
-                        : "Generate multiple-choice questions in the same language as your notes."}
+                        ? "Ta pogled se samodejno osvežuje, medtem ko se pripravlja kviz."
+                        : "Ustvari vprašanja z več izbirami v istem jeziku kot tvoji zapiski."}
                   </p>
                   {detail.lecture.status === "ready" && !isQuizGenerating ? (
                     <button
@@ -2058,7 +2058,7 @@ export function LectureWorkspace({
                       {isRegeneratingQuiz ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : null}
-                      Create quiz
+                      Ustvari kviz
                     </button>
                   ) : null}
                   {detail.lecture.status === "ready" && isAwaitingQuizGeneration ? (
@@ -2068,7 +2068,7 @@ export function LectureWorkspace({
                       className="lecture-study-refresh lecture-study-create-button"
                     >
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Create quiz
+                      Ustvari kviz
                     </button>
                   ) : null}
                   {shouldPollAsset(detail.quizAsset?.status) ? (
@@ -2079,18 +2079,18 @@ export function LectureWorkspace({
                 <StudyCompletionCard
                   eyebrow={
                     quizRoundSummary.missed === 0
-                      ? "Completed"
-                      : `Round ${quizRoundSummary.cycle} complete`
+                      ? "Zaključeno"
+                      : `Krog ${quizRoundSummary.cycle} zaključen`
                   }
                   title={
                     quizRoundSummary.missed === 0
-                      ? "All quiz questions cleared"
-                      : "Review the questions you missed"
+                      ? "Vsa vprašanja so predelana"
+                      : "Ponovi vprašanja, ki si jih zgrešil"
                   }
                   percentage={quizRoundSummary.missed === 0 ? 100 : quizRoundPercent}
-                  percentageLabel={quizRoundSummary.missed === 0 ? "Deck cleared" : "Round score"}
+                  percentageLabel={quizRoundSummary.missed === 0 ? "Komplet opravljen" : "Rezultat kroga"}
                   primaryMetric={{
-                    label: quizRoundSummary.missed === 0 ? "Questions cleared" : "Correct this round",
+                    label: quizRoundSummary.missed === 0 ? "Predelana vprašanja" : "Pravilno v tem krogu",
                     value:
                       quizRoundSummary.missed === 0
                         ? `${totalQuizQuestions}/${totalQuizQuestions}`
@@ -2104,7 +2104,7 @@ export function LectureWorkspace({
                         className="lecture-study-refresh lecture-study-restart"
                       >
                         <EmojiIcon symbol="🔄" size="1rem" />
-                        Restart quiz
+                        Začni kviz znova
                       </button>
                     ) : (
                       <button
@@ -2113,8 +2113,8 @@ export function LectureWorkspace({
                         className="lecture-study-refresh lecture-study-restart"
                       >
                         <EmojiIcon symbol="🔄" size="1rem" />
-                        Review {quizRoundSummary.missed}{" "}
-                        {quizRoundSummary.missed === 1 ? "missed question" : "missed questions"}
+                        Ponovi {quizRoundSummary.missed}{" "}
+                        {quizRoundSummary.missed === 1 ? "zgrešeno vprašanje" : "zgrešena vprašanja"}
                       </button>
                     )
                   }
@@ -2123,7 +2123,7 @@ export function LectureWorkspace({
                 <div className="lecture-quiz-stage">
                   <div className="lecture-quiz-meta">
                     <span>{activeQuizQuestionIndex + 1} / {quizRoundCount}</span>
-                    {quizRound > 1 ? <span>Cycle {quizRound}</span> : null}
+                    {quizRound > 1 ? <span>Krog {quizRound}</span> : null}
                   </div>
 
                   <div className="lecture-quiz-card">
@@ -2168,8 +2168,8 @@ export function LectureWorkspace({
                           }`}
                         >
                           {activeQuizSelection === activeQuizQuestion.correct_option_idx
-                            ? "Correct"
-                            : "Incorrect"}
+                            ? "Pravilno"
+                            : "Napačno"}
                         </p>
                         <p className="lecture-quiz-feedback-copy">{activeQuizQuestion.explanation}</p>
                       </div>
@@ -2183,7 +2183,7 @@ export function LectureWorkspace({
                       disabled={activeQuizQuestionIndex === 0}
                       className="lecture-study-action"
                     >
-                      Previous
+                      Nazaj
                     </button>
                     <button
                       type="button"
@@ -2191,18 +2191,18 @@ export function LectureWorkspace({
                       disabled={activeQuizSelection === null}
                       className="lecture-study-refresh"
                     >
-                      {activeQuizQuestionIndex === quizQueue.length - 1 ? "Finish" : "Next"}
+                      {activeQuizQuestionIndex === quizQueue.length - 1 ? "Zaključi" : "Naprej"}
                     </button>
                   </div>
                 </div>
               ) : (
                 <StudyCompletionCard
-                  eyebrow="Congratulations"
-                  title="Quiz complete"
+                  eyebrow="Odlično"
+                  title="Kviz je zaključen"
                   percentage={100}
-                  percentageLabel="Deck cleared"
+                  percentageLabel="Komplet opravljen"
                   primaryMetric={{
-                    label: "Questions cleared",
+                    label: "Predelana vprašanja",
                     value: `${totalQuizQuestions}/${totalQuizQuestions}`,
                   }}
                   actions={
@@ -2212,7 +2212,7 @@ export function LectureWorkspace({
                       className="lecture-study-refresh lecture-study-restart"
                     >
                       <EmojiIcon symbol="🔄" size="1rem" />
-                      Restart quiz
+                      Začni kviz znova
                     </button>
                   }
                 />
@@ -2221,23 +2221,23 @@ export function LectureWorkspace({
               <div className="empty-state lecture-empty-card lecture-study-empty">
                 <p className="ios-row-title">
                   {detail.lecture.status !== "ready"
-                    ? "Study tools unlock after note processing finishes."
+                    ? "Učna orodja se odklenejo, ko je obdelava zapiska končana."
                     : isPracticeTestGenerating
-                      ? "Creating practice test."
+                      ? "Ustvarjam preizkus."
                       : detail.practiceTestAsset?.status === "failed"
-                        ? "Practice-test creation failed."
+                        ? "Ustvarjanje preizkusa ni uspelo."
                         : hasCompletedPracticeTest
-                          ? "Start a practice test when you're ready."
-                          : "Generate your first practice test."}
+                          ? "Začni nov preizkus, ko si pripravljen."
+                          : "Ustvari svoj prvi preizkus."}
                 </p>
                 <p className="ios-row-subtitle">
                   {detail.lecture.status !== "ready"
-                    ? "Notes are created first. After that, you can start a practice test."
+                    ? "Najprej nastanejo zapiski. Nato lahko začneš preizkus."
                     : isPracticeTestGenerating
-                      ? "This view refreshes automatically while your next practice test is being prepared."
+                      ? "Ta pogled se samodejno osvežuje, medtem ko se pripravlja naslednji preizkus."
                       : hasCompletedPracticeTest
-                        ? "Each new test gives you a fresh random set of open-ended questions."
-                        : "Generate a first set of self-contained open-ended questions, then review your results and start new tests after you finish."}
+                        ? "Vsak nov preizkus prinese nov naključen nabor odprtih vprašanj."
+                        : "Najprej ustvari prvi nabor samostojnih odprtih vprašanj, nato preglej rezultate in po koncu začni nove preizkuse."}
                 </p>
                 {detail.lecture.status === "ready" && !isPracticeTestGenerating ? (
                   <button
@@ -2249,7 +2249,7 @@ export function LectureWorkspace({
                     {isStartingPracticeTest ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : null}
-                    {hasCompletedPracticeTest ? "Start new test" : "Generate test"}
+                    {hasCompletedPracticeTest ? "Začni nov preizkus" : "Ustvari preizkus"}
                   </button>
                 ) : null}
                 {detail.lecture.status === "ready" && isAwaitingPracticeTestGeneration ? (
@@ -2259,7 +2259,7 @@ export function LectureWorkspace({
                     className="lecture-study-refresh lecture-study-create-button"
                   >
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {hasCompletedPracticeTest ? "Start new test" : "Generate test"}
+                    {hasCompletedPracticeTest ? "Začni nov preizkus" : "Ustvari preizkus"}
                   </button>
                 ) : null}
               </div>
@@ -2274,15 +2274,15 @@ export function LectureWorkspace({
                     return (
                       <div key={answer.id} className="lecture-practice-card">
                         <div className="lecture-practice-card-header">
-                          <span>Question {index + 1}</span>
+                          <span>Vprašanje {index + 1}</span>
                         </div>
-                        <p className="lecture-practice-prompt">{question?.prompt ?? "Question unavailable."}</p>
+                        <p className="lecture-practice-prompt">{question?.prompt ?? "Vprašanje ni na voljo."}</p>
                         <textarea
                           value={practiceTextAnswers[questionId] ?? ""}
                           onChange={(event) => handlePracticeAnswerChange(questionId, event.target.value)}
                           disabled={isUnknown}
                           className="ios-textarea lecture-practice-textarea"
-                          placeholder="Write your answer here..."
+                          placeholder="Sem napiši svoj odgovor..."
                         />
                         <div className="lecture-practice-controls">
                           <label className="lecture-practice-unknown">
@@ -2293,7 +2293,7 @@ export function LectureWorkspace({
                                 handlePracticeUnknownToggle(questionId, event.target.checked)
                               }
                             />
-                            I don&apos;t know
+                            Ne vem
                           </label>
                         </div>
                       </div>
@@ -2312,7 +2312,7 @@ export function LectureWorkspace({
                     className="lecture-study-refresh"
                   >
                     {isSubmittingPracticeTest ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    Submit test
+                    Oddaj preizkus
                   </button>
                 </div>
               </div>
@@ -2323,37 +2323,37 @@ export function LectureWorkspace({
                     <StudyCompletionCard
                       eyebrow=""
                       title=""
-                      subtitle={`Attempt ${detail.practiceTestHistorySummary.attemptCount}`}
+                      subtitle={`Poskus ${detail.practiceTestHistorySummary.attemptCount}`}
                       percentage={visiblePracticeAttemptPercentage}
-                      percentageLabel="Score"
+                      percentageLabel="Rezultat"
                       primaryMetric={{
-                        label: "Points earned",
+                        label: "Dosežene točke",
                         value: `${visiblePracticeAttempt.total_score ?? 0}/${visiblePracticeAttempt.max_score ?? 0}`,
                       }}
                       secondaryMetrics={[
                         {
-                          label: "Average",
+                          label: "Povprečje",
                           value:
                             detail.practiceTestHistorySummary.averagePercentage == null
                               ? "-"
                               : `${Math.round(detail.practiceTestHistorySummary.averagePercentage)}%`,
                         },
                         {
-                          label: "Best",
+                          label: "Najboljši rezultat",
                           value:
                             detail.practiceTestHistorySummary.bestPercentage == null
                               ? "-"
                               : `${Math.round(detail.practiceTestHistorySummary.bestPercentage)}%`,
                         },
                         {
-                          label: "Lowest",
+                          label: "Najnižji rezultat",
                           value:
                             detail.practiceTestHistorySummary.lowestPercentage == null
                               ? "-"
                               : `${Math.round(detail.practiceTestHistorySummary.lowestPercentage)}%`,
                         },
                         {
-                          label: "Attempts",
+                          label: "Poskusi",
                           value: String(detail.practiceTestHistorySummary.attemptCount),
                         },
                       ]}
@@ -2368,7 +2368,7 @@ export function LectureWorkspace({
                             {isStartingPracticeTest ? (
                               <Loader2 className="h-5 w-5 animate-spin" />
                             ) : null}
-                            Start new test
+                            Začni nov preizkus
                           </button>
                         ) : null
                       }
@@ -2379,7 +2379,7 @@ export function LectureWorkspace({
                         <span className="lecture-practice-breakdown-icon" aria-hidden="true">
                           📝
                         </span>
-                        <span className="lecture-practice-breakdown-label">Attempt details</span>
+                        <span className="lecture-practice-breakdown-label">Podrobnosti poskusa</span>
                         <span className="lecture-practice-breakdown-chevron" aria-hidden="true">
                           ▾
                         </span>
@@ -2389,7 +2389,7 @@ export function LectureWorkspace({
                           <details key={answer.id} className="lecture-practice-feedback-card">
                             <summary className="lecture-practice-feedback-summary">
                               <span className="lecture-practice-feedback-label">
-                                Question {index + 1}
+                                Vprašanje {index + 1}
                               </span>
                               <span className="lecture-practice-feedback-meta">
                                 <span>{answer.score ?? 0}/5</span>
@@ -2405,11 +2405,11 @@ export function LectureWorkspace({
                               <p className="lecture-practice-prompt">{answer.question?.prompt}</p>
                               {answer.typed_answer ? (
                                 <p className="lecture-practice-feedback-copy">
-                                  <strong>Your answer:</strong> {answer.typed_answer}
+                                  <strong>Tvoj odgovor:</strong> {answer.typed_answer}
                                 </p>
                               ) : null}
                               <p className="lecture-practice-feedback-copy">
-                                <strong>Rationale:</strong> {answer.grading_rationale ?? "No feedback."}
+                                <strong>Razlaga:</strong> {answer.grading_rationale ?? "Brez povratne informacije."}
                               </p>
                             </div>
                           </details>
@@ -2428,7 +2428,7 @@ export function LectureWorkspace({
                           className="lecture-study-refresh lecture-practice-start-button"
                         >
                           {isStartingPracticeTest ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                          Start new test
+                          Začni nov preizkus
                         </button>
                       ) : null}
                     </div>
@@ -2465,11 +2465,11 @@ export function LectureWorkspace({
                 </>
               ) : (
                 <div className="lecture-chat-empty">
-                  <p className="lecture-chat-empty-title">Ask about this lecture.</p>
+                  <p className="lecture-chat-empty-title">Vprašaj o tem predavanju.</p>
                   <p className="lecture-chat-empty-copy">
                     {showsTranscript
-                      ? "Use the notes and transcript as context."
-                      : "Use the notes as context."}
+                      ? "Kot kontekst uporabi zapiske in prepis."
+                      : "Kot kontekst uporabi zapiske."}
                   </p>
                 </div>
               )}
@@ -2483,22 +2483,22 @@ export function LectureWorkspace({
               onKeyDown={handleChatKeyDown}
               disabled={detail.lecture.status !== "ready" || isSending}
               className="lecture-chat-input"
-              placeholder="Ask about this lecture"
+              placeholder="Vprašaj o tem predavanju"
               rows={1}
             />
             <div className="lecture-chat-composer-footer">
               {chatError ? (
                 <p className="lecture-chat-status ios-danger">{chatError}</p>
               ) : detail.lecture.status !== "ready" ? (
-                <p className="lecture-chat-status">Available when processing finishes.</p>
+                <p className="lecture-chat-status">Na voljo bo po koncu obdelave.</p>
               ) : (
-                <p className="lecture-chat-status">Answers stay grounded in this lecture.</p>
+                <p className="lecture-chat-status">Odgovori ostajajo vezani na to predavanje.</p>
               )}
               <button
                 type="submit"
                 disabled={detail.lecture.status !== "ready" || isSending}
                 className="lecture-chat-send"
-                aria-label="Send message"
+                aria-label="Pošlji sporočilo"
               >
                 {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
               </button>
@@ -2528,21 +2528,21 @@ export function LectureWorkspace({
         </div>
       ) : (
         <div className="ios-card empty-state lecture-empty-card">
-          <p className="ios-row-title">The transcript is still being prepared.</p>
-          <p className="ios-row-subtitle">It will appear here when ready.</p>
+          <p className="ios-row-title">Prepis se še pripravlja.</p>
+          <p className="ios-row-subtitle">Ko bo pripravljen, se bo prikazal tukaj.</p>
         </div>
       );
     }
 
     return (
       <div className="ios-card audio-panel">
-        <p className="lecture-card-label">Audio</p>
+        <p className="lecture-card-label">Zvok</p>
         {detail.audioUrl ? (
           <audio controls src={detail.audioUrl} className="mt-4 w-full" />
         ) : (
           <div className="empty-state lecture-empty-card">
-            <p className="ios-row-title">Audio is not available yet.</p>
-            <p className="ios-row-subtitle">It will appear after upload finishes.</p>
+            <p className="ios-row-title">Zvok še ni na voljo.</p>
+            <p className="ios-row-subtitle">Prikazal se bo po koncu nalaganja.</p>
           </div>
         )}
       </div>
@@ -2556,7 +2556,7 @@ export function LectureWorkspace({
           <div className="lecture-header-row">
             <div className="ios-title-block lecture-title-block">
               <h1 className="ios-large-title">
-                {detail.lecture.title ?? "Lecture in progress"}
+                {detail.lecture.title ?? "Predavanje v obdelavi"}
               </h1>
               <div className="lecture-meta-row">
                 <StatusBadge status={detail.lecture.status} />
@@ -2571,8 +2571,8 @@ export function LectureWorkspace({
                   type="button"
                   onClick={downloadPdf}
                   className="lecture-action-button"
-                  aria-label="Download PDF"
-                  title="Download PDF"
+                  aria-label="Prenesi PDF"
+                  title="Prenesi PDF"
                 >
                   {isExportingPdf ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -2593,7 +2593,7 @@ export function LectureWorkspace({
                   ) : (
                     <EmojiIcon symbol="🔄" size="1rem" />
                   )}
-                  Retry
+                  Poskusi znova
                 </button>
               ) : null}
             </div>
@@ -2608,7 +2608,7 @@ export function LectureWorkspace({
           shouldPollAsset(detail.quizAsset?.status) ||
           shouldPollAsset(detail.practiceTestAsset?.status) ? (
             <p className="ios-info lecture-inline-note">
-              Processing is still running. This view refreshes automatically.
+              Obdelava še poteka. Ta pogled se samodejno osvežuje.
             </p>
           ) : null}
         </div>

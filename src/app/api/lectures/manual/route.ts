@@ -21,11 +21,11 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Choose a plan before creating notes from new material.");
+    return createBillingRequiredResponse("Pred ustvarjanjem zapiskov iz novega gradiva izberi paket.");
   }
 
   const limited = await enforceRateLimit({
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
 
   if (error || !lecture) {
     return NextResponse.json(
-      { error: error?.message ?? "Could not create note." },
+      { error: error?.message ?? "Zapiska ni bilo mogoče ustvariti." },
       { status: 500 },
     );
   }

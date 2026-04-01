@@ -36,11 +36,11 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Choose a plan before uploading or recording material.");
+    return createBillingRequiredResponse("Pred nalaganjem ali snemanjem gradiva izberi paket.");
   }
 
   const limited = await enforceRateLimit({
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
 
   if (!isSupportedAudioMimeType(mimeType, parsed.data.fileName)) {
     return NextResponse.json(
-      { error: "Unsupported audio format." },
+      { error: "Nepodprt zvočni format." },
       { status: 400 },
     );
   }
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
 
   if (lectureError || !lecture) {
     return NextResponse.json(
-      { error: lectureError?.message ?? "Could not create lecture." },
+      { error: lectureError?.message ?? "Zapiska ni bilo mogoče ustvariti." },
       { status: 500 },
     );
   }
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
 
   if (signedError || !signedUpload?.token) {
     return NextResponse.json(
-      { error: signedError?.message ?? "Could not create upload target." },
+      { error: signedError?.message ?? "Ni bilo mogoče pripraviti cilja za nalaganje." },
       { status: 500 },
     );
   }
@@ -129,7 +129,7 @@ export async function DELETE(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
   const limited = await enforceRateLimit({
@@ -169,7 +169,7 @@ export async function DELETE(request: Request) {
   const lectureIds = ownedLectureRows.map((lecture) => lecture.id);
 
   if (lectureIds.length === 0) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
   }
 
   const { error: deleteError } = await supabase
