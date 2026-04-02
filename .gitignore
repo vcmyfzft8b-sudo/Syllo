@@ -27,6 +27,7 @@
 .DS_Store
 *.pem
 /public/vendor/ffmpeg
+/local/
 
 # debug
 npm-debug.log*
