@@ -5708,12 +5708,19 @@ select:disabled {
   backdrop-filter: blur(18px);
 }
 
+.lecture-chat-composer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
 .lecture-chat-input {
   width: 100%;
-  min-height: 3.5rem;
+  min-height: 3.4rem;
   max-height: 11rem;
-  padding: 1rem 1.1rem;
-  resize: vertical;
+  padding: 0.95rem 1.1rem;
+  resize: none;
   border: 1px solid color-mix(in srgb, var(--separator) 55%, transparent);
   border-radius: 18px;
   background: color-mix(in srgb, var(--surface-muted) 86%, transparent);
@@ -5729,13 +5736,14 @@ select:disabled {
 
 .lecture-chat-composer-footer {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: 0.8rem;
 }
 
 .lecture-chat-status {
   margin: 0;
+  flex: 1 1 auto;
   color: var(--secondary-label);
   font-size: 0.82rem;
   line-height: 1.4;
@@ -5745,8 +5753,8 @@ select:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.9rem;
-  height: 2.9rem;
+  width: 3.4rem;
+  height: 3.4rem;
   flex: 0 0 auto;
   border-radius: 999px;
   background: var(--label);
@@ -7317,9 +7325,13 @@ select:disabled {
     padding: 0.85rem 1rem 1rem;
   }
 
+  .lecture-chat-composer-row {
+    gap: 0.65rem;
+  }
+
   .lecture-chat-composer-footer {
-    align-items: flex-end;
-    flex-direction: column;
+    align-items: flex-start;
+    flex-direction: row;
   }
 
   .lecture-chat-status {

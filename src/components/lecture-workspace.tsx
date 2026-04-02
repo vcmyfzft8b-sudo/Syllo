@@ -2477,23 +2477,16 @@ export function LectureWorkspace({
           </div>
 
           <form onSubmit={handleChatSubmit} className="lecture-chat-composer">
-            <textarea
-              value={question}
-              onChange={(event) => setQuestion(event.target.value)}
-              onKeyDown={handleChatKeyDown}
-              disabled={detail.lecture.status !== "ready" || isSending}
-              className="lecture-chat-input"
-              placeholder="Vprašaj o tem predavanju"
-              rows={1}
-            />
-            <div className="lecture-chat-composer-footer">
-              {chatError ? (
-                <p className="lecture-chat-status ios-danger">{chatError}</p>
-              ) : detail.lecture.status !== "ready" ? (
-                <p className="lecture-chat-status">Na voljo bo po koncu obdelave.</p>
-              ) : (
-                <p className="lecture-chat-status">Odgovori ostajajo vezani na to predavanje.</p>
-              )}
+            <div className="lecture-chat-composer-row">
+              <textarea
+                value={question}
+                onChange={(event) => setQuestion(event.target.value)}
+                onKeyDown={handleChatKeyDown}
+                disabled={detail.lecture.status !== "ready" || isSending}
+                className="lecture-chat-input"
+                placeholder="Vprašaj o tem predavanju"
+                rows={1}
+              />
               <button
                 type="submit"
                 disabled={detail.lecture.status !== "ready" || isSending}
@@ -2502,6 +2495,15 @@ export function LectureWorkspace({
               >
                 {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
               </button>
+            </div>
+            <div className="lecture-chat-composer-footer">
+              {chatError ? (
+                <p className="lecture-chat-status ios-danger">{chatError}</p>
+              ) : detail.lecture.status !== "ready" ? (
+                <p className="lecture-chat-status">Na voljo bo po koncu obdelave.</p>
+              ) : (
+                <p className="lecture-chat-status">Odgovori ostajajo vezani na to predavanje.</p>
+              )}
             </div>
           </form>
         </div>
