@@ -12,7 +12,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Račun in dostop",
     content: `# Pogoji uporabe
 
-Z ustvarjanjem računa ali nadaljevanjem v Nota se strinjaš s temi pogoji.
+Z ustvarjanjem računa ali nadaljevanjem v Memo se strinjaš s temi pogoji.
 
 ## Tvoje odgovornosti
 
@@ -22,21 +22,21 @@ Z ustvarjanjem računa ali nadaljevanjem v Nota se strinjaš s temi pogoji.
 
 ## AI obdelava
 
-Nota je AI učno orodje. Za prepise, povzetke, kartice, kvize, odgovore v klepetu in izluščanje vsebine iz dokumentov lahko Nota tvojo vsebino obdela pri zunanjih AI in infrastrukturnih ponudnikih.
+Memo je AI učno orodje. Za prepise, povzetke, kartice, kvize, odgovore v klepetu in izluščanje vsebine iz dokumentov lahko Memo tvojo vsebino obdela pri zunanjih AI in infrastrukturnih ponudnikih.
 
 To lahko vključuje:
 
 - zvočne posnetke in naložene zvočne datoteke
 - prilepljeno besedilo in zapiske
 - PDF-je in druge podprte dokumente
-- javne spletne povezave, za katere želiš, da jih Nota prebere
+- javne spletne povezave, za katere želiš, da jih Memo prebere
 - metapodatke, potrebne za delovanje, varnost in izboljšave storitve
 
-Z nadaljevanjem soglašaš, da Nota to vsebino obdela za navedene funkcije izdelka.
+Z nadaljevanjem soglašaš, da Memo to vsebino obdela za navedene funkcije izdelka.
 
 ## Brez jamstev
 
-Nota lahko ustvari napake, nepopolne odgovore ali zavajajoče učno gradivo. Preden se zaneseš na rezultate pri izpitih, seminarskih nalogah, medicinskih, pravnih, finančnih, skladnostnih ali varnostno kritičnih odločitvah, jih moraš preveriti sam.
+Memo lahko ustvari napake, nepopolne odgovore ali zavajajoče učno gradivo. Preden se zaneseš na rezultate pri izpitih, seminarskih nalogah, medicinskih, pravnih, finančnih, skladnostnih ali varnostno kritičnih odločitvah, jih moraš preveriti sam.
 
 ## Račun in ukrepanje
 
@@ -68,13 +68,13 @@ Za zdaj ima vsak račun svojo knjižnico zapiskov, zgodovino obdelav in izvoze.
   },
   {
     slug: "gift-coconote",
-    title: "Ali lahko podarim Nota?",
+    title: "Ali lahko podarim Memo?",
     category: "Pogosto",
     content: `# Podarjanje dostopa
 
 Darilne kode v tej različici še niso na voljo.
 
-Če želiš, da Nota uporablja nekdo drug, je trenutno najbolj praktično, da si ustvari svoj račun ali da mu deliš izvožene zapiske.
+Če želiš, da Memo uporablja nekdo drug, je trenutno najbolj praktično, da si ustvari svoj račun ali da mu deliš izvožene zapiske.
 
 ## Kaj sledi
 
@@ -115,7 +115,7 @@ Koristno je vključiti:
     category: "Snemanje in zapiski",
     content: `# Težave z video povezavo
 
-Nota lahko obdela samo vsebino, ki je javno dostopna in dovolj berljiva za povzemanje.
+Memo lahko obdela samo vsebino, ki je javno dostopna in dovolj berljiva za povzemanje.
 
 ## Poskusi to
 
@@ -179,7 +179,7 @@ Glede na način uporabe aplikacije lahko posreduješ:
 - zvočne posnetke in naložene zvočne datoteke
 - prilepljeno besedilo, zapiske, pozive in sporočila v klepetu
 - PDF-je, dokumente in izvožene datoteke
-- javne povezave, za katere želiš, da jih Nota prebere
+- javne povezave, za katere želiš, da jih Memo prebere
 
 ## Kako storitev uporablja tvojo vsebino
 
@@ -193,13 +193,13 @@ Tvojo vsebino uporabljamo za:
 
 ## Obdelava pri tretjih ponudnikih
 
-Za izvajanje AI funkcij lahko Nota ustrezno vsebino pošlje zunanjim ponudnikom, ki podpirajo prepisovanje, izluščanje dokumentov, embeddinge, generiranje besedila, gostovanje, shranjevanje in avtentikacijo.
+Za izvajanje AI funkcij lahko Memo ustrezno vsebino pošlje zunanjim ponudnikom, ki podpirajo prepisovanje, izluščanje dokumentov, embeddinge, generiranje besedila, gostovanje, shranjevanje in avtentikacijo.
 
 To lahko po potrebi vključuje datoteke, besedilo, zvok in pozive, ki jih pošlješ za funkcijo, ki jo zahtevaš.
 
 ## Tvoje možnosti
 
-Če ne želiš, da pride do takšne obdelave, te vsebine v Nota ne nalagaj, ne lepi, ne snemaj in ne poveži.
+Če ne želiš, da pride do takšne obdelave, te vsebine v Memo ne nalagaj, ne lepi, ne snemaj in ne poveži.
 
 ## Hramba in brisanje
 
