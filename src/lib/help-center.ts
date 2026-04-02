@@ -46,9 +46,7 @@ Dostop lahko začasno omejimo, onemogočimo nekatere funkcije ali odstranimo vse
 
 Ti pogoji se lahko posodobijo, ko se izdelek spreminja. Če po posodobitvi nadaljuješ z uporabo, to pomeni, da sprejemaš posodobljeno različico.
 
-## Pravno obvestilo
-
-Ta stran je osnovno produktno besedilo in ni pravni nasvet. Če potrebuješ besedilo za specifično jurisdikcijo, zaveze glede hrambe, pogoje za izobraževalni sektor ali enterprise pogodbe, naj jih pred uporabo pregleda pravni strokovnjak.`,
+`,
   },
   {
     slug: "family-plan",
