@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { BillingPortalButton } from "@/components/billing-portal-button";
 import { EmojiIcon } from "@/components/emoji-icon";
+import { LogoutButton } from "@/components/logout-button";
 import { ThemeSettings } from "@/components/theme-settings";
 import { getViewerAppState } from "@/lib/billing";
 import { requireUser } from "@/lib/auth";
@@ -109,10 +110,7 @@ export default async function SettingsPage() {
           </div>
 
           <form action="/auth/logout" method="post">
-            <button type="submit" className="settings-inline-action">
-              <EmojiIcon symbol="🚪" size="0.95rem" />
-              Odjava
-            </button>
+            <LogoutButton />
           </form>
         </div>
 
