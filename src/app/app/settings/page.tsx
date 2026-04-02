@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { BillingPortalButton } from "@/components/billing-portal-button";
 import { EmojiIcon } from "@/components/emoji-icon";
-import { LogoutButton } from "@/components/logout-button";
+import { LogoutForm } from "@/components/logout-form";
 import { ThemeSettings } from "@/components/theme-settings";
 import { getViewerAppState } from "@/lib/billing";
 import { requireUser } from "@/lib/auth";
@@ -109,9 +109,7 @@ export default async function SettingsPage() {
             <p className="settings-account-value">{email}</p>
           </div>
 
-          <form action="/auth/logout" method="post">
-            <LogoutButton />
-          </form>
+          <LogoutForm />
         </div>
 
         <div className="note-action-grid">
