@@ -64,7 +64,7 @@ export default async function HomePage() {
         <section className="landing-auth-hero">
           <h1 className="landing-auth-title">Prijava</h1>
           <p className="landing-auth-copy">
-            Prijavi se ali ustvari nov račun. Brezplačno je.
+            Prijavi se ali ustvari nov račun.
           </p>
         </section>
 
