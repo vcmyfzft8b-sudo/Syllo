@@ -53,7 +53,7 @@ export default async function CheckEmailPage({
           <p className="check-email-eyebrow">Preveri e-pošto</p>
           <h1 className="check-email-title">Vnesi kodo</h1>
           <p className="check-email-copy">
-            Na <strong>{email}</strong> smo poslali potrditveno kodo. Vnesi jo spodaj za nadaljevanje.
+            Na <strong>{email}</strong> smo poslali potrditveno kodo. Velja 5 minut. Če zahtevaš novo, uporabi samo najnovejšo kodo.
           </p>
         </div>
 

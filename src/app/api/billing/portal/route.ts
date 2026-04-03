@@ -6,12 +6,24 @@ import {
   getStripeClient,
   getViewerAppState,
 } from "@/lib/billing";
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 
-export async function POST() {
+export async function POST(request: Request) {
   const appState = await getViewerAppState();
 
   if (!appState) {
     return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:billing:portal:post",
+    rules: rateLimitPresets.mutate,
+    userId: appState.user.id,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   try {
