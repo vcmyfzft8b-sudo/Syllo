@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getServerEnv } from "@/lib/server-env";
+import { getPublicEnv } from "@/lib/public-env";
 
 type SupabaseAuthSettings = {
   email?: boolean | { enabled?: boolean };
@@ -14,13 +14,23 @@ export type AuthProviderAvailability = {
 };
 
 export async function getAuthProviderAvailability(): Promise<AuthProviderAvailability> {
-  const env = getServerEnv();
+  const env = getPublicEnv();
+  const apiKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!env.supabaseUrl || !apiKey) {
+    return {
+      apple: false,
+      email: false,
+      google: false,
+    };
+  }
 
   try {
-    const response = await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/settings`, {
+    const response = await fetch(`${env.supabaseUrl}/auth/v1/settings`, {
       headers: {
-        apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+        apikey: apiKey,
+        Authorization: `Bearer ${apiKey}`,
       },
       cache: "no-store",
     });
