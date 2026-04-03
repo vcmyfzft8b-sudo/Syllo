@@ -21,6 +21,10 @@ const verifyEmailCodeSchema = z.object({
   next: nextPathSchema,
 });
 
+function getEmailOtpType(mode: "login" | "signup") {
+  return mode === "signup" ? "signup" : "email";
+}
+
 export async function POST(request: NextRequest) {
   const limited = await enforceRateLimit({
     request,
@@ -84,7 +88,7 @@ export async function POST(request: NextRequest) {
   const { error } = await supabase.auth.verifyOtp({
     email: parsed.data.email,
     token: parsed.data.code,
-    type: "email",
+    type: getEmailOtpType(parsed.data.mode),
   });
 
   if (error) {
