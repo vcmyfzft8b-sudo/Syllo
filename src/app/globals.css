@@ -3892,14 +3892,14 @@ select:disabled {
 
 .lecture-study-shell {
   --lecture-study-shell-height: min(66.6vh, 52.2rem);
-  --lecture-flashcard-card-height: clamp(15rem, calc(var(--lecture-study-shell-height) - 15rem), 22rem);
   display: grid;
   align-content: start;
   gap: 1.1rem;
   padding: 1.5rem;
   border-radius: 24px;
   height: var(--lecture-study-shell-height);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .lecture-study-shell.auto-height {
