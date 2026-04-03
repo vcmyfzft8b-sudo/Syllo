@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -20,6 +21,17 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:profile:onboarding:post",
+    rules: rateLimitPresets.mutate,
+    userId: user.id,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   const parsed = await parseJsonRequest(request, onboardingSchema, {
