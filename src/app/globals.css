@@ -3891,17 +3891,21 @@ select:disabled {
 }
 
 .lecture-study-shell {
+  --lecture-study-shell-height: min(66.6vh, 52.2rem);
+  --lecture-flashcard-card-height: clamp(15rem, calc(var(--lecture-study-shell-height) - 15rem), 22rem);
   display: grid;
   align-content: start;
   gap: 1.1rem;
   padding: 1.5rem;
   border-radius: 24px;
-  height: min(66.6vh, 52.2rem);
+  height: var(--lecture-study-shell-height);
+  overflow: hidden;
 }
 
 .lecture-study-shell.auto-height {
   height: auto;
-  min-height: min(66.6vh, 52.2rem);
+  min-height: var(--lecture-study-shell-height);
+  overflow: visible;
 }
 
 .lecture-study-header {
@@ -4607,10 +4611,13 @@ select:disabled {
 .lecture-flashcard-stage {
   position: relative;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 0.8rem;
   width: 100%;
   max-width: 38rem;
   margin: auto;
+  min-width: 0;
+  min-height: 0;
 }
 
 .lecture-flashcard-stage-meta {
@@ -4635,13 +4642,15 @@ select:disabled {
 
 .lecture-flashcard-stage-card {
   position: relative;
+  min-height: 0;
 }
 
 .lecture-flashcard {
   position: relative;
   display: block;
   width: 100%;
-  min-height: 22rem;
+  height: var(--lecture-flashcard-card-height);
+  min-height: var(--lecture-flashcard-card-height);
   border-radius: 24px;
   border: 1px solid color-mix(in srgb, var(--separator) 55%, transparent);
   background: transparent;
@@ -4663,7 +4672,8 @@ select:disabled {
 
 .lecture-flashcard-rotator {
   position: relative;
-  min-height: 22rem;
+  height: 100%;
+  min-height: 100%;
   transform-style: preserve-3d;
   transition: transform 0.72s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -4677,7 +4687,7 @@ select:disabled {
   inset: 0;
   display: grid;
   align-content: center;
-  min-height: 22rem;
+  min-height: 100%;
   padding: 1.45rem 1.55rem;
   border-radius: 24px;
   border: 0;
@@ -7136,6 +7146,7 @@ select:disabled {
   .lecture-study-shell {
     height: auto;
     min-height: 0;
+    overflow: visible;
   }
 
   .lecture-study-shell.auto-height {
@@ -7273,16 +7284,18 @@ select:disabled {
   }
 
   .lecture-flashcard {
+    height: 16rem;
     min-height: 16rem;
     border-radius: 20px;
   }
 
   .lecture-flashcard-rotator {
-    min-height: 16rem;
+    height: 100%;
+    min-height: 100%;
   }
 
   .lecture-flashcard-face {
-    min-height: 16rem;
+    min-height: 100%;
     padding: 1.1rem;
     border-radius: 20px;
   }
