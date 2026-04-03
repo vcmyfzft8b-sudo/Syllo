@@ -183,6 +183,7 @@ npx eslint src
 
 Deployment guides:
 
+- [docs/development-workflow.md](/Users/nacevalencic/Desktop/note_taking_app_slo/docs/development-workflow.md)
 - [docs/deploy-vercel.md](/Users/nacevalencic/Desktop/note_taking_app_slo/docs/deploy-vercel.md)
 - [docs/deploy.md](/Users/nacevalencic/Desktop/note_taking_app_slo/docs/deploy.md)
 
