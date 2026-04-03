@@ -91,6 +91,11 @@ For email code sign-in at production volume:
 
 After the env vars are set, deploy from Vercel.
 
+Important:
+
+- set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for the `Preview` environment too, not only `Production`
+- if these are missing in Preview, the login page will intentionally disable auth options for that preview deployment
+
 Then verify:
 
 - `/`
