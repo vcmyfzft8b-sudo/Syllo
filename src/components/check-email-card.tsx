@@ -74,7 +74,7 @@ export function CheckEmailCard(props: {
 
       <p className={`auth-status-note check-email-status-note ${props.messageType === "error" ? "error" : ""}`}>
         {props.message ??
-          "Koda samodejno poteče. Če je nisi prejel, lahko po izteku časovnika zahtevaš novo."}
+          "Koda velja 5 minut. Če zahtevaš novo, uporabi samo najnovejšo kodo."}
       </p>
 
       <div className="auth-check-actions check-email-actions">

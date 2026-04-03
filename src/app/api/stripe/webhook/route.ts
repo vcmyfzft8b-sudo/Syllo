@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { getServerEnv } from "@/lib/server-env";
 import { syncStripeSubscription, syncStripeSubscriptionRecord } from "@/lib/billing";
 
@@ -22,6 +23,16 @@ function extractSubscriptionId(event: Stripe.Event) {
 }
 
 export async function POST(request: Request) {
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:stripe:webhook:post",
+    rules: rateLimitPresets.stripeWebhook,
+  });
+
+  if (limited) {
+    return limited;
+  }
+
   const env = getServerEnv();
 
   if (!env.STRIPE_WEBHOOK_SECRET || !env.STRIPE_SECRET_KEY) {

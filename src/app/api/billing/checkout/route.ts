@@ -9,6 +9,7 @@ import {
   getStripeClient,
   getViewerAppState,
 } from "@/lib/billing";
+import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { parseJsonRequest } from "@/lib/request-validation";
 
 const checkoutSchema = z.object({
@@ -20,6 +21,17 @@ export async function POST(request: Request) {
 
   if (!appState) {
     return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
+  }
+
+  const limited = await enforceRateLimit({
+    request,
+    route: "api:billing:checkout:post",
+    rules: rateLimitPresets.mutate,
+    userId: appState.user.id,
+  });
+
+  if (limited) {
+    return limited;
   }
 
   if (!appState.onboardingComplete) {

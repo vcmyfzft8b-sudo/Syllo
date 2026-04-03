@@ -26,6 +26,10 @@ export const rateLimitPresets = {
   authOAuth: [{ windowSeconds: 300, maxRequests: 30, scope: "ip" }] satisfies RateLimitRule[],
   authCallback: [{ windowSeconds: 300, maxRequests: 60, scope: "ip" }] satisfies RateLimitRule[],
   authLogout: [{ windowSeconds: 300, maxRequests: 30, scope: "user_or_ip" }] satisfies RateLimitRule[],
+  stripeWebhook: [
+    { windowSeconds: 60, maxRequests: 240, scope: "ip" },
+    { windowSeconds: 3600, maxRequests: 5000, scope: "ip" },
+  ] satisfies RateLimitRule[],
   health: [{ windowSeconds: 60, maxRequests: 120, scope: "ip" }] satisfies RateLimitRule[],
   listRead: [{ windowSeconds: 60, maxRequests: 180, scope: "user_or_ip" }] satisfies RateLimitRule[],
   detailRead: [{ windowSeconds: 60, maxRequests: 180, scope: "user_or_ip" }] satisfies RateLimitRule[],
