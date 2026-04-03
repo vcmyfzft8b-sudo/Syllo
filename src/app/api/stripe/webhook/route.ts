@@ -34,15 +34,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing stripe-signature header." }, { status: 400 });
   }
 
-  try {
-    const stripe = new Stripe(env.STRIPE_SECRET_KEY);
-    const payload = await request.text();
-    const event = stripe.webhooks.constructEvent(
-      payload,
-      signature,
-      env.STRIPE_WEBHOOK_SECRET,
-    );
+  const stripe = new Stripe(env.STRIPE_SECRET_KEY);
+  const payload = await request.text();
 
+  let event: Stripe.Event;
+
+  try {
+    event = stripe.webhooks.constructEvent(payload, signature, env.STRIPE_WEBHOOK_SECRET);
+  } catch (error) {
+    console.error("Stripe webhook signature verification failed", {
+      error,
+    });
+
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Webhook signature verification failed.",
+      },
+      { status: 400 },
+    );
+  }
+
+  try {
     if (
       event.type === "customer.subscription.created" ||
       event.type === "customer.subscription.updated" ||
@@ -59,11 +71,17 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ received: true });
   } catch (error) {
+    console.error("Stripe webhook processing failed", {
+      eventId: event.id,
+      eventType: event.type,
+      error,
+    });
+
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Webhook handling failed.",
       },
-      { status: 400 },
+      { status: 500 },
     );
   }
 }

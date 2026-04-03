@@ -162,7 +162,8 @@ npm run stripe:setup
 ```
 
 4. Copy the generated price IDs and webhook secret into your environment.
-5. Point Stripe webhooks at `/api/stripe/webhook`.
+5. Set `STRIPE_WEBHOOK_URL` if your public site domain redirects and Stripe should post to a different final host.
+6. Point Stripe webhooks at the final non-redirecting `/api/stripe/webhook` URL.
 
 ## Important routes
 
