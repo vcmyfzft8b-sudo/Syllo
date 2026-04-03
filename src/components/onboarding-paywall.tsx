@@ -89,7 +89,7 @@ export function OnboardingPaywall({
   const onboardingSteps = [
     {
       overline: "Korak 1",
-      title: "Koliko si star?",
+      title: "Koliko si star/a?",
       copy: "To uporabimo za prilagoditev tona, tempa in primerov tebi.",
       body: (
         <div className="app-start-choice-grid">
