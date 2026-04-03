@@ -9,6 +9,8 @@ import { BRAND_NAME } from "@/lib/brand";
 import { hasPublicSupabaseEnv } from "@/lib/public-env";
 
 export default async function HomePage() {
+  const isVercelPreview = process.env.VERCEL_ENV === "preview";
+
   if (hasPublicSupabaseEnv) {
     const user = await getOptionalUser();
     if (user) {
@@ -47,7 +49,9 @@ export default async function HomePage() {
         {!hasPublicSupabaseEnv ? (
           <div className="dashboard-surface-card landing-env-warning">
             <p className="ios-info ios-danger">
-              Manjkajo javne `Supabase` okoljske spremenljivke. Izpolni `.env.local`.
+              {isVercelPreview
+                ? "Vercel Preview nima nastavljenih `NEXT_PUBLIC_SUPABASE_URL` in/ali `NEXT_PUBLIC_SUPABASE_ANON_KEY`."
+                : "Manjkajo javne `Supabase` okoljske spremenljivke. Izpolni `.env.local`."}
             </p>
           </div>
         ) : null}
