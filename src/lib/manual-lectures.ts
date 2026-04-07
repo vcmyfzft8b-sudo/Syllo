@@ -7,7 +7,10 @@ import mammoth from "mammoth";
 import { z } from "zod";
 
 import { toUserFacingAiErrorMessage } from "@/lib/ai/errors";
-import { generateStructuredObjectWithGeminiFile } from "@/lib/ai/gemini";
+import {
+  generateStructuredObjectWithGeminiFile,
+  generateTextWithGeminiFile,
+} from "@/lib/ai/gemini";
 import {
   isDocxDocument,
   isHtmlDocument,
@@ -505,18 +508,47 @@ export async function extractTextFromImage(file: File) {
   const instructions =
     "Extract all readable text from this photo of notes or printed material. Do not summarize. Preserve the original language, headings, bullet points, equations, labels, and important details. Ignore decorative background elements. If handwriting is uncertain, make the best faithful reading instead of inventing content. Return a short title and the extracted text.";
 
-  const extracted = await generateStructuredObjectWithGeminiFile({
-    schema: imageExtractionSchema,
-    instructions,
-    file,
-    model: env.GEMINI_TEXT_MODEL,
-    maxOutputTokens: 6000,
-  });
+  try {
+    const extracted = await generateStructuredObjectWithGeminiFile({
+      schema: imageExtractionSchema,
+      instructions,
+      file,
+      model: env.GEMINI_TEXT_MODEL,
+      maxOutputTokens: 6000,
+    });
 
-  return {
-    title: extracted.title,
-    text: normalizeWhitespace(extracted.text),
-  };
+    return {
+      title: extracted.title,
+      text: normalizeWhitespace(extracted.text),
+    };
+  } catch (error) {
+    const fallbackText = await generateTextWithGeminiFile({
+      instructions: `${instructions}
+
+Return plain text only in exactly this format:
+TITLE: <short title>
+TEXT:
+<full extracted text>`,
+      file,
+      model: env.GEMINI_TEXT_MODEL,
+      maxOutputTokens: 12000,
+    });
+
+    const normalizedFallback = fallbackText.replace(/\r\n/g, "\n").trim();
+    const titleMatch = normalizedFallback.match(/^TITLE:\s*(.+)$/im);
+    const textMatch = normalizedFallback.match(/TEXT:\s*\n([\s\S]*)$/i);
+    const extractedText = normalizeWhitespace(textMatch?.[1] ?? normalizedFallback);
+    const extractedTitle = titleMatch?.[1]?.trim() || file.name.replace(/\.[^.]+$/i, "") || "Image";
+
+    if (!extractedText) {
+      throw new Error(toUserFacingAiErrorMessage(error));
+    }
+
+    return {
+      title: extractedTitle,
+      text: extractedText,
+    };
+  }
 }
 
 export async function createLectureFromTextSource(params: {

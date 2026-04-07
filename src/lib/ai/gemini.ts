@@ -260,6 +260,88 @@ ${JSON.stringify(responseSchema)}`,
   }
 }
 
+export async function generateTextWithGeminiFile(params: {
+  instructions: string;
+  file: File;
+  model: string;
+  maxOutputTokens?: number;
+}) {
+  const ai = getGeminiClient();
+  const tempPath = `/tmp/${crypto.randomUUID()}-${params.file.name || "document.bin"}`;
+  const bytes = Buffer.from(await params.file.arrayBuffer());
+  const fs = await import("node:fs/promises");
+  let uploadedFileName: string | null = null;
+  let lastError: unknown = null;
+
+  await fs.writeFile(tempPath, bytes);
+
+  try {
+    const uploaded = await ai.files.upload({
+      file: tempPath,
+      config: {
+        mimeType: params.file.type || "application/octet-stream",
+      },
+    });
+
+    uploadedFileName = uploaded.name ?? null;
+
+    for (let attempt = 0; attempt < GEMINI_GENERATION_MAX_ATTEMPTS; attempt += 1) {
+      const retryInstruction =
+        attempt === 0 || !lastError
+          ? ""
+          : `\n\nPrevious attempt failed: ${toErrorMessage(
+              lastError,
+            )}. Return plain text only, no JSON, no markdown fences.`;
+
+      try {
+        const maxOutputTokens = params.maxOutputTokens
+          ? Math.round(params.maxOutputTokens * (attempt === 0 ? 1 : 1 + attempt * 0.4))
+          : undefined;
+        const response = await withTimeout(
+          ai.models.generateContent({
+            model: params.model,
+            contents: [
+              `${params.instructions}${retryInstruction}`,
+              createPartFromUri(
+                uploaded.uri ?? "",
+                uploaded.mimeType ?? params.file.type ?? "application/octet-stream",
+              ),
+            ],
+            config: {
+              responseMimeType: "text/plain",
+              maxOutputTokens,
+            },
+          }),
+          GEMINI_GENERATION_TIMEOUT_MS,
+          "Gemini text extraction",
+        );
+
+        const outputText = stripCodeFences(response.text ?? "");
+
+        if (!outputText) {
+          throw new Error("Model returned empty text output.");
+        }
+
+        return outputText;
+      } catch (error) {
+        lastError = error;
+
+        if (attempt < GEMINI_GENERATION_MAX_ATTEMPTS - 1 && isRetryableAiError(error)) {
+          await sleep(GEMINI_RETRY_BASE_DELAY_MS * (attempt + 1));
+        }
+      }
+    }
+
+    throw new Error(toErrorMessage(lastError));
+  } finally {
+    await fs.rm(tempPath, { force: true }).catch(() => null);
+
+    if (uploadedFileName) {
+      await ai.files.delete({ name: uploadedFileName }).catch(() => null);
+    }
+  }
+}
+
 export async function createGeminiEmbeddings(texts: string[]) {
   if (texts.length === 0) {
     return [];
