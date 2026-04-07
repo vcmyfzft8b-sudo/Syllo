@@ -64,6 +64,9 @@ export type Database = {
           target_grade: string | null;
           study_goal: string | null;
           stripe_customer_id: string | null;
+          trial_lecture_id: string | null;
+          trial_started_at: string | null;
+          trial_consumed_at: string | null;
         };
         Insert: {
           id: string;
@@ -78,6 +81,9 @@ export type Database = {
           target_grade?: string | null;
           study_goal?: string | null;
           stripe_customer_id?: string | null;
+          trial_lecture_id?: string | null;
+          trial_started_at?: string | null;
+          trial_consumed_at?: string | null;
         };
         Update: {
           email?: string | null;
@@ -91,6 +97,9 @@ export type Database = {
           target_grade?: string | null;
           study_goal?: string | null;
           stripe_customer_id?: string | null;
+          trial_lecture_id?: string | null;
+          trial_started_at?: string | null;
+          trial_consumed_at?: string | null;
         };
       };
       billing_subscriptions: {
@@ -168,6 +177,7 @@ export type Database = {
           user_id: string;
           title: string | null;
           source_type: string;
+          access_tier: "paid" | "trial";
           storage_path: string | null;
           processing_metadata: Json;
           duration_seconds: number | null;
@@ -182,6 +192,7 @@ export type Database = {
           user_id: string;
           title?: string | null;
           source_type: string;
+          access_tier?: "paid" | "trial";
           storage_path?: string | null;
           processing_metadata?: Json;
           duration_seconds?: number | null;
@@ -194,6 +205,7 @@ export type Database = {
         Update: {
           title?: string | null;
           source_type?: string;
+          access_tier?: "paid" | "trial";
           storage_path?: string | null;
           processing_metadata?: Json;
           duration_seconds?: number | null;

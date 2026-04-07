@@ -185,6 +185,15 @@ export function NoteSourceModal({
   }, [mode]);
 
   useEffect(() => {
+    if (!open || canCreateNotes !== false) {
+      return;
+    }
+
+    onClose();
+    router.replace("/app/start");
+  }, [canCreateNotes, onClose, open, router]);
+
+  useEffect(() => {
     if (selectedMode !== "text" && isTextEditorOpen) {
       setIsTextEditorOpen(false);
     }

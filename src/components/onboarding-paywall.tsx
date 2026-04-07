@@ -63,12 +63,18 @@ export function OnboardingPaywall({
   subscription,
   onboardingComplete,
   hasPaidAccess,
+  hasTrialLectureAvailable,
+  trialLectureId,
+  trialChatMessagesRemaining,
   plans,
 }: {
   profile: ProfileRow | null;
   subscription: BillingSubscriptionRow | null;
   onboardingComplete: boolean;
   hasPaidAccess: boolean;
+  hasTrialLectureAvailable: boolean;
+  trialLectureId: string | null;
+  trialChatMessagesRemaining: number;
   plans: BillingPlanCard[];
 }) {
   const router = useRouter();
@@ -331,6 +337,9 @@ export function OnboardingPaywall({
     );
   }
 
+  const showTrialIntro = onboardingComplete && !hasPaidAccess && hasTrialLectureAvailable;
+  const trialConsumed = onboardingComplete && !hasPaidAccess && !hasTrialLectureAvailable;
+
   return (
     <section className="app-start-panel app-start-panel-paywall">
       {onboardingComplete ? (
@@ -347,6 +356,39 @@ export function OnboardingPaywall({
       ) : null}
 
       <CheckoutBanner state={searchParams.get("checkout")} />
+
+      {showTrialIntro ? (
+        <div className="app-start-banner">
+          <EmojiIcon symbol="🎁" size="1rem" />
+          1 brezplačen zapisek vključuje zapiske, kartice, kviz, preizkus znanja in 5 sporočil v klepetu.
+        </div>
+      ) : null}
+
+      {trialConsumed ? (
+        <div className="app-start-banner">
+          <EmojiIcon symbol="⏳" size="1rem" />
+          Tvoj brezplačni poskusni zapisek je že porabljen
+          {trialLectureId ? `, za klepet pa ti je ostalo še ${trialChatMessagesRemaining} brezplačnih sporočil.` : "."}
+        </div>
+      ) : null}
+
+      {showTrialIntro ? (
+        <div className="app-start-subscription-status">
+          <div>
+            <p className="app-start-overline">Brezplačen preizkus</p>
+            <h3>Nadaljuj v aplikacijo</h3>
+            <p>Najprej preizkusi en zapisek. Če ti pomaga, potem nadgradi na plačljiv paket.</p>
+          </div>
+
+          <button
+            type="button"
+            className="app-start-primary-button"
+            onClick={() => router.push("/app")}
+          >
+            Nadaljuj v aplikacijo
+          </button>
+        </div>
+      ) : null}
 
       <div className="app-start-pricing-grid">
         {plans.map((plan) => {

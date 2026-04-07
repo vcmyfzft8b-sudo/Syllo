@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { parseAudioChunkManifest } from "@/lib/audio-processing";
-import { createBillingRequiredResponse, hasPaidAccessForUserId } from "@/lib/billing";
+import {
+  claimTrialLecture,
+  createBillingRequiredResponse,
+  getUserEntitlementState,
+} from "@/lib/billing";
 import { MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS } from "@/lib/constants";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
@@ -39,8 +43,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
-  if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Pred nalaganjem ali snemanjem gradiva izberi paket.");
+  const entitlement = await getUserEntitlementState(user.id);
+
+  if (!entitlement.canCreateNotes) {
+    return createBillingRequiredResponse(
+      "Tvoj brezplačni preizkus je porabljen. Nadgradi za novo gradivo.",
+      "trial_exhausted",
+    );
   }
 
   const limited = await enforceRateLimit({
@@ -80,6 +89,7 @@ export async function POST(request: Request) {
       {
         user_id: user.id,
         source_type: "audio",
+        access_tier: entitlement.hasPaidAccess ? "paid" : "trial",
         status: "uploading",
         language_hint: parsed.data.languageHint,
         duration_seconds: Math.round(parsed.data.durationSeconds),
@@ -96,6 +106,26 @@ export async function POST(request: Request) {
   }
 
   const createdLecture = lecture as { id: string };
+
+  if (!entitlement.hasPaidAccess) {
+    const trialClaim = await claimTrialLecture(user.id, createdLecture.id);
+
+    if (!trialClaim.allowed) {
+      await supabase.from("lectures").delete().eq("id", createdLecture.id).eq("user_id", user.id);
+      return createBillingRequiredResponse(
+        "Tvoj brezplačni preizkus je že porabljen. Nadgradi za novo gradivo.",
+        "trial_exhausted",
+      );
+    }
+
+    if (trialClaim.mode === "paid") {
+      await supabase
+        .from("lectures")
+        .update({ access_tier: "paid" } as never)
+        .eq("id", createdLecture.id)
+        .eq("user_id", user.id);
+    }
+  }
 
   const path = buildLectureStoragePath({
     userId: user.id,

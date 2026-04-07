@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { canSendTrialChatMessage, createBillingRequiredResponse } from "@/lib/billing";
 import { answerLectureChat } from "@/lib/pipeline";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
 import { parseJsonRequest } from "@/lib/request-validation";
@@ -61,6 +62,17 @@ export async function POST(
 
   if (!lecture) {
     return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
+  }
+
+  const chatAccess = await canSendTrialChatMessage(user.id, id);
+
+  if (!chatAccess.allowed) {
+    return createBillingRequiredResponse(
+      chatAccess.code === "trial_chat_limit_reached"
+        ? "Porabil si vseh 5 brezplačnih sporočil za ta klepet."
+        : "Brez plačljivega paketa lahko klepetaš samo o svojem poskusnem gradivu.",
+      chatAccess.code,
+    );
   }
 
   if (lecture.status !== "ready") {

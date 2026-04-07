@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { createBillingRequiredResponse, hasPaidAccessForUserId } from "@/lib/billing";
+import { createBillingRequiredResponse, getUserEntitlementState } from "@/lib/billing";
 import { MAX_SCAN_IMAGE_BYTES } from "@/lib/constants";
 import { extractTextFromImage } from "@/lib/manual-lectures";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
@@ -18,8 +18,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
-  if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Pred skeniranjem učnega gradiva izberi paket.");
+  const entitlement = await getUserEntitlementState(user.id);
+
+  if (!entitlement.canCreateNotes) {
+    return createBillingRequiredResponse(
+      "Tvoj brezplačni preizkus je porabljen. Nadgradi za novo gradivo.",
+      "trial_exhausted",
+    );
   }
 
   const limited = await enforceRateLimit({

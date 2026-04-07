@@ -1,6 +1,6 @@
 import { after, NextResponse } from "next/server";
 
-import { createBillingRequiredResponse, hasPaidAccessForUserId } from "@/lib/billing";
+import { canUseLectureFeatures, createBillingRequiredResponse } from "@/lib/billing";
 import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
 import { enqueueLecturePracticeTestGeneration } from "@/lib/jobs";
 import {
@@ -26,10 +26,6 @@ export async function GET(
     return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
-  if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Pred ustvarjanjem preizkusov znanja izberi paket.");
-  }
-
   const limited = await enforceRateLimit({
     request,
     route: "api:lectures:practice-test:get",
@@ -47,13 +43,24 @@ export async function GET(
     return NextResponse.json({ error: "Neveljaven ID zapiska." }, { status: 400 });
   }
 
+  const { id } = parsedParams.data;
+
   const detail = await getLectureDetailForUser({
-    lectureId: parsedParams.data.id,
+    lectureId: id,
     userId: user.id,
   });
 
   if (!detail) {
     return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
+  }
+
+  const access = await canUseLectureFeatures(user.id, id, "practice_test");
+
+  if (!access.allowed) {
+    return createBillingRequiredResponse(
+      "Brez plačljivega paketa je preizkus znanja na voljo samo za tvoje poskusno gradivo.",
+      access.code,
+    );
   }
 
   return NextResponse.json({
@@ -96,13 +103,24 @@ export async function POST(
     return NextResponse.json({ error: "Neveljaven ID zapiska." }, { status: 400 });
   }
 
+  const { id } = parsedParams.data;
+
   const lecture = await ensureUserOwnsLecture({
-    lectureId: parsedParams.data.id,
+    lectureId: id,
     user,
   });
 
   if (!lecture) {
     return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
+  }
+
+  const access = await canUseLectureFeatures(user.id, id, "practice_test");
+
+  if (!access.allowed) {
+    return createBillingRequiredResponse(
+      "Brez plačljivega paketa je preizkus znanja na voljo samo za tvoje poskusno gradivo.",
+      access.code,
+    );
   }
 
   if (lecture.status !== "ready") {
@@ -113,7 +131,7 @@ export async function POST(
   }
 
   try {
-    await queueLecturePracticeTestGeneration(parsedParams.data.id);
+    await queueLecturePracticeTestGeneration(id);
   } catch (error) {
     return NextResponse.json(
       {
@@ -124,7 +142,7 @@ export async function POST(
   }
 
   after(async () => {
-    await enqueueLecturePracticeTestGeneration(parsedParams.data.id);
+    await enqueueLecturePracticeTestGeneration(id);
   });
 
   return NextResponse.json({ ok: true });

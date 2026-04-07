@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { LectureWorkspace } from "@/components/lecture-workspace";
 import { requireUser } from "@/lib/auth";
+import { getViewerAppState } from "@/lib/billing";
 import { getLectureDetailForUser } from "@/lib/lectures";
 import { routeIdParamSchema } from "@/lib/validation";
 
@@ -18,6 +19,7 @@ export default async function LecturePage({
   }
 
   const { id } = parsedParams.data;
+  const appState = await getViewerAppState();
   const detail = await getLectureDetailForUser({
     lectureId: id,
     userId: user.id,
@@ -27,5 +29,12 @@ export default async function LecturePage({
     notFound();
   }
 
-  return <LectureWorkspace initialDetail={detail} />;
+  return (
+    <LectureWorkspace
+      initialDetail={detail}
+      hasPaidAccess={Boolean(appState?.hasPaidAccess)}
+      trialLectureId={appState?.trialLectureId ?? null}
+      initialTrialChatMessagesRemaining={appState?.trialChatMessagesRemaining ?? 5}
+    />
+  );
 }

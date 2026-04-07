@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { createBillingRequiredResponse, hasPaidAccessForUserId } from "@/lib/billing";
+import { canUseLectureFeatures, createBillingRequiredResponse } from "@/lib/billing";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
 import { createPracticeTestAttempt } from "@/lib/practice-test";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
@@ -20,10 +20,6 @@ export async function POST(
     return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
-  if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Pred začetkom preizkusov znanja izberi paket.");
-  }
-
   const limited = await enforceRateLimit({
     request,
     route: "api:lectures:practice-test:attempt:post",
@@ -41,8 +37,10 @@ export async function POST(
     return NextResponse.json({ error: "Neveljaven ID zapiska." }, { status: 400 });
   }
 
+  const { id } = parsedParams.data;
+
   const lecture = await ensureUserOwnsLecture({
-    lectureId: parsedParams.data.id,
+    lectureId: id,
     user,
   });
 
@@ -50,9 +48,18 @@ export async function POST(
     return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
   }
 
+  const access = await canUseLectureFeatures(user.id, id, "practice_test");
+
+  if (!access.allowed) {
+    return createBillingRequiredResponse(
+      "Brez plačljivega paketa je preizkus znanja na voljo samo za tvoje poskusno gradivo.",
+      access.code,
+    );
+  }
+
   try {
     const attempt = await createPracticeTestAttempt({
-      lectureId: parsedParams.data.id,
+      lectureId: id,
       userId: user.id,
     });
 

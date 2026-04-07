@@ -21,6 +21,9 @@ export default async function AppStartPage() {
         subscription={appState.subscription}
         onboardingComplete={appState.onboardingComplete}
         hasPaidAccess={appState.hasPaidAccess}
+        hasTrialLectureAvailable={appState.hasTrialLectureAvailable}
+        trialLectureId={appState.trialLectureId}
+        trialChatMessagesRemaining={appState.trialChatMessagesRemaining}
         plans={Object.values(BILLING_PLANS)}
       />
     </main>

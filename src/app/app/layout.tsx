@@ -24,7 +24,7 @@ export default async function AppLayout({
 
   return (
     <AppShell
-      canCreateNotes={Boolean(appState?.onboardingComplete && appState?.hasPaidAccess)}
+      canCreateNotes={Boolean(appState?.onboardingComplete && appState?.canCreateNotes)}
     >
       {children}
     </AppShell>

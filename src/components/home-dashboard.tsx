@@ -189,10 +189,18 @@ export function HomeDashboard({
   lectures,
   userId,
   canCreateNotes,
+  hasPaidAccess,
+  hasTrialLectureAvailable,
+  trialLectureId,
+  trialChatMessagesRemaining,
 }: {
   lectures: AppLectureListItem[];
   userId: string;
   canCreateNotes: boolean;
+  hasPaidAccess: boolean;
+  hasTrialLectureAvailable: boolean;
+  trialLectureId: string | null;
+  trialChatMessagesRemaining: number;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -426,6 +434,34 @@ export function HomeDashboard({
   return (
     <>
       <div className="home-dashboard pb-8">
+        {!hasPaidAccess ? (
+          <section className="dashboard-section">
+            <div className="ios-card" style={{ padding: "1rem 1.1rem" }}>
+              <p className="dashboard-overline">Brezplačen preizkus</p>
+              <p className="ios-row-title mt-2">
+                {hasTrialLectureAvailable ? "Na voljo imaš 1 brezplačen zapisek" : "Tvoj brezplačni zapisek je že porabljen"}
+              </p>
+              <p className="ios-row-subtitle mt-2">
+                {hasTrialLectureAvailable
+                  ? "Vključuje zapiske, kartice, kviz, preizkus znanja in 5 sporočil v klepetu."
+                  : trialLectureId
+                    ? `Tvoj poskusni zapisek ostane v knjižnici. Preostalih brezplačnih sporočil v klepetu: ${trialChatMessagesRemaining}.`
+                    : "Nadgradi za ustvarjanje novega gradiva."}
+              </p>
+              {!canCreateNotes ? (
+                <button
+                  type="button"
+                  className="app-home-highlight-link"
+                  onClick={() => router.push("/app/start")}
+                >
+                  <span>Nadgradi za nov zapisek</span>
+                  <EmojiIcon symbol="›" size="1.1rem" />
+                </button>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
         <section className="dashboard-section">
           <div className="dashboard-section-heading">
             <h2 className="dashboard-section-title">Nov zapisek</h2>
@@ -436,7 +472,14 @@ export function HomeDashboard({
               <button
                 key={action.id}
                 type="button"
-                onClick={() => setManualModal(action.id)}
+                onClick={() => {
+                  if (!canCreateNotes) {
+                    router.push("/app/start");
+                    return;
+                  }
+
+                  setManualModal(action.id);
+                }}
                 className="note-action-card"
               >
                 <span
@@ -572,7 +615,14 @@ export function HomeDashboard({
               {!search && !selectedFolderId ? (
                 <button
                   type="button"
-                  onClick={() => setManualModal("record")}
+                  onClick={() => {
+                    if (!canCreateNotes) {
+                      router.push("/app/start");
+                      return;
+                    }
+
+                    setManualModal("record");
+                  }}
                   className="app-home-highlight-link"
                 >
                   <span>Ustvari svoj prvi zapisek</span>

@@ -1,6 +1,6 @@
 import { after, NextResponse } from "next/server";
 
-import { createBillingRequiredResponse, hasPaidAccessForUserId } from "@/lib/billing";
+import { canUseLectureFeatures, createBillingRequiredResponse } from "@/lib/billing";
 import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
 import { enqueueLectureQuizGeneration } from "@/lib/jobs";
 import { queueLectureQuizGeneration } from "@/lib/quiz";
@@ -21,10 +21,6 @@ export async function GET(
 
   if (!user) {
     return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
-  }
-
-  if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Pred ustvarjanjem kvizov izberi paket.");
   }
 
   const limited = await enforceRateLimit({
@@ -52,6 +48,15 @@ export async function GET(
 
   if (!detail) {
     return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
+  }
+
+  const access = await canUseLectureFeatures(user.id, id, "quiz");
+
+  if (!access.allowed) {
+    return createBillingRequiredResponse(
+      "Brez plačljivega paketa je kviz na voljo samo za tvoje poskusno gradivo.",
+      access.code,
+    );
   }
 
   return NextResponse.json({
@@ -100,6 +105,15 @@ export async function POST(
 
   if (!lecture) {
     return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
+  }
+
+  const access = await canUseLectureFeatures(user.id, id, "quiz");
+
+  if (!access.allowed) {
+    return createBillingRequiredResponse(
+      "Brez plačljivega paketa je kviz na voljo samo za tvoje poskusno gradivo.",
+      access.code,
+    );
   }
 
   if (lecture.status !== "ready") {

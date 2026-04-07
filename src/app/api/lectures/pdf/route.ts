@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { createBillingRequiredResponse, hasPaidAccessForUserId } from "@/lib/billing";
+import { createBillingRequiredResponse, getUserEntitlementState } from "@/lib/billing";
 import { MAX_DOCUMENT_BYTES } from "@/lib/constants";
 import { isPdfDocument, isSupportedDocumentFile } from "@/lib/document-files";
 import { validateDocumentFileSignature } from "@/lib/file-validation";
@@ -31,9 +31,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
-  if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Pred uvozom dokumentov izberi paket.");
-  }
+  const entitlement = await getUserEntitlementState(user.id);
 
   const limited = await enforceRateLimit({
     request,
@@ -76,6 +74,13 @@ export async function POST(request: Request) {
   }
 
   const { lectureId, originalFileName, languageHint } = parsedFields.data;
+
+  if (!entitlement.hasPaidAccess && lectureId !== entitlement.trialLectureId) {
+    return createBillingRequiredResponse(
+      "Brez plačljivega paketa lahko obdelaš samo svoje brezplačno poskusno gradivo.",
+      "trial_exhausted",
+    );
+  }
 
   if (!(inputFile instanceof File)) {
     return NextResponse.json({ error: "Manjka datoteka dokumenta." }, { status: 400 });
