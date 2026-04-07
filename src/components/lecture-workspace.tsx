@@ -774,6 +774,10 @@ export function LectureWorkspace({
   const currentReviewFlashcardId = reviewQueue[0] ?? null;
   const showsTranscript = detail.lecture.source_type === "audio";
   const shouldPollCurrentDetail = shouldPollDetail(detail);
+  const detailPollIntervalMs =
+    shouldPollAsset(detail.studyAsset?.status) || shouldPollAsset(detail.quizAsset?.status)
+      ? 2000
+      : POLL_INTERVAL_MS;
 
   useEffect(() => {
     const nextDetail = mergeLectureDetailWithStoredStudySession(initialDetail);
@@ -842,7 +846,7 @@ export function LectureWorkspace({
       }
     };
 
-    const interval = window.setInterval(refresh, POLL_INTERVAL_MS);
+    const interval = window.setInterval(refresh, detailPollIntervalMs);
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
@@ -871,6 +875,7 @@ export function LectureWorkspace({
     detail.practiceTestQuestions.length,
     detail.quizAsset?.status,
     detail.quizQuestions.length,
+    detailPollIntervalMs,
     detail.studyAsset?.status,
     shouldPollCurrentDetail,
   ]);
