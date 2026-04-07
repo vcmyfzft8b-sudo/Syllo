@@ -163,6 +163,7 @@ export function NoteSourceModal({
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const scanInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -1446,6 +1447,15 @@ export function NoteSourceModal({
                         className="hidden"
                       />
 
+                      <input
+                        ref={galleryInputRef}
+                        type="file"
+                        accept={SCAN_IMAGE_INPUT_ACCEPT}
+                        multiple
+                        onChange={handleScanImageChange}
+                        className="hidden"
+                      />
+
                       <div className="note-source-docs-actions note-source-docs-actions-bottom">
                         <button
                           type="button"
@@ -1479,6 +1489,23 @@ export function NoteSourceModal({
                         >
                           <EmojiIcon symbol="📷" size="1rem" />
                           Skeniraj
+                        </button>
+
+                        <button
+                          type="button"
+                          className="ios-secondary-button note-source-docs-action-button"
+                          disabled={Boolean(busyLabel)}
+                          onClick={() => {
+                            if (!canCreateNotes) {
+                              redirectToPaywall();
+                              return;
+                            }
+
+                            galleryInputRef.current?.click();
+                          }}
+                        >
+                          <EmojiIcon symbol="🖼️" size="1rem" />
+                          Fotografije
                         </button>
                       </div>
 
