@@ -18,13 +18,18 @@ export default async function AppLayout({
     redirect("/app/start");
   }
 
-  if (appState?.onboardingComplete && appState.hasPaidAccess && pathname === "/app/start") {
+  if (
+    appState?.onboardingComplete &&
+    (appState.hasPaidAccess || appState.hasTrialLectureAvailable) &&
+    pathname === "/app/start"
+  ) {
     redirect("/app");
   }
 
   return (
     <AppShell
-      canCreateNotes={Boolean(appState?.onboardingComplete && appState?.canCreateNotes)}
+      hasPaidAccess={Boolean(appState?.hasPaidAccess)}
+      hasTrialLectureAvailable={Boolean(appState?.hasTrialLectureAvailable)}
     >
       {children}
     </AppShell>

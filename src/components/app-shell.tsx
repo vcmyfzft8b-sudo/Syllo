@@ -66,10 +66,12 @@ function getChrome(pathname: string) {
 
 export function AppShell({
   children,
-  canCreateNotes,
+  hasPaidAccess,
+  hasTrialLectureAvailable,
 }: {
   children: React.ReactNode;
-  canCreateNotes: boolean;
+  hasPaidAccess: boolean;
+  hasTrialLectureAvailable: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -84,7 +86,8 @@ export function AppShell({
   const createHref = "/app?mode=record";
   const subscribeHref = "/app/start";
   const showCreateCta = !shouldHideNavigation;
-  const showSubscribeCta = !canCreateNotes && showCreateCta;
+  const showSubscribeCta = !hasPaidAccess && showCreateCta;
+  const subscribeLabel = hasTrialLectureAvailable ? "Trial" : "Naročnina";
   const pullThreshold = 84;
   const cappedPullDistance = Math.min(pullDistance, 120);
 
@@ -270,7 +273,7 @@ export function AppShell({
           {showSubscribeCta ? (
             <InstantLink href={subscribeHref} className="app-subscribe-cta">
               <EmojiIcon symbol="✨" size="1rem" />
-              <span>Naročnina</span>
+              <span>{subscribeLabel}</span>
             </InstantLink>
           ) : null}
         </div>
@@ -340,7 +343,7 @@ export function AppShell({
                 <div className="ios-nav-actions app-topbar-subscribe-actions">
                   <InstantLink href={subscribeHref} className="app-subscribe-cta">
                     <EmojiIcon symbol="✨" size="1rem" />
-                    <span>Naročnina</span>
+                    <span>{subscribeLabel}</span>
                   </InstantLink>
                 </div>
               ) : null}
