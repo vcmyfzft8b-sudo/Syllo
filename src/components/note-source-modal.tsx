@@ -163,6 +163,7 @@ export function NoteSourceModal({
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const scanInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -190,6 +191,7 @@ export function NoteSourceModal({
   const [isPaused, setIsPaused] = useState(false);
   const [isTextEditorOpen, setIsTextEditorOpen] = useState(false);
   const [textEditorKeyboardOffset, setTextEditorKeyboardOffset] = useState(0);
+  const [scannedTextValue, setScannedTextValue] = useState("");
   const [scannedFileNames, setScannedFileNames] = useState<string[]>([]);
   const [visualizerStream, setVisualizerStream] = useState<MediaStream | null>(null);
   const [showAudioImportGuide, setShowAudioImportGuide] = useState(false);
@@ -253,8 +255,11 @@ export function NoteSourceModal({
   const preparedRecording = audioSource?.origin === "recording" ? audioSource : null;
   const preparedUpload = audioSource?.origin === "upload" ? audioSource : null;
   const trimmedTextValue = textValue.trim();
+  const trimmedScannedTextValue = scannedTextValue.trim();
+  const combinedTextSource = [trimmedScannedTextValue, trimmedTextValue].filter(Boolean).join("\n\n");
   const trimmedLinkValue = linkValue.trim();
-  const canGenerateText = Boolean(pdfSource) || trimmedTextValue.length >= 120;
+  const canGenerateText =
+    Boolean(pdfSource) || combinedTextSource.length >= 120 || scannedFileNames.length > 0;
   const canGenerateLink = trimmedLinkValue.length > 0;
 
   function redirectToPaywall() {
@@ -311,6 +316,7 @@ export function NoteSourceModal({
     clearAudioSource();
     setPdfSource(null);
     setTextValue("");
+    setScannedTextValue("");
     setLinkValue("");
     setLanguageHint("sl");
     setIsRecording(false);
@@ -670,8 +676,12 @@ export function NoteSourceModal({
   }
 
   async function createTextLecture() {
-    if (trimmedTextValue.length < 120) {
-      setError("Prilepi vsaj krajši vzorec besedila.");
+    if (combinedTextSource.length < 120) {
+      setError(
+        scannedFileNames.length > 0
+          ? "Na fotografijah ni bilo dovolj berljivega besedila za ustvarjanje zapiskov."
+          : "Prilepi vsaj krajši vzorec besedila.",
+      );
       return;
     }
 
@@ -698,7 +708,7 @@ export function NoteSourceModal({
         signal: controller.signal,
         body: JSON.stringify({
           lectureId,
-          text: trimmedTextValue,
+          text: combinedTextSource,
           languageHint,
         }),
       });
@@ -838,7 +848,7 @@ export function NoteSourceModal({
       const payload = await parseApiResponse<{ fileNames?: string[]; text?: string }>(response);
 
       setPdfSource(null);
-      setTextValue((current) => appendScannedText(current, payload.text ?? ""));
+      setScannedTextValue((current) => appendScannedText(current, payload.text ?? ""));
       setScannedFileNames((current) => [...current, ...(payload.fileNames ?? files.map((file) => file.name))]);
       setIsTextEditorOpen(false);
     } catch (scanError) {
@@ -880,6 +890,7 @@ export function NoteSourceModal({
 
       setPdfSource(file);
       setTextValue("");
+      setScannedTextValue("");
       setScannedFileNames([]);
       setError(null);
     } catch (submitError) {
@@ -1394,15 +1405,13 @@ export function NoteSourceModal({
 
                       {!pdfSource && scannedFileNames.length > 0 ? (
                         <div className="ios-card note-source-docs-file-card">
-                          <p className="note-source-card-label">Skenirano besedilo je pripravljeno</p>
+                          <p className="note-source-card-label">Fotografije so pripravljene</p>
                           <p className="ios-row-title note-source-docs-file-name">
-                            {scannedFileNames.length === 1
-                              ? scannedFileNames[0]
-                              : `${scannedFileNames.length} fotografij`}
+                            {scannedFileNames.length} fotografij
                           </p>
                           <p className="ios-row-subtitle note-source-docs-file-copy">
-                            Dodaš lahko do {MAX_SCAN_IMAGE_COUNT} fotografij. Pred ustvarjanjem
-                            zapiskov preglej in uredi izluščeno besedilo.
+                            Dodaš lahko do {MAX_SCAN_IMAGE_COUNT} fotografij. Besedilo iz slik bo
+                            obdelano samodejno, ko pritisneš Ustvari.
                           </p>
                         </div>
                       ) : null}
@@ -1416,11 +1425,6 @@ export function NoteSourceModal({
                             if (pdfSource && nextValue.trim().length > 0) {
                               setPdfSource(null);
                             }
-
-                            if (nextValue.trim().length === 0) {
-                              setScannedFileNames([]);
-                            }
-
                             setTextValue(nextValue);
                           }}
                           className="ios-textarea note-source-inline-textarea"
@@ -1442,6 +1446,15 @@ export function NoteSourceModal({
                         accept={SCAN_IMAGE_INPUT_ACCEPT}
                         multiple
                         capture="environment"
+                        onChange={handleScanImageChange}
+                        className="hidden"
+                      />
+
+                      <input
+                        ref={galleryInputRef}
+                        type="file"
+                        accept={SCAN_IMAGE_INPUT_ACCEPT}
+                        multiple
                         onChange={handleScanImageChange}
                         className="hidden"
                       />
@@ -1479,6 +1492,23 @@ export function NoteSourceModal({
                         >
                           <EmojiIcon symbol="📷" size="1rem" />
                           Skeniraj
+                        </button>
+
+                        <button
+                          type="button"
+                          className="ios-secondary-button note-source-docs-action-button"
+                          disabled={Boolean(busyLabel)}
+                          onClick={() => {
+                            if (!canCreateNotes) {
+                              redirectToPaywall();
+                              return;
+                            }
+
+                            galleryInputRef.current?.click();
+                          }}
+                        >
+                          <EmojiIcon symbol="🖼️" size="1rem" />
+                          Fotografije
                         </button>
                       </div>
 
@@ -1547,7 +1577,8 @@ export function NoteSourceModal({
 
                 <div className="dashboard-note-dialog-body">
                   <p className="ios-subtitle dashboard-note-dialog-copy">
-                    Sem prilepi zapiske predavanja, prosojnice, besedilo članka ali preglej skenirano besedilo.
+                    Sem prilepi zapiske predavanja, prosojnice ali besedilo članka. Fotografije
+                    ostanejo naložene ločeno.
                   </p>
 
                   <textarea
@@ -1558,11 +1589,6 @@ export function NoteSourceModal({
                       if (pdfSource && nextValue.trim().length > 0) {
                         setPdfSource(null);
                       }
-
-                      if (nextValue.trim().length === 0) {
-                        setScannedFileNames([]);
-                      }
-
                       setTextValue(nextValue);
                     }}
                     className="ios-textarea note-source-subsheet-textarea"
@@ -1586,10 +1612,22 @@ export function NoteSourceModal({
                         disabled={Boolean(busyLabel)}
                         onClick={() => {
                           setTextValue("");
-                          setScannedFileNames([]);
                         }}
                       >
                         Počisti besedilo
+                      </button>
+                    ) : null}
+                    {scannedFileNames.length > 0 ? (
+                      <button
+                        type="button"
+                        className="ios-secondary-button"
+                        disabled={Boolean(busyLabel)}
+                        onClick={() => {
+                          setScannedTextValue("");
+                          setScannedFileNames([]);
+                        }}
+                      >
+                        Počisti fotografije
                       </button>
                     ) : null}
                   </div>
