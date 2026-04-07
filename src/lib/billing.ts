@@ -27,6 +27,7 @@ export type UserEntitlementState = {
   onboardingComplete: boolean;
   trialLectureId: string | null;
   hasTrialLectureAvailable: boolean;
+  canResumeTrialLecture: boolean;
   trialChatMessagesUsed: number;
   trialChatMessagesRemaining: number;
   canCreateNotes: boolean;
@@ -206,17 +207,107 @@ async function fetchProfileAndSubscriptions(userId: string) {
   };
 }
 
+async function recoverTrialLectureForUser(params: {
+  userId: string;
+  profile: ProfileRow | null;
+  hasPaidAccess: boolean;
+}) {
+  if (params.hasPaidAccess || !params.profile || params.profile.trial_lecture_id) {
+    return params.profile;
+  }
+
+  const service = createSupabaseServiceRoleClient();
+  const { data: orphanLectureData } = await service
+    .from("lectures")
+    .select("id, created_at")
+    .eq("user_id", params.userId)
+    .eq("access_tier", "trial")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const orphanLecture = orphanLectureData as { id: string; created_at: string } | null;
+
+  if (!orphanLecture) {
+    return params.profile;
+  }
+
+  const repairedProfile = {
+    ...params.profile,
+    trial_lecture_id: orphanLecture.id,
+    trial_started_at: params.profile.trial_started_at ?? orphanLecture.created_at,
+    trial_consumed_at: params.profile.trial_consumed_at ?? orphanLecture.created_at,
+  };
+
+  await service
+    .from("profiles")
+    .update({
+      trial_lecture_id: repairedProfile.trial_lecture_id,
+      trial_started_at: repairedProfile.trial_started_at,
+      trial_consumed_at: repairedProfile.trial_consumed_at,
+    } as never)
+    .eq("id", params.userId);
+
+  return repairedProfile;
+}
+
+async function getTrialLectureResumeState(params: {
+  userId: string;
+  trialLectureId: string | null;
+  hasPaidAccess: boolean;
+}) {
+  if (params.hasPaidAccess || !params.trialLectureId) {
+    return false;
+  }
+
+  const service = createSupabaseServiceRoleClient();
+  const [{ data: lectureData }, { data: artifactData }, { count: transcriptCount }] = await Promise.all([
+    service
+      .from("lectures")
+      .select("id, status")
+      .eq("id", params.trialLectureId)
+      .eq("user_id", params.userId)
+      .maybeSingle(),
+    service
+      .from("lecture_artifacts")
+      .select("lecture_id")
+      .eq("lecture_id", params.trialLectureId)
+      .maybeSingle(),
+    service
+      .from("transcript_segments")
+      .select("id", { count: "exact", head: true })
+      .eq("lecture_id", params.trialLectureId),
+  ]);
+  const lecture = lectureData as { id: string; status: string } | null;
+  const artifact = artifactData as { lecture_id: string } | null;
+
+  if (!lecture) {
+    return false;
+  }
+
+  if (lecture.status === "ready") {
+    return false;
+  }
+
+  if (artifact) {
+    return false;
+  }
+
+  return (transcriptCount ?? 0) === 0;
+}
+
 function buildEntitlementState(params: {
   profile: ProfileRow | null;
   subscriptions: BillingSubscriptionRow[];
   subscription: BillingSubscriptionRow | null;
   hasPaidAccess: boolean;
+  canResumeTrialLecture: boolean;
   trialChatMessagesUsed: number;
   trialChatMessagesRemaining: number;
 }) {
   const onboardingComplete = Boolean(params.profile?.onboarding_completed_at);
   const trialLectureId = params.profile?.trial_lecture_id ?? null;
-  const hasTrialLectureAvailable = !params.hasPaidAccess && !trialLectureId;
+  const hasTrialLectureAvailable =
+    !params.hasPaidAccess && (!trialLectureId || params.canResumeTrialLecture);
   const canCreateNotes = params.hasPaidAccess || hasTrialLectureAvailable;
   const shouldShowTrialEntry = !params.hasPaidAccess;
 
@@ -228,6 +319,7 @@ function buildEntitlementState(params: {
     onboardingComplete,
     trialLectureId,
     hasTrialLectureAvailable,
+    canResumeTrialLecture: params.canResumeTrialLecture,
     trialChatMessagesUsed: params.trialChatMessagesUsed,
     trialChatMessagesRemaining: params.trialChatMessagesRemaining,
     canCreateNotes,
@@ -243,13 +335,27 @@ export async function getUserEntitlementState(userId: string) {
     stripeCustomerId: profile?.stripe_customer_id ?? null,
     subscriptions,
   });
-  const trialUsage = await getTrialChatMessageUsage(userId, profile?.trial_lecture_id ?? null);
+  const recoveredProfile = await recoverTrialLectureForUser({
+    userId,
+    profile,
+    hasPaidAccess: billingState.hasPaidAccess,
+  });
+  const canResumeTrialLecture = await getTrialLectureResumeState({
+    userId,
+    trialLectureId: recoveredProfile?.trial_lecture_id ?? null,
+    hasPaidAccess: billingState.hasPaidAccess,
+  });
+  const trialUsage = await getTrialChatMessageUsage(
+    userId,
+    recoveredProfile?.trial_lecture_id ?? null,
+  );
 
   return buildEntitlementState({
-    profile,
+    profile: recoveredProfile,
     subscriptions: billingState.subscriptions,
     subscription: billingState.subscription,
     hasPaidAccess: billingState.hasPaidAccess,
+    canResumeTrialLecture,
     ...trialUsage,
   });
 }

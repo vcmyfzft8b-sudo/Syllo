@@ -37,6 +37,12 @@ export async function POST(request: Request) {
     );
   }
 
+  if (!entitlement.hasPaidAccess && entitlement.trialLectureId && entitlement.canResumeTrialLecture) {
+    return NextResponse.json({
+      lectureId: entitlement.trialLectureId,
+    });
+  }
+
   const limited = await enforceRateLimit({
     request,
     route: "api:lectures:manual:post",
