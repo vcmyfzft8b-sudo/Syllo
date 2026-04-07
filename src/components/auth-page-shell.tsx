@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ChevronLeft, Mail } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { getAuthProviderAvailability } from "@/lib/auth-providers";
 import { BrandLogo } from "@/components/brand-logo";
+import { EmailAuthForm } from "@/components/email-auth-form";
 import { BRAND_NAME } from "@/lib/brand";
 
 type AuthMode = "login" | "signup";
@@ -122,30 +123,18 @@ export async function AuthPageShell(props: {
                   <span>ali</span>
                 </div>
 
-                <form action="/auth/email" method="post" className="auth-email-form">
-                  <input type="hidden" name="mode" value={props.mode} />
-                  <input type="hidden" name="next" value={props.next} />
-
-                  <label className="auth-field">
-                    <Mail className="auth-field-icon h-5 w-5" />
-                    <input
-                      type="email"
-                      name="email"
-                      required
-                      defaultValue={props.prefilledEmail}
-                      placeholder="Vnesi svoj e-naslov"
-                      autoComplete="email"
-                    />
-                  </label>
-
-                  <button type="submit" className="ios-primary-button auth-submit-button">
-                    {emailLabel}
-                  </button>
-                </form>
-
-                <p className="auth-helper-copy">
-                  Na tvoj e-naslov bomo poslali potrditveno kodo.
-                </p>
+                <EmailAuthForm
+                  buttonClassName="ios-primary-button auth-submit-button"
+                  defaultEmail={props.prefilledEmail}
+                  formClassName="auth-email-form"
+                  helperText="Na tvoj e-naslov bomo poslali potrditveno kodo."
+                  inputWrapperClassName="auth-field"
+                  mode={props.mode}
+                  next={props.next}
+                  placeholder="Vnesi svoj e-naslov"
+                  pendingLabel="Pošiljam kodo..."
+                  submitLabel={emailLabel}
+                />
               </>
             ) : null}
 
