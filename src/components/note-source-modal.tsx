@@ -677,7 +677,11 @@ export function NoteSourceModal({
 
   async function createTextLecture() {
     if (combinedTextSource.length < 120) {
-      setError("Prilepi vsaj krajši vzorec besedila.");
+      setError(
+        scannedFileNames.length > 0
+          ? "Na fotografijah ni bilo dovolj berljivega besedila za ustvarjanje zapiskov."
+          : "Prilepi vsaj krajši vzorec besedila.",
+      );
       return;
     }
 
@@ -1421,7 +1425,6 @@ export function NoteSourceModal({
                             if (pdfSource && nextValue.trim().length > 0) {
                               setPdfSource(null);
                             }
-
                             setTextValue(nextValue);
                           }}
                           className="ios-textarea note-source-inline-textarea"
@@ -1586,7 +1589,6 @@ export function NoteSourceModal({
                       if (pdfSource && nextValue.trim().length > 0) {
                         setPdfSource(null);
                       }
-
                       setTextValue(nextValue);
                     }}
                     className="ios-textarea note-source-subsheet-textarea"
