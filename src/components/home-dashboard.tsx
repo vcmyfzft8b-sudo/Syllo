@@ -436,7 +436,7 @@ export function HomeDashboard({
       <div className="home-dashboard pb-8">
         {!hasPaidAccess ? (
           <section className="dashboard-section">
-            <div className="ios-card" style={{ padding: "1rem 1.1rem" }}>
+            <div style={{ padding: "0.1rem 0" }}>
               <p className="dashboard-overline">Brezplačen preizkus</p>
               <p className="ios-row-title mt-2">
                 {hasTrialLectureAvailable ? "Na voljo imaš 1 brezplačen zapisek" : "Tvoj brezplačni zapisek je že porabljen"}
