@@ -2084,6 +2084,12 @@ select:disabled {
   line-height: 1.35;
 }
 
+.note-source-docs-status-copy {
+  margin-top: -0.15rem;
+  margin-bottom: 0.2rem;
+  text-align: center;
+}
+
 .note-source-loading-state {
   display: grid;
   gap: 0.85rem;

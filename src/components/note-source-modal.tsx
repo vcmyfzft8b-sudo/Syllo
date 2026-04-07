@@ -150,6 +150,24 @@ function appendScannedText(existingText: string, scannedText: string) {
   return `${trimmedExistingText}\n\n${nextScannedText}`;
 }
 
+function formatUploadedPhotoCount(count: number) {
+  const remainder100 = count % 100;
+
+  if (remainder100 === 1) {
+    return `${count} fotografija naložena`;
+  }
+
+  if (remainder100 === 2) {
+    return `${count} fotografiji naloženi`;
+  }
+
+  if (remainder100 === 3 || remainder100 === 4) {
+    return `${count} fotografije naložene`;
+  }
+
+  return `${count} fotografij naloženih`;
+}
+
 export function NoteSourceModal({
   mode,
   open,
@@ -1445,12 +1463,6 @@ export function NoteSourceModal({
                         </div>
                       ) : null}
 
-                      {!pdfSource && scannedFileNames.length > 0 ? (
-                        <p className="ios-row-subtitle note-source-docs-file-copy">
-                          {scannedFileNames.length} fotografij naloženih
-                        </p>
-                      ) : null}
-
                       <div className="note-source-docs-textarea-wrap">
                         <textarea
                           value={textValue}
@@ -1466,6 +1478,12 @@ export function NoteSourceModal({
                           placeholder="Sem prilepi zapiske ali besedilo..."
                         />
                       </div>
+
+                      {!pdfSource && scannedFileNames.length > 0 ? (
+                        <p className="ios-row-subtitle note-source-docs-file-copy note-source-docs-status-copy">
+                          {formatUploadedPhotoCount(scannedFileNames.length)}
+                        </p>
+                      ) : null}
 
                       <input
                         ref={pdfInputRef}
