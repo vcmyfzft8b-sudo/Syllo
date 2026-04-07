@@ -559,24 +559,75 @@ export async function canCreateLectureForUser(userId: string) {
 }
 
 export async function claimTrialLecture(userId: string, lectureId: string) {
-  const service = createSupabaseServiceRoleClient();
-  const rpc = service.rpc as unknown as (
-    fn: string,
-    args: Record<string, unknown>,
-  ) => Promise<{ data: unknown; error: { message: string } | null }>;
-  const { data, error } = await rpc("claim_trial_lecture", {
-    p_user_id: userId,
-    p_lecture_id: lectureId,
-  });
+  const entitlement = await getUserEntitlementState(userId);
 
-  if (error) {
-    throw error;
+  if (entitlement.hasPaidAccess) {
+    return {
+      allowed: true,
+      mode: "paid",
+    } satisfies ClaimTrialLectureResult;
   }
 
-  return (data ?? {
+  if (!entitlement.profile) {
+    return {
+      allowed: false,
+      code: "profile_not_found",
+    } satisfies ClaimTrialLectureResult;
+  }
+
+  if (entitlement.profile.trial_lecture_id === lectureId) {
+    return {
+      allowed: true,
+      mode: "trial",
+    } satisfies ClaimTrialLectureResult;
+  }
+
+  const service = createSupabaseServiceRoleClient();
+  const claimedAt = new Date().toISOString();
+  const { data: claimedProfile, error: claimError } = await service
+    .from("profiles")
+    .update({
+      trial_lecture_id: lectureId,
+      trial_started_at: entitlement.profile.trial_started_at ?? claimedAt,
+      trial_consumed_at: entitlement.profile.trial_consumed_at ?? claimedAt,
+    } as never)
+    .eq("id", userId)
+    .is("trial_lecture_id", null)
+    .select("id, trial_lecture_id")
+    .maybeSingle();
+
+  if (claimError) {
+    throw claimError;
+  }
+
+  if (claimedProfile) {
+    return {
+      allowed: true,
+      mode: "trial",
+    } satisfies ClaimTrialLectureResult;
+  }
+
+  const { data: currentProfile, error: currentProfileError } = await service
+    .from("profiles")
+    .select("trial_lecture_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (currentProfileError) {
+    throw currentProfileError;
+  }
+
+  if ((currentProfile as { trial_lecture_id: string | null } | null)?.trial_lecture_id === lectureId) {
+    return {
+      allowed: true,
+      mode: "trial",
+    } satisfies ClaimTrialLectureResult;
+  }
+
+  return {
     allowed: false,
     code: "trial_exhausted",
-  }) as ClaimTrialLectureResult;
+  } satisfies ClaimTrialLectureResult;
 }
 
 export async function canUseLectureFeatures(
