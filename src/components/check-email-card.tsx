@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 function formatCountdown(seconds: number) {
   const minutes = Math.floor(seconds / 60);
@@ -20,6 +21,8 @@ export function CheckEmailCard(props: {
 }) {
   const [code, setCode] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [pendingAction, setPendingAction] = useState<"verify" | "resend" | null>(null);
+  const bypassSubmitRef = useRef(false);
 
   const resendAvailableAt = useMemo(
     () => props.sentAt + props.cooldownSeconds * 1000,
@@ -41,9 +44,46 @@ export function CheckEmailCard(props: {
     return () => window.clearInterval(intervalId);
   }, [resendAvailableAt]);
 
+  function lockAndSubmit(
+    event: React.FormEvent<HTMLFormElement>,
+    action: "verify" | "resend",
+  ) {
+    if (bypassSubmitRef.current) {
+      bypassSubmitRef.current = false;
+      return;
+    }
+
+    if (pendingAction !== null) {
+      event.preventDefault();
+      return;
+    }
+
+    const form = event.currentTarget;
+
+    if (!form.reportValidity()) {
+      event.preventDefault();
+      return;
+    }
+
+    event.preventDefault();
+    setPendingAction(action);
+
+    requestAnimationFrame(() => {
+      bypassSubmitRef.current = true;
+      form.requestSubmit();
+    });
+  }
+
   return (
     <div className="check-email-card">
-      <form action="/auth/email/verify" method="post" className="auth-email-form auth-code-form check-email-form">
+      <form
+        action="/auth/email/verify"
+        method="post"
+        className="auth-email-form auth-code-form check-email-form"
+        onSubmit={(event) => {
+          lockAndSubmit(event, "verify");
+        }}
+      >
         <input type="hidden" name="email" value={props.email} />
         <input type="hidden" name="mode" value={props.mode} />
         <input type="hidden" name="next" value={props.next} />
@@ -63,12 +103,20 @@ export function CheckEmailCard(props: {
             onChange={(event) => {
               setCode(event.target.value.replace(/\D/g, "").slice(0, 8));
             }}
+            aria-disabled={pendingAction !== null}
             required
+            readOnly={pendingAction !== null}
           />
         </label>
 
-        <button type="submit" className="ios-primary-button auth-submit-button check-email-submit">
-          Nadaljuj
+        <button
+          type="submit"
+          className="ios-primary-button auth-submit-button check-email-submit"
+          disabled={pendingAction !== null}
+          aria-busy={pendingAction === "verify"}
+        >
+          {pendingAction === "verify" ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : null}
+          <span>{pendingAction === "verify" ? "Preverjam..." : "Nadaljuj"}</span>
         </button>
       </form>
 
@@ -78,17 +126,29 @@ export function CheckEmailCard(props: {
       </p>
 
       <div className="auth-check-actions check-email-actions">
-        <form action="/auth/email" method="post" className="auth-resend-form">
+        <form
+          action="/auth/email"
+          method="post"
+          className="auth-resend-form"
+          onSubmit={(event) => {
+            lockAndSubmit(event, "resend");
+          }}
+        >
           <input type="hidden" name="email" value={props.email} />
           <input type="hidden" name="mode" value={props.mode} />
           <input type="hidden" name="next" value={props.next} />
           <button
             type="submit"
             className="auth-secondary-link auth-provider-button-submit auth-tertiary-button check-email-secondary"
-            disabled={secondsLeft > 0}
-            aria-disabled={secondsLeft > 0}
+            disabled={secondsLeft > 0 || pendingAction !== null}
+            aria-disabled={secondsLeft > 0 || pendingAction !== null}
+            aria-busy={pendingAction === "resend"}
           >
-            {secondsLeft > 0 ? `Novo kodo pošlji čez ${formatCountdown(secondsLeft)}` : "Pošlji novo kodo"}
+            {pendingAction === "resend"
+              ? "Pošiljam..."
+              : secondsLeft > 0
+                ? `Novo kodo pošlji čez ${formatCountdown(secondsLeft)}`
+                : "Pošlji novo kodo"}
           </button>
         </form>
         <Link href="/" className="auth-secondary-link auth-tertiary-button check-email-secondary">
