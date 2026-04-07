@@ -132,6 +132,8 @@ function sheetDescription() {
   return "";
 }
 
+const DOCUMENT_OR_IMAGE_INPUT_ACCEPT = `${DOCUMENT_FILE_INPUT_ACCEPT},${SCAN_IMAGE_INPUT_ACCEPT}`;
+
 function appendScannedText(existingText: string, scannedText: string) {
   const nextScannedText = scannedText.trim();
 
@@ -163,7 +165,6 @@ export function NoteSourceModal({
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const pdfInputRef = useRef<HTMLInputElement | null>(null);
   const scanInputRef = useRef<HTMLInputElement | null>(null);
-  const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -801,6 +802,64 @@ export function NoteSourceModal({
     }
   }
 
+  async function scanImageFiles(files: File[]) {
+    if (scannedFileNames.length + files.length > MAX_SCAN_IMAGE_COUNT) {
+      throw new Error(`Dosegel si največ ${MAX_SCAN_IMAGE_COUNT} fotografij.`);
+    }
+
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) {
+        throw new Error("Za skeniranje uporabi fotografijo ali sliko.");
+      }
+
+      if (file.size > MAX_SCAN_IMAGE_BYTES) {
+        throw new Error("Slika za skeniranje je prevelika. Omejitev je 8 MB.");
+      }
+    }
+
+    setBusyLabel(
+      files.length === 1 ? "Skeniram besedilo..." : `Skeniram ${files.length} fotografij...`,
+    );
+    setError(null);
+
+    const formData = new FormData();
+
+    for (const file of files) {
+      formData.append("files", file);
+    }
+
+    const response = await fetch("/api/lectures/scan", {
+      method: "POST",
+      body: formData,
+    });
+
+    const payload = await parseApiResponse<{ fileNames?: string[]; text?: string }>(response);
+
+    setPdfSource(null);
+    setScannedTextValue((current) => appendScannedText(current, payload.text ?? ""));
+    setScannedFileNames((current) => [
+      ...current,
+      ...(payload.fileNames ?? files.map((file) => file.name)),
+    ]);
+    setIsTextEditorOpen(false);
+  }
+
+  function prepareDocumentFile(file: File) {
+    if (!isSupportedDocumentFile(file)) {
+      throw new Error("Uporabi PDF, TXT, Markdown, HTML, RTF ali DOCX.");
+    }
+
+    if (file.size > MAX_DOCUMENT_BYTES) {
+      throw new Error("Datoteka dokumenta je prevelika. Trenutna omejitev je 4 MB.");
+    }
+
+    setPdfSource(file);
+    setTextValue("");
+    setScannedTextValue("");
+    setScannedFileNames([]);
+    setError(null);
+  }
+
   async function handleScanImageChange(event: React.ChangeEvent<HTMLInputElement>) {
     if (!canCreateNotes) {
       event.target.value = "";
@@ -815,42 +874,7 @@ export function NoteSourceModal({
     }
 
     try {
-      if (scannedFileNames.length + files.length > MAX_SCAN_IMAGE_COUNT) {
-        throw new Error(`Dosegel si največ ${MAX_SCAN_IMAGE_COUNT} fotografij.`);
-      }
-
-      for (const file of files) {
-        if (!file.type.startsWith("image/")) {
-          throw new Error("Za skeniranje uporabi fotografijo ali sliko.");
-        }
-
-        if (file.size > MAX_SCAN_IMAGE_BYTES) {
-          throw new Error("Slika za skeniranje je prevelika. Omejitev je 8 MB.");
-        }
-      }
-
-      setBusyLabel(
-        files.length === 1 ? "Skeniram besedilo..." : `Skeniram ${files.length} fotografij...`,
-      );
-      setError(null);
-
-      const formData = new FormData();
-
-      for (const file of files) {
-        formData.append("files", file);
-      }
-
-      const response = await fetch("/api/lectures/scan", {
-        method: "POST",
-        body: formData,
-      });
-
-      const payload = await parseApiResponse<{ fileNames?: string[]; text?: string }>(response);
-
-      setPdfSource(null);
-      setScannedTextValue((current) => appendScannedText(current, payload.text ?? ""));
-      setScannedFileNames((current) => [...current, ...(payload.fileNames ?? files.map((file) => file.name))]);
-      setIsTextEditorOpen(false);
+      await scanImageFiles(files);
     } catch (scanError) {
       if (redirectToBillingIfNeeded({ error: scanError, router })) {
         onClose();
@@ -873,33 +897,38 @@ export function NoteSourceModal({
       return;
     }
 
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
 
-    if (!file) {
+    if (files.length === 0) {
       return;
     }
 
+    const allImages = files.every((file) => file.type.startsWith("image/"));
+
     try {
-      if (!isSupportedDocumentFile(file)) {
-        throw new Error("Uporabi PDF, TXT, Markdown, HTML, RTF ali DOCX.");
+      if (allImages) {
+        await scanImageFiles(files);
+        return;
       }
 
-      if (file.size > MAX_DOCUMENT_BYTES) {
-        throw new Error("Datoteka dokumenta je prevelika. Trenutna omejitev je 4 MB.");
+      if (files.length > 1) {
+        throw new Error("Izberi en dokument ali do 10 fotografij.");
       }
 
-      setPdfSource(file);
-      setTextValue("");
-      setScannedTextValue("");
-      setScannedFileNames([]);
-      setError(null);
+      prepareDocumentFile(files[0]);
     } catch (submitError) {
+      if (redirectToBillingIfNeeded({ error: submitError, router })) {
+        onClose();
+        return;
+      }
+
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "Dokumenta ni bilo mogoče pripraviti.",
+          : "Datoteke ni bilo mogoče pripraviti.",
       );
     } finally {
+      setBusyLabel(null);
       event.target.value = "";
     }
   }
@@ -1435,7 +1464,8 @@ export function NoteSourceModal({
                       <input
                         ref={pdfInputRef}
                         type="file"
-                        accept={DOCUMENT_FILE_INPUT_ACCEPT}
+                        accept={DOCUMENT_OR_IMAGE_INPUT_ACCEPT}
+                        multiple
                         onChange={handlePdfPick}
                         className="hidden"
                       />
@@ -1446,15 +1476,6 @@ export function NoteSourceModal({
                         accept={SCAN_IMAGE_INPUT_ACCEPT}
                         multiple
                         capture="environment"
-                        onChange={handleScanImageChange}
-                        className="hidden"
-                      />
-
-                      <input
-                        ref={galleryInputRef}
-                        type="file"
-                        accept={SCAN_IMAGE_INPUT_ACCEPT}
-                        multiple
                         onChange={handleScanImageChange}
                         className="hidden"
                       />
@@ -1492,23 +1513,6 @@ export function NoteSourceModal({
                         >
                           <EmojiIcon symbol="📷" size="1rem" />
                           Skeniraj
-                        </button>
-
-                        <button
-                          type="button"
-                          className="ios-secondary-button note-source-docs-action-button"
-                          disabled={Boolean(busyLabel)}
-                          onClick={() => {
-                            if (!canCreateNotes) {
-                              redirectToPaywall();
-                              return;
-                            }
-
-                            galleryInputRef.current?.click();
-                          }}
-                        >
-                          <EmojiIcon symbol="🖼️" size="1rem" />
-                          Fotografije
                         </button>
                       </div>
 
