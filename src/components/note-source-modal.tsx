@@ -813,33 +813,46 @@ export function NoteSourceModal({
       }
 
       if (file.size > MAX_SCAN_IMAGE_BYTES) {
-        throw new Error("Slika za skeniranje je prevelika. Omejitev je 8 MB.");
+        throw new Error("Slika za skeniranje je prevelika. Omejitev je 4 MB.");
       }
     }
 
-    setBusyLabel(
-      files.length === 1 ? "Skeniram besedilo..." : `Skeniram ${files.length} fotografij...`,
-    );
     setError(null);
+    const nextTexts: string[] = [];
+    const nextFileNames: string[] = [];
 
-    const formData = new FormData();
+    for (const [index, file] of files.entries()) {
+      setBusyLabel(
+        files.length === 1
+          ? "Skeniram besedilo..."
+          : `Skeniram fotografijo ${index + 1} od ${files.length}...`,
+      );
 
-    for (const file of files) {
-      formData.append("files", file);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/lectures/scan", {
+        method: "POST",
+        body: formData,
+      });
+
+      const payload = await parseApiResponse<{ fileNames?: string[]; text?: string }>(response);
+      const extractedText = payload.text?.trim() ?? "";
+
+      if (!extractedText) {
+        throw new Error(`Na fotografiji "${file.name}" ni bilo mogoče najti berljivega besedila.`);
+      }
+
+      nextTexts.push(extractedText);
+      nextFileNames.push(payload.fileNames?.[0] ?? file.name);
     }
 
-    const response = await fetch("/api/lectures/scan", {
-      method: "POST",
-      body: formData,
-    });
-
-    const payload = await parseApiResponse<{ fileNames?: string[]; text?: string }>(response);
-
+    const combinedScannedText = nextTexts.join("\n\n");
     setPdfSource(null);
-    setScannedTextValue((current) => appendScannedText(current, payload.text ?? ""));
+    setScannedTextValue((current) => appendScannedText(current, combinedScannedText));
     setScannedFileNames((current) => [
       ...current,
-      ...(payload.fileNames ?? files.map((file) => file.name)),
+      ...nextFileNames,
     ]);
     setIsTextEditorOpen(false);
   }
