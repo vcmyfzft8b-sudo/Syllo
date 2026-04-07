@@ -75,7 +75,7 @@ export async function POST(request: Request) {
 
       if (file.size > MAX_SCAN_IMAGE_BYTES) {
         return NextResponse.json(
-          { error: "Slika za skeniranje je prevelika. Omejitev je 8 MB." },
+          { error: "Slika za skeniranje je prevelika. Omejitev je 4 MB." },
           { status: 400 },
         );
       }
