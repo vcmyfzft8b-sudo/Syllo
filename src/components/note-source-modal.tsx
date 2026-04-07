@@ -18,6 +18,7 @@ import {
   MAX_AUDIO_BYTES,
   MAX_AUDIO_SECONDS,
   MAX_DOCUMENT_BYTES,
+  MAX_SCAN_IMAGE_COUNT,
   MAX_SCAN_IMAGE_BYTES,
   SCAN_IMAGE_INPUT_ACCEPT,
 } from "@/lib/constants";
@@ -131,6 +132,22 @@ function sheetDescription() {
   return "";
 }
 
+function appendScannedText(existingText: string, scannedText: string) {
+  const nextScannedText = scannedText.trim();
+
+  if (!nextScannedText) {
+    return existingText;
+  }
+
+  const trimmedExistingText = existingText.trim();
+
+  if (!trimmedExistingText) {
+    return nextScannedText;
+  }
+
+  return `${trimmedExistingText}\n\n${nextScannedText}`;
+}
+
 export function NoteSourceModal({
   mode,
   open,
@@ -173,7 +190,7 @@ export function NoteSourceModal({
   const [isPaused, setIsPaused] = useState(false);
   const [isTextEditorOpen, setIsTextEditorOpen] = useState(false);
   const [textEditorKeyboardOffset, setTextEditorKeyboardOffset] = useState(0);
-  const [scannedFileName, setScannedFileName] = useState<string | null>(null);
+  const [scannedFileNames, setScannedFileNames] = useState<string[]>([]);
   const [visualizerStream, setVisualizerStream] = useState<MediaStream | null>(null);
   const [showAudioImportGuide, setShowAudioImportGuide] = useState(false);
 
@@ -303,7 +320,7 @@ export function NoteSourceModal({
     setBusyLabel(null);
     setIsCancelling(false);
     setIsTextEditorOpen(false);
-    setScannedFileName(null);
+    setScannedFileNames([]);
     setShowAudioImportGuide(false);
     activeRequestControllerRef.current = null;
     createdLectureIdRef.current = null;
@@ -781,37 +798,48 @@ export function NoteSourceModal({
       return;
     }
 
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
 
-    if (!file) {
+    if (files.length === 0) {
       return;
     }
 
     try {
-      if (!file.type.startsWith("image/")) {
-        throw new Error("Za skeniranje uporabi fotografijo ali sliko.");
+      if (scannedFileNames.length + files.length > MAX_SCAN_IMAGE_COUNT) {
+        throw new Error(`Dosegel si največ ${MAX_SCAN_IMAGE_COUNT} fotografij.`);
       }
 
-      if (file.size > MAX_SCAN_IMAGE_BYTES) {
-        throw new Error("Slika za skeniranje je prevelika. Omejitev je 8 MB.");
+      for (const file of files) {
+        if (!file.type.startsWith("image/")) {
+          throw new Error("Za skeniranje uporabi fotografijo ali sliko.");
+        }
+
+        if (file.size > MAX_SCAN_IMAGE_BYTES) {
+          throw new Error("Slika za skeniranje je prevelika. Omejitev je 8 MB.");
+        }
       }
 
-      setBusyLabel("Skeniram besedilo...");
+      setBusyLabel(
+        files.length === 1 ? "Skeniram besedilo..." : `Skeniram ${files.length} fotografij...`,
+      );
       setError(null);
 
       const formData = new FormData();
-      formData.append("file", file);
+
+      for (const file of files) {
+        formData.append("files", file);
+      }
 
       const response = await fetch("/api/lectures/scan", {
         method: "POST",
         body: formData,
       });
 
-      const payload = await parseApiResponse<{ title?: string; text?: string }>(response);
+      const payload = await parseApiResponse<{ fileNames?: string[]; text?: string }>(response);
 
       setPdfSource(null);
-      setTextValue(payload.text ?? "");
-      setScannedFileName(file.name);
+      setTextValue((current) => appendScannedText(current, payload.text ?? ""));
+      setScannedFileNames((current) => [...current, ...(payload.fileNames ?? files.map((file) => file.name))]);
       setIsTextEditorOpen(false);
     } catch (scanError) {
       if (redirectToBillingIfNeeded({ error: scanError, router })) {
@@ -852,7 +880,7 @@ export function NoteSourceModal({
 
       setPdfSource(file);
       setTextValue("");
-      setScannedFileName(null);
+      setScannedFileNames([]);
       setError(null);
     } catch (submitError) {
       setError(
@@ -1364,12 +1392,17 @@ export function NoteSourceModal({
                         </div>
                       ) : null}
 
-                      {!pdfSource && scannedFileName ? (
+                      {!pdfSource && scannedFileNames.length > 0 ? (
                         <div className="ios-card note-source-docs-file-card">
                           <p className="note-source-card-label">Skenirano besedilo je pripravljeno</p>
-                          <p className="ios-row-title note-source-docs-file-name">{scannedFileName}</p>
+                          <p className="ios-row-title note-source-docs-file-name">
+                            {scannedFileNames.length === 1
+                              ? scannedFileNames[0]
+                              : `${scannedFileNames.length} fotografij`}
+                          </p>
                           <p className="ios-row-subtitle note-source-docs-file-copy">
-                            Pred ustvarjanjem zapiskov preglej in uredi izluščeno besedilo.
+                            Dodaš lahko do {MAX_SCAN_IMAGE_COUNT} fotografij. Pred ustvarjanjem
+                            zapiskov preglej in uredi izluščeno besedilo.
                           </p>
                         </div>
                       ) : null}
@@ -1385,7 +1418,7 @@ export function NoteSourceModal({
                             }
 
                             if (nextValue.trim().length === 0) {
-                              setScannedFileName(null);
+                              setScannedFileNames([]);
                             }
 
                             setTextValue(nextValue);
@@ -1407,6 +1440,7 @@ export function NoteSourceModal({
                         ref={scanInputRef}
                         type="file"
                         accept={SCAN_IMAGE_INPUT_ACCEPT}
+                        multiple
                         capture="environment"
                         onChange={handleScanImageChange}
                         className="hidden"
@@ -1526,7 +1560,7 @@ export function NoteSourceModal({
                       }
 
                       if (nextValue.trim().length === 0) {
-                        setScannedFileName(null);
+                        setScannedFileNames([]);
                       }
 
                       setTextValue(nextValue);
@@ -1552,7 +1586,7 @@ export function NoteSourceModal({
                         disabled={Boolean(busyLabel)}
                         onClick={() => {
                           setTextValue("");
-                          setScannedFileName(null);
+                          setScannedFileNames([]);
                         }}
                       >
                         Počisti besedilo
