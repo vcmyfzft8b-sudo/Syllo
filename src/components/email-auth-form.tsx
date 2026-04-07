@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Mail } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useRef, useState } from "react";
 
 type EmailAuthFormProps = {
@@ -58,7 +58,6 @@ export function EmailAuthForm(props: EmailAuthFormProps) {
       <input type="hidden" name="next" value={props.next} />
 
       <label className={props.inputWrapperClassName}>
-        <Mail className="auth-field-icon h-5 w-5" />
         <input
           type="email"
           name="email"
