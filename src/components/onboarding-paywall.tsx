@@ -198,6 +198,7 @@ export function OnboardingPaywall({
       await new Promise((resolve) => window.setTimeout(resolve, 1800));
 
       startTransition(() => {
+        router.push("/app");
         router.refresh();
       });
     } finally {

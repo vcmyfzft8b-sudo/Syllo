@@ -9,6 +9,33 @@ import { getServerEnv } from "@/lib/server-env";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 
 export type BillingPlan = "weekly" | "monthly" | "yearly";
+export type BillingRequiredCode =
+  | "subscription_required"
+  | "trial_exhausted"
+  | "trial_chat_limit_reached";
+export type EntitlementFeature = "study" | "quiz" | "practice_test" | "chat";
+
+type ClaimTrialLectureResult =
+  | { allowed: true; mode: "paid" | "trial" }
+  | { allowed: false; code: "profile_not_found" | "trial_exhausted" };
+
+export type UserEntitlementState = {
+  profile: ProfileRow | null;
+  subscriptions: BillingSubscriptionRow[];
+  subscription: BillingSubscriptionRow | null;
+  hasPaidAccess: boolean;
+  onboardingComplete: boolean;
+  trialLectureId: string | null;
+  hasTrialLectureAvailable: boolean;
+  trialChatMessagesUsed: number;
+  trialChatMessagesRemaining: number;
+  canCreateNotes: boolean;
+  canAccessPaywalledCreation: boolean;
+  shouldShowTrialEntry: boolean;
+};
+
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
+const TRIAL_CHAT_MESSAGE_LIMIT = 5;
 
 export const BILLING_PLANS: Record<
   BillingPlan,
@@ -58,8 +85,6 @@ export const BILLING_PLANS: Record<
     blurb: "Najnižja dejanska cena, če uporabljaš aplikacijo celo leto.",
   },
 };
-
-const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
 
 export function hasPaidAccess(subscription: BillingSubscriptionRow | null) {
   return Boolean(subscription && ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status));
@@ -142,6 +167,93 @@ async function resolveUserSubscriptionState(params: {
   };
 }
 
+async function getTrialChatMessageUsage(userId: string, trialLectureId: string | null) {
+  if (!trialLectureId) {
+    return {
+      trialChatMessagesUsed: 0,
+      trialChatMessagesRemaining: TRIAL_CHAT_MESSAGE_LIMIT,
+    };
+  }
+
+  const { count } = await createSupabaseServiceRoleClient()
+    .from("chat_messages")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("lecture_id", trialLectureId)
+    .eq("role", "user");
+
+  const used = count ?? 0;
+  return {
+    trialChatMessagesUsed: used,
+    trialChatMessagesRemaining: Math.max(TRIAL_CHAT_MESSAGE_LIMIT - used, 0),
+  };
+}
+
+async function fetchProfileAndSubscriptions(userId: string) {
+  const service = createSupabaseServiceRoleClient();
+  const [{ data: profile }, { data: subscriptions }] = await Promise.all([
+    service.from("profiles").select("*").eq("id", userId).maybeSingle(),
+    service
+      .from("billing_subscriptions")
+      .select("*")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false }),
+  ]);
+
+  return {
+    profile: (profile ?? null) as ProfileRow | null,
+    subscriptions: (subscriptions ?? []) as BillingSubscriptionRow[],
+  };
+}
+
+function buildEntitlementState(params: {
+  profile: ProfileRow | null;
+  subscriptions: BillingSubscriptionRow[];
+  subscription: BillingSubscriptionRow | null;
+  hasPaidAccess: boolean;
+  trialChatMessagesUsed: number;
+  trialChatMessagesRemaining: number;
+}) {
+  const onboardingComplete = Boolean(params.profile?.onboarding_completed_at);
+  const trialLectureId = params.profile?.trial_lecture_id ?? null;
+  const hasTrialLectureAvailable = !params.hasPaidAccess && !trialLectureId;
+  const canCreateNotes = params.hasPaidAccess || hasTrialLectureAvailable;
+  const shouldShowTrialEntry = !params.hasPaidAccess;
+
+  return {
+    profile: params.profile,
+    subscriptions: params.subscriptions,
+    subscription: params.subscription,
+    hasPaidAccess: params.hasPaidAccess,
+    onboardingComplete,
+    trialLectureId,
+    hasTrialLectureAvailable,
+    trialChatMessagesUsed: params.trialChatMessagesUsed,
+    trialChatMessagesRemaining: params.trialChatMessagesRemaining,
+    canCreateNotes,
+    canAccessPaywalledCreation: !canCreateNotes,
+    shouldShowTrialEntry,
+  } satisfies UserEntitlementState;
+}
+
+export async function getUserEntitlementState(userId: string) {
+  const { profile, subscriptions } = await fetchProfileAndSubscriptions(userId);
+  const billingState = await resolveUserSubscriptionState({
+    userId,
+    stripeCustomerId: profile?.stripe_customer_id ?? null,
+    subscriptions,
+  });
+  const trialUsage = await getTrialChatMessageUsage(userId, profile?.trial_lecture_id ?? null);
+
+  return buildEntitlementState({
+    profile,
+    subscriptions: billingState.subscriptions,
+    subscription: billingState.subscription,
+    hasPaidAccess: billingState.hasPaidAccess,
+    ...trialUsage,
+  });
+}
+
 export async function getViewerAppState() {
   const supabase = await createSupabaseServerClient();
   const {
@@ -152,31 +264,11 @@ export async function getViewerAppState() {
     return null;
   }
 
-  const [{ data: profile }, { data: subscriptions }] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
-    supabase
-      .from("billing_subscriptions")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false }),
-  ]);
-
-  const typedProfile = (profile ?? null) as ProfileRow | null;
-  const typedSubscriptions = (subscriptions ?? []) as BillingSubscriptionRow[];
-  const billingState = await resolveUserSubscriptionState({
-    userId: user.id,
-    stripeCustomerId: typedProfile?.stripe_customer_id ?? null,
-    subscriptions: typedSubscriptions,
-  });
-  const onboardingComplete = Boolean(typedProfile?.onboarding_completed_at);
+  const entitlement = await getUserEntitlementState(user.id);
 
   return {
     user,
-    profile: typedProfile,
-    subscriptions: billingState.subscriptions,
-    subscription: billingState.subscription,
-    onboardingComplete,
-    hasPaidAccess: billingState.hasPaidAccess,
+    ...entitlement,
   };
 }
 
@@ -186,11 +278,13 @@ export function getPlanFromPriceId(priceId: string | null | undefined): BillingP
   }
 
   const env = getServerEnv();
-  const match = (Object.entries({
-    weekly: env.STRIPE_PRICE_WEEKLY,
-    monthly: env.STRIPE_PRICE_MONTHLY,
-    yearly: env.STRIPE_PRICE_YEARLY,
-  }) as Array<[BillingPlan, string | undefined]>).find(([, configuredPriceId]) => configuredPriceId === priceId);
+  const match = (
+    Object.entries({
+      weekly: env.STRIPE_PRICE_WEEKLY,
+      monthly: env.STRIPE_PRICE_MONTHLY,
+      yearly: env.STRIPE_PRICE_YEARLY,
+    }) as Array<[BillingPlan, string | undefined]>
+  ).find(([, configuredPriceId]) => configuredPriceId === priceId);
 
   return match?.[0] ?? null;
 }
@@ -334,11 +428,14 @@ export function getPaywallPath() {
   return "/app/start";
 }
 
-export function createBillingRequiredResponse(message = "Za to dejanje je potreben plačljiv paket.") {
+export function createBillingRequiredResponse(
+  message = "Za to dejanje je potreben plačljiv paket.",
+  code: BillingRequiredCode = "subscription_required",
+) {
   return NextResponse.json(
     {
       error: message,
-      code: "subscription_required",
+      code,
       redirectTo: getPaywallPath(),
     },
     { status: 402 },
@@ -346,21 +443,93 @@ export function createBillingRequiredResponse(message = "Za to dejanje je potreb
 }
 
 export async function hasPaidAccessForUserId(userId: string) {
-  const service = createSupabaseServiceRoleClient();
-  const [{ data: profile }, { data: subscriptions }] = await Promise.all([
-    service.from("profiles").select("stripe_customer_id").eq("id", userId).maybeSingle(),
-    service
-      .from("billing_subscriptions")
-      .select("*")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false }),
-  ]);
+  const entitlement = await getUserEntitlementState(userId);
+  return entitlement.hasPaidAccess;
+}
 
-  const billingState = await resolveUserSubscriptionState({
-    userId,
-    stripeCustomerId: (profile as { stripe_customer_id: string | null } | null)?.stripe_customer_id ?? null,
-    subscriptions: (subscriptions ?? []) as BillingSubscriptionRow[],
+export async function canCreateLectureForUser(userId: string) {
+  const entitlement = await getUserEntitlementState(userId);
+  return entitlement.hasPaidAccess || entitlement.hasTrialLectureAvailable;
+}
+
+export async function claimTrialLecture(userId: string, lectureId: string) {
+  const service = createSupabaseServiceRoleClient();
+  const rpc = service.rpc as unknown as (
+    fn: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+  const { data, error } = await rpc("claim_trial_lecture", {
+    p_user_id: userId,
+    p_lecture_id: lectureId,
   });
 
-  return billingState.hasPaidAccess;
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? {
+    allowed: false,
+    code: "trial_exhausted",
+  }) as ClaimTrialLectureResult;
+}
+
+export async function canUseLectureFeatures(
+  userId: string,
+  lectureId: string,
+  feature: EntitlementFeature,
+) {
+  void feature;
+  const entitlement = await getUserEntitlementState(userId);
+
+  if (entitlement.hasPaidAccess) {
+    return {
+      allowed: true,
+      entitlement,
+    };
+  }
+
+  if (entitlement.trialLectureId === lectureId) {
+    return {
+      allowed: true,
+      entitlement,
+    };
+  }
+
+  return {
+    allowed: false,
+    code: "trial_exhausted" as const,
+    entitlement,
+  };
+}
+
+export async function canSendTrialChatMessage(userId: string, lectureId: string) {
+  const entitlement = await getUserEntitlementState(userId);
+
+  if (entitlement.hasPaidAccess) {
+    return {
+      allowed: true,
+      entitlement,
+    };
+  }
+
+  if (entitlement.trialLectureId !== lectureId) {
+    return {
+      allowed: false,
+      code: "trial_exhausted" as const,
+      entitlement,
+    };
+  }
+
+  if (entitlement.trialChatMessagesRemaining <= 0) {
+    return {
+      allowed: false,
+      code: "trial_chat_limit_reached" as const,
+      entitlement,
+    };
+  }
+
+  return {
+    allowed: true,
+    entitlement,
+  };
 }

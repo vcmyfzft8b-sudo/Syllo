@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { createBillingRequiredResponse, hasPaidAccessForUserId } from "@/lib/billing";
+import {
+  claimTrialLecture,
+  createBillingRequiredResponse,
+  getUserEntitlementState,
+} from "@/lib/billing";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -24,8 +28,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
-  if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Pred ustvarjanjem zapiskov iz novega gradiva izberi paket.");
+  const entitlement = await getUserEntitlementState(user.id);
+
+  if (!entitlement.canCreateNotes) {
+    return createBillingRequiredResponse(
+      "Tvoj brezplačni preizkus je porabljen. Nadgradi za novo gradivo.",
+      "trial_exhausted",
+    );
   }
 
   const limited = await enforceRateLimit({
@@ -53,6 +62,7 @@ export async function POST(request: Request) {
       {
         user_id: user.id,
         source_type: parsed.data.sourceType,
+        access_tier: entitlement.hasPaidAccess ? "paid" : "trial",
         status: "generating_notes",
         language_hint: parsed.data.languageHint,
       } as never,
@@ -65,6 +75,32 @@ export async function POST(request: Request) {
       { error: error?.message ?? "Zapiska ni bilo mogoče ustvariti." },
       { status: 500 },
     );
+  }
+
+  if (!entitlement.hasPaidAccess) {
+    const createdLectureId = (lecture as { id: string }).id;
+    const trialClaim = await claimTrialLecture(user.id, createdLectureId);
+
+    if (!trialClaim.allowed) {
+      await supabase
+        .from("lectures")
+        .delete()
+        .eq("id", createdLectureId)
+        .eq("user_id", user.id);
+
+      return createBillingRequiredResponse(
+        "Tvoj brezplačni preizkus je že porabljen. Nadgradi za novo gradivo.",
+        "trial_exhausted",
+      );
+    }
+
+    if (trialClaim.mode === "paid") {
+      await supabase
+        .from("lectures")
+        .update({ access_tier: "paid" } as never)
+        .eq("id", createdLectureId)
+        .eq("user_id", user.id);
+    }
   }
 
   return NextResponse.json({

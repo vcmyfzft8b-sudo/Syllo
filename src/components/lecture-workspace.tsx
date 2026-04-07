@@ -656,8 +656,14 @@ function ChatBubble({ message }: { message: ChatMessageWithCitations }) {
 
 export function LectureWorkspace({
   initialDetail,
+  hasPaidAccess,
+  trialLectureId,
+  initialTrialChatMessagesRemaining,
 }: {
   initialDetail: LectureDetail;
+  hasPaidAccess: boolean;
+  trialLectureId: string | null;
+  initialTrialChatMessagesRemaining: number;
 }) {
   const router = useRouter();
   const [detail, setDetail] = useState(initialDetail);
@@ -665,6 +671,9 @@ export function LectureWorkspace({
   const [question, setQuestion] = useState("");
   const [chatError, setChatError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [trialChatMessagesRemaining, setTrialChatMessagesRemaining] = useState(
+    initialTrialChatMessagesRemaining,
+  );
   const [isRetrying, setIsRetrying] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isRegeneratingStudy, setIsRegeneratingStudy] = useState(false);
@@ -752,6 +761,8 @@ export function LectureWorkspace({
   const practiceAttemptDeckKey = detail.practiceTestAttempts
     .map((attempt) => `${attempt.id}:${attempt.status}:${attempt.updated_at}`)
     .join("|");
+  const isTrialLecture = !hasPaidAccess && trialLectureId === detail.lecture.id;
+  const chatLimitReached = isTrialLecture && trialChatMessagesRemaining <= 0;
   const quizQuestionsById = useMemo(
     () => new Map(detail.quizQuestions.map((question) => [question.id, question])),
     [detail.quizQuestions],
@@ -1662,7 +1673,7 @@ export function LectureWorkspace({
   }
 
   async function submitChatQuestion() {
-    if (!question.trim()) {
+    if (!question.trim() || chatLimitReached) {
       return;
     }
 
@@ -1699,6 +1710,10 @@ export function LectureWorkspace({
     setIsSending(false);
 
     if (!response.ok) {
+      if (payload?.code === "trial_chat_limit_reached") {
+        setTrialChatMessagesRemaining(0);
+      }
+
       setChatError(payload.error ?? "Odgovora ni bilo mogoče ustvariti.");
       setDetail((current) => ({
         ...current,
@@ -1717,6 +1732,10 @@ export function LectureWorkspace({
         payload.answer as ChatMessageWithCitations,
       ],
     }));
+
+    if (isTrialLecture) {
+      setTrialChatMessagesRemaining((current) => Math.max(current - 1, 0));
+    }
   }
 
   async function handleChatSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -1731,7 +1750,7 @@ export function LectureWorkspace({
 
     event.preventDefault();
 
-    if (!question.trim() || detail.lecture.status !== "ready" || isSending) {
+    if (!question.trim() || detail.lecture.status !== "ready" || isSending || chatLimitReached) {
       return;
     }
 
@@ -1777,7 +1796,6 @@ export function LectureWorkspace({
 
     if (activeTab === "study") {
       const currentFlashcard = studyDeck.find((flashcard) => flashcard.id === currentReviewFlashcardId) ?? null;
-      const flashcardsCompleted = totalFlashcards > 0 && currentFlashcard === null;
       const shouldAutoSizeStudyShell =
         activeStudyView === "flashcards" ||
         activeStudyView === "quiz" ||
@@ -2482,14 +2500,14 @@ export function LectureWorkspace({
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
                 onKeyDown={handleChatKeyDown}
-                disabled={detail.lecture.status !== "ready" || isSending}
+                disabled={detail.lecture.status !== "ready" || isSending || chatLimitReached}
                 className="lecture-chat-input"
                 placeholder="Vprašaj o tem predavanju"
                 rows={1}
               />
               <button
                 type="submit"
-                disabled={detail.lecture.status !== "ready" || isSending}
+                disabled={detail.lecture.status !== "ready" || isSending || chatLimitReached}
                 className="lecture-chat-send"
                 aria-label="Pošlji sporočilo"
               >
@@ -2501,6 +2519,21 @@ export function LectureWorkspace({
                 <p className="lecture-chat-status ios-danger">{chatError}</p>
               ) : detail.lecture.status !== "ready" ? (
                 <p className="lecture-chat-status">Na voljo bo po koncu obdelave.</p>
+              ) : chatLimitReached ? (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="lecture-chat-status ios-danger">Porabil si vseh 5 brezplačnih sporočil.</p>
+                  <button
+                    type="button"
+                    className="ios-secondary-button"
+                    onClick={() => router.push("/app/start")}
+                  >
+                    Nadgradi
+                  </button>
+                </div>
+              ) : isTrialLecture ? (
+                <p className="lecture-chat-status">
+                  Brezplačna sporočila za ta zapisek: {trialChatMessagesRemaining}/5.
+                </p>
               ) : (
                 <p className="lecture-chat-status">Odgovori ostajajo vezani na to predavanje.</p>
               )}

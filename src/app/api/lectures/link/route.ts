@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { createBillingRequiredResponse, hasPaidAccessForUserId } from "@/lib/billing";
+import { createBillingRequiredResponse, getUserEntitlementState } from "@/lib/billing";
 import { createLectureFromTextSource, fetchReadableWebpage } from "@/lib/manual-lectures";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
@@ -32,9 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Nedovoljen dostop." }, { status: 401 });
   }
 
-  if (!(await hasPaidAccessForUserId(user.id))) {
-    return createBillingRequiredResponse("Pred uvozom gradiva iz povezav izberi paket.");
-  }
+  const entitlement = await getUserEntitlementState(user.id);
 
   const limited = await enforceRateLimit({
     request,
@@ -53,6 +51,13 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return parsed.response;
+  }
+
+  if (!entitlement.hasPaidAccess && parsed.data.lectureId !== entitlement.trialLectureId) {
+    return createBillingRequiredResponse(
+      "Brez plačljivega paketa lahko obdelaš samo svoje brezplačno poskusno gradivo.",
+      "trial_exhausted",
+    );
   }
 
   try {

@@ -10,7 +10,7 @@ export default async function AppStartPage() {
     redirect("/");
   }
 
-  if (appState.onboardingComplete && appState.hasPaidAccess) {
+  if (appState.onboardingComplete && (appState.hasPaidAccess || appState.hasTrialLectureAvailable)) {
     redirect("/app");
   }
 
