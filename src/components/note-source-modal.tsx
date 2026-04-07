@@ -1446,16 +1446,9 @@ export function NoteSourceModal({
                       ) : null}
 
                       {!pdfSource && scannedFileNames.length > 0 ? (
-                        <div className="ios-card note-source-docs-file-card">
-                          <p className="note-source-card-label">Fotografije so pripravljene</p>
-                          <p className="ios-row-title note-source-docs-file-name">
-                            {scannedFileNames.length} fotografij
-                          </p>
-                          <p className="ios-row-subtitle note-source-docs-file-copy">
-                            Dodaš lahko do {MAX_SCAN_IMAGE_COUNT} fotografij. Besedilo iz slik bo
-                            obdelano samodejno, ko pritisneš Ustvari.
-                          </p>
-                        </div>
+                        <p className="ios-row-subtitle note-source-docs-file-copy">
+                          {scannedFileNames.length} fotografij naloženih
+                        </p>
                       ) : null}
 
                       <div className="note-source-docs-textarea-wrap">
