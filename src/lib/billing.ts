@@ -294,7 +294,6 @@ async function getTrialLectureResumeState(params: {
 
   return (transcriptCount ?? 0) === 0;
 }
-
 function buildEntitlementState(params: {
   profile: ProfileRow | null;
   subscriptions: BillingSubscriptionRow[];
