@@ -437,13 +437,9 @@ export function HomeDashboard({
         {!hasPaidAccess ? (
           <section className="dashboard-section">
             <div style={{ padding: "0.1rem 0" }}>
-              <p className="dashboard-overline">Brezplačen preizkus</p>
-              <p className="ios-row-title mt-2">
-                {hasTrialLectureAvailable ? "Na voljo imaš 1 brezplačen zapisek" : "Tvoj brezplačni zapisek je že porabljen"}
-              </p>
-              <p className="ios-row-subtitle mt-2">
+              <p className="ios-row-subtitle">
                 {hasTrialLectureAvailable
-                  ? "Vključuje zapiske, kartice, kviz, preizkus znanja in 5 sporočil v klepetu."
+                  ? "Na voljo imaš en brezplačen preizkus. Vključuje zapiske, flashcardse, kviz, test in chat."
                   : trialLectureId
                     ? `Tvoj poskusni zapisek ostane v knjižnici. Preostalih brezplačnih sporočil v klepetu: ${trialChatMessagesRemaining}.`
                     : "Nadgradi za ustvarjanje novega gradiva."}
