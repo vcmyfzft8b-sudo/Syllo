@@ -15,7 +15,6 @@ import {
   isPlainTextDocument,
   isRtfDocument,
 } from "@/lib/document-files";
-import { enqueueLectureProcessingStage } from "@/lib/jobs";
 import { generateNotesFromTranscript } from "@/lib/note-generation";
 import { getServerEnv } from "@/lib/server-env";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -618,15 +617,6 @@ export async function createLectureFromTextSource(params: {
 
       lectureId = (lecture as { id: string }).id;
     }
-    if (
-      await enqueueLectureProcessingStage({
-        lectureId,
-        stage: "generate_notes",
-      })
-    ) {
-      return lectureId;
-    }
-
     const transcript = buildSyntheticTranscriptFromTextSource({
       text: cleanedText,
       blocks: params.blocks,
