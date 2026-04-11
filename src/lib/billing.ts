@@ -45,6 +45,7 @@ export const BILLING_PLANS: Record<
     label: string;
     cadence: string;
     amount: number;
+    displayAmount?: string;
     billingNote?: string;
     annualizedAmount: number;
     blurb: string;
@@ -69,8 +70,9 @@ export const BILLING_PLANS: Record<
   yearly: {
     id: "yearly",
     label: "Letno",
-    cadence: "na leto",
+    cadence: "na mesec",
     amount: 130,
+    displayAmount: "11",
     billingNote: "Obračunano letno",
     annualizedAmount: 130,
     blurb: "Najnižja dejanska cena, če uporabljaš aplikacijo celo leto.",
