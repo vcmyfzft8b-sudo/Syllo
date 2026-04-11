@@ -134,22 +134,6 @@ function sheetDescription() {
 
 const DOCUMENT_OR_IMAGE_INPUT_ACCEPT = `${DOCUMENT_FILE_INPUT_ACCEPT},${SCAN_IMAGE_INPUT_ACCEPT}`;
 
-function appendScannedText(existingText: string, scannedText: string) {
-  const nextScannedText = scannedText.trim();
-
-  if (!nextScannedText) {
-    return existingText;
-  }
-
-  const trimmedExistingText = existingText.trim();
-
-  if (!trimmedExistingText) {
-    return nextScannedText;
-  }
-
-  return `${trimmedExistingText}\n\n${nextScannedText}`;
-}
-
 function formatUploadedPhotoCount(count: number) {
   const remainder100 = count % 100;
 
@@ -198,6 +182,7 @@ export function NoteSourceModal({
   const [selectedMode, setSelectedMode] = useState<NoteSourceMode>(mode ?? "record");
   const [audioSource, setAudioSource] = useState<AudioSource | null>(null);
   const [pdfSource, setPdfSource] = useState<File | null>(null);
+  const [photoSources, setPhotoSources] = useState<File[]>([]);
   const [textValue, setTextValue] = useState("");
   const [linkValue, setLinkValue] = useState("");
   const [languageHint, setLanguageHint] = useState("sl");
@@ -210,7 +195,6 @@ export function NoteSourceModal({
   const [isPaused, setIsPaused] = useState(false);
   const [isTextEditorOpen, setIsTextEditorOpen] = useState(false);
   const [textEditorKeyboardOffset, setTextEditorKeyboardOffset] = useState(0);
-  const [scannedTextValue, setScannedTextValue] = useState("");
   const [scannedFileNames, setScannedFileNames] = useState<string[]>([]);
   const [visualizerStream, setVisualizerStream] = useState<MediaStream | null>(null);
   const [showAudioImportGuide, setShowAudioImportGuide] = useState(false);
@@ -274,11 +258,10 @@ export function NoteSourceModal({
   const preparedRecording = audioSource?.origin === "recording" ? audioSource : null;
   const preparedUpload = audioSource?.origin === "upload" ? audioSource : null;
   const trimmedTextValue = textValue.trim();
-  const trimmedScannedTextValue = scannedTextValue.trim();
-  const combinedTextSource = [trimmedScannedTextValue, trimmedTextValue].filter(Boolean).join("\n\n");
+  const combinedTextSource = trimmedTextValue;
   const trimmedLinkValue = linkValue.trim();
   const canGenerateText =
-    Boolean(pdfSource) || combinedTextSource.length >= 120 || scannedFileNames.length > 0;
+    Boolean(pdfSource) || photoSources.length > 0 || combinedTextSource.length >= 120;
   const canGenerateLink = trimmedLinkValue.length > 0;
 
   function redirectToPaywall() {
@@ -334,8 +317,8 @@ export function NoteSourceModal({
     elapsedRef.current = 0;
     clearAudioSource();
     setPdfSource(null);
+    setPhotoSources([]);
     setTextValue("");
-    setScannedTextValue("");
     setLinkValue("");
     setLanguageHint("sl");
     setIsRecording(false);
@@ -696,11 +679,7 @@ export function NoteSourceModal({
 
   async function createTextLecture() {
     if (combinedTextSource.length < 120) {
-      setError(
-        scannedFileNames.length > 0
-          ? "Na fotografijah ni bilo dovolj berljivega besedila za ustvarjanje zapiskov."
-          : "Prilepi vsaj krajši vzorec besedila.",
-      );
+      setError("Prilepi vsaj krajši vzorec besedila.");
       return;
     }
 
@@ -717,7 +696,7 @@ export function NoteSourceModal({
 
       const controller = new AbortController();
       activeRequestControllerRef.current = controller;
-      setBusyLabel("Ustvarjam zapiske...");
+      setBusyLabel("Dodajam v vrsto...");
 
       const response = await fetch("/api/lectures/text", {
         method: "POST",
@@ -750,6 +729,72 @@ export function NoteSourceModal({
           submitError instanceof Error
             ? submitError.message
             : "Besedilnega zapiska ni bilo mogoče ustvariti.",
+        );
+      }
+    } finally {
+      activeRequestControllerRef.current = null;
+      setBusyLabel(null);
+      setIsCancelling(false);
+    }
+  }
+
+  async function createPhotoLecture() {
+    if (photoSources.length === 0) {
+      setError("Najprej dodaj fotografijo.");
+      return;
+    }
+
+    try {
+      setBusyLabel("Pripravljam...");
+      setError(null);
+      cancelRequestedRef.current = false;
+      const lectureId = await createManualLecture("text");
+
+      if (cancelRequestedRef.current) {
+        await deleteCreatedLecture();
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("lectureId", lectureId);
+      formData.append("languageHint", languageHint);
+
+      if (combinedTextSource.length > 0) {
+        formData.append("text", combinedTextSource);
+      }
+
+      for (const file of photoSources) {
+        formData.append("files", file);
+      }
+
+      const controller = new AbortController();
+      activeRequestControllerRef.current = controller;
+      setBusyLabel("Nalagam fotografije...");
+
+      const response = await fetch("/api/lectures/scan", {
+        method: "POST",
+        signal: controller.signal,
+        body: formData,
+      });
+
+      await parseApiResponse<{ lectureId: string }>(response);
+
+      onClose();
+      createdLectureIdRef.current = null;
+      router.push(`/app/lectures/${lectureId}`);
+      router.refresh();
+    } catch (submitError) {
+      await deleteCreatedLecture();
+      if (redirectToBillingIfNeeded({ error: submitError, router })) {
+        onClose();
+        return;
+      }
+
+      if (!cancelRequestedRef.current) {
+        setError(
+          submitError instanceof Error
+            ? submitError.message
+            : "Zapiska iz fotografij ni bilo mogoče ustvariti.",
         );
       }
     } finally {
@@ -820,8 +865,8 @@ export function NoteSourceModal({
     }
   }
 
-  async function scanImageFiles(files: File[]) {
-    if (scannedFileNames.length + files.length > MAX_SCAN_IMAGE_COUNT) {
+  function preparePhotoFiles(files: File[]) {
+    if (photoSources.length + files.length > MAX_SCAN_IMAGE_COUNT) {
       throw new Error(`Dosegel si največ ${MAX_SCAN_IMAGE_COUNT} fotografij.`);
     }
 
@@ -835,43 +880,16 @@ export function NoteSourceModal({
       }
     }
 
-    setError(null);
-    const nextTexts: string[] = [];
-    const nextFileNames: string[] = [];
-
-    for (const [index, file] of files.entries()) {
-      setBusyLabel(
-        files.length === 1
-          ? "Skeniram besedilo..."
-          : `Skeniram fotografijo ${index + 1} od ${files.length}...`,
-      );
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("/api/lectures/scan", {
-        method: "POST",
-        body: formData,
-      });
-
-      const payload = await parseApiResponse<{ fileNames?: string[]; text?: string }>(response);
-      const extractedText = payload.text?.trim() ?? "";
-
-      if (!extractedText) {
-        throw new Error(`Na fotografiji "${file.name}" ni bilo mogoče najti berljivega besedila.`);
-      }
-
-      nextTexts.push(extractedText);
-      nextFileNames.push(payload.fileNames?.[0] ?? file.name);
-    }
-
-    const combinedScannedText = nextTexts.join("\n\n");
     setPdfSource(null);
-    setScannedTextValue((current) => appendScannedText(current, combinedScannedText));
+    setPhotoSources((current) => [
+      ...current,
+      ...files,
+    ]);
     setScannedFileNames((current) => [
       ...current,
-      ...nextFileNames,
+      ...files.map((file) => file.name),
     ]);
+    setError(null);
     setIsTextEditorOpen(false);
   }
 
@@ -885,8 +903,8 @@ export function NoteSourceModal({
     }
 
     setPdfSource(file);
+    setPhotoSources([]);
     setTextValue("");
-    setScannedTextValue("");
     setScannedFileNames([]);
     setError(null);
   }
@@ -905,7 +923,7 @@ export function NoteSourceModal({
     }
 
     try {
-      await scanImageFiles(files);
+      preparePhotoFiles(files);
     } catch (scanError) {
       if (redirectToBillingIfNeeded({ error: scanError, router })) {
         onClose();
@@ -916,7 +934,6 @@ export function NoteSourceModal({
         scanError instanceof Error ? scanError.message : "Fotografije ni bilo mogoče skenirati.",
       );
     } finally {
-      setBusyLabel(null);
       event.target.value = "";
     }
   }
@@ -938,7 +955,7 @@ export function NoteSourceModal({
 
     try {
       if (allImages) {
-        await scanImageFiles(files);
+        preparePhotoFiles(files);
         return;
       }
 
@@ -998,7 +1015,7 @@ export function NoteSourceModal({
 
       const controller = new AbortController();
       activeRequestControllerRef.current = controller;
-      setBusyLabel("Berem dokument...");
+      setBusyLabel("Nalagam dokument...");
 
       const response = await fetch("/api/lectures/pdf", {
         method: "POST",
@@ -1548,6 +1565,11 @@ export function NoteSourceModal({
                             return;
                           }
 
+                          if (photoSources.length > 0) {
+                            void createPhotoLecture();
+                            return;
+                          }
+
                           void createTextLecture();
                         },
                         generateIcon: "📄",
@@ -1651,7 +1673,7 @@ export function NoteSourceModal({
                         className="ios-secondary-button"
                         disabled={Boolean(busyLabel)}
                         onClick={() => {
-                          setScannedTextValue("");
+                          setPhotoSources([]);
                           setScannedFileNames([]);
                         }}
                       >

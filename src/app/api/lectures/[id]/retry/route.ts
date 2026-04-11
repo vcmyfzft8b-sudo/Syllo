@@ -1,6 +1,6 @@
 import { after, NextResponse } from "next/server";
 
-import { enqueueLectureProcessing, enqueueLectureProcessingStage } from "@/lib/jobs";
+import { enqueueLectureNotesGeneration, enqueueLectureProcessing } from "@/lib/jobs";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -61,7 +61,7 @@ export async function POST(
     );
   }
 
-  const nextStatus = lecture.source_type === "audio" ? "queued" : "generating_notes";
+  const nextStatus = "queued";
 
   const { error } = await supabase
     .from("lectures")
@@ -84,10 +84,7 @@ export async function POST(
       return;
     }
 
-    await enqueueLectureProcessingStage({
-      lectureId: id,
-      stage: "generate_notes",
-    });
+    await enqueueLectureNotesGeneration(id);
   });
 
   return NextResponse.json({ ok: true });

@@ -1,14 +1,16 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createBillingRequiredResponse, getUserEntitlementState } from "@/lib/billing";
 import { MAX_DOCUMENT_BYTES } from "@/lib/constants";
 import { isPdfDocument, isSupportedDocumentFile } from "@/lib/document-files";
 import { validateDocumentFileSignature } from "@/lib/file-validation";
+import { enqueueLectureNotesGeneration } from "@/lib/jobs";
 import {
-  createLectureFromTextSource,
   extractTextFromDocument,
+  prepareLectureFromTextSource,
 } from "@/lib/manual-lectures";
+import { markLecturePipelineFailed } from "@/lib/pipeline";
 import { parseFormDataRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -121,25 +123,64 @@ export async function POST(request: Request) {
       }
     }
 
-    const extracted = await extractTextFromDocument(inputFile);
     const sourceType = isPdfDocument(inputFile) ? "pdf" : "text";
-    const nextLectureId = await createLectureFromTextSource({
-      lectureId: lectureId ?? undefined,
-      userId: user.id,
-      sourceType,
-      text: extracted.text,
-      blocks: extracted.pages.map((page) => ({
-        label: `Stran ${page.pageNumber}`,
-        pageNumber: page.pageNumber,
-        text: page.text,
-      })),
-      titleHint: extracted.title || sourceFileName.replace(/\.[^.]+$/i, ""),
-      languageHint,
-      modelMetadata: {
-        importMode: sourceType === "pdf" ? "pdf" : "document",
-        sourceFileName,
-      },
-    });
+    let nextLectureId = lectureId;
+
+    if (!nextLectureId) {
+      const extracted = await extractTextFromDocument(inputFile);
+      nextLectureId = await prepareLectureFromTextSource({
+        userId: user.id,
+        sourceType,
+        text: extracted.text,
+        blocks: extracted.pages.map((page) => ({
+          label: `Stran ${page.pageNumber}`,
+          pageNumber: page.pageNumber,
+          text: page.text,
+        })),
+        titleHint: extracted.title || sourceFileName.replace(/\.[^.]+$/i, ""),
+        languageHint,
+        modelMetadata: {
+          importMode: sourceType === "pdf" ? "pdf" : "document",
+          sourceFileName,
+        },
+      });
+
+      const queuedLectureId = nextLectureId;
+      after(async () => {
+        try {
+          await enqueueLectureNotesGeneration(queuedLectureId);
+        } catch (error) {
+          await markLecturePipelineFailed({ lectureId: queuedLectureId, error });
+        }
+      });
+    } else {
+      const queuedLectureId = nextLectureId;
+      after(async () => {
+        try {
+          const extracted = await extractTextFromDocument(inputFile);
+          await prepareLectureFromTextSource({
+            lectureId: queuedLectureId,
+            userId: user.id,
+            sourceType,
+            text: extracted.text,
+            blocks: extracted.pages.map((page) => ({
+              label: `Stran ${page.pageNumber}`,
+              pageNumber: page.pageNumber,
+              text: page.text,
+            })),
+            titleHint: extracted.title || sourceFileName.replace(/\.[^.]+$/i, ""),
+            languageHint,
+            modelMetadata: {
+              importMode: sourceType === "pdf" ? "pdf" : "document",
+              sourceFileName,
+            },
+          });
+          await enqueueLectureNotesGeneration(queuedLectureId);
+        } catch (error) {
+          await markLecturePipelineFailed({ lectureId: queuedLectureId, error });
+        }
+      });
+    }
 
     return NextResponse.json({ lectureId: nextLectureId });
   } catch (error) {

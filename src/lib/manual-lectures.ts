@@ -762,3 +762,89 @@ export async function createLectureFromTextSource(params: {
     throw error;
   }
 }
+
+export async function prepareLectureFromTextSource(params: {
+  userId: string;
+  sourceType: string;
+  text: string;
+  blocks?: StructuredSourceBlock[];
+  languageHint?: string;
+  titleHint?: string;
+  modelMetadata?: Record<string, unknown>;
+  lectureId?: string;
+}) {
+  const supabase = createSupabaseServiceRoleClient();
+  const cleanedText = normalizeWhitespace(params.text);
+
+  if (cleanedText.length < 120) {
+    throw new Error("Please provide a bit more source material before creating notes.");
+  }
+
+  const durationSeconds = estimateTextSourceDurationSeconds(cleanedText);
+  const processingMetadata = {
+    manualImport: {
+      sourceType: params.sourceType,
+      titleHint: params.titleHint ?? null,
+      modelMetadata: params.modelMetadata ?? {},
+      text: cleanedText,
+      blocks: params.blocks ?? null,
+    },
+    processing: {
+      stage: "queued",
+      updatedAt: new Date().toISOString(),
+      errorMessage: null,
+    },
+  };
+
+  if (params.lectureId) {
+    const { data: lecture, error } = await supabase
+      .from("lectures")
+      .update(
+        {
+          source_type: params.sourceType,
+          status: "queued",
+          language_hint: params.languageHint ?? "sl",
+          duration_seconds: durationSeconds,
+          error_message: null,
+          title: params.titleHint ?? null,
+          processing_metadata: processingMetadata,
+        } as never,
+      )
+      .eq("id", params.lectureId)
+      .eq("user_id", params.userId)
+      .select("id")
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!lecture) {
+      throw new Error("Lecture was cancelled.");
+    }
+
+    return params.lectureId;
+  }
+
+  const { data: lecture, error } = await supabase
+    .from("lectures")
+    .insert(
+      {
+        user_id: params.userId,
+        source_type: params.sourceType,
+        status: "queued",
+        language_hint: params.languageHint ?? "sl",
+        duration_seconds: durationSeconds,
+        title: params.titleHint ?? null,
+        processing_metadata: processingMetadata,
+      } as never,
+    )
+    .select("id")
+    .single();
+
+  if (error || !lecture) {
+    throw new Error(error?.message ?? "Zapiska ni bilo mogoče ustvariti.");
+  }
+
+  return (lecture as { id: string }).id;
+}

@@ -256,6 +256,14 @@ export async function transcribeLectureContent(params: { lectureId: string }) {
 
 export async function generateLectureNotesFromStoredTranscript(params: { lectureId: string }) {
   const { supabase, lecture } = await getLectureForPipeline(params);
+  await updateLectureProcessingState({
+    lectureId: lecture.id,
+    processingMetadata: lecture.processing_metadata,
+    stage: "generating_notes",
+    durationSeconds: lecture.duration_seconds,
+    title: lecture.title,
+  });
+
   const manualImportMetadata =
     lecture.processing_metadata &&
     typeof lecture.processing_metadata === "object" &&
