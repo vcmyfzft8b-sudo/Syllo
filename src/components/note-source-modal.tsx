@@ -1329,7 +1329,7 @@ export function NoteSourceModal({
                     >
                       <div className="note-source-guide-entry-copy">
                         <p className="note-source-guide-entry-title">
-                          Snemaj tudi z ugasnjenim telefonom
+                          Kako lahko snemaš tudi z ugasnjenim telefonom?
                         </p>
                         <p className="note-source-guide-entry-text">
                           Shrani posnetek in ga tukaj naloži kasneje.
