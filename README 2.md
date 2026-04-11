@@ -147,9 +147,9 @@ Paid actions are gated behind `/app/start`, which combines onboarding questions 
 
 Current plan values in code:
 
-- Weekly: `€9`
-- Monthly: `€18`
-- Yearly: `€119`
+- Weekly: `€10`
+- Monthly: `€20`
+- Yearly: `€130`
 
 To set up Stripe:
 
