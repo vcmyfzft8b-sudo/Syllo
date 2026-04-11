@@ -18,7 +18,13 @@ Z ustvarjanjem računa ali nadaljevanjem v Memo se strinjaš s temi pogoji.
 
 - nalagaš, snemaš, lepiš ali povezuješ lahko samo gradivo, ki ga imaš v lasti ali ga smeš uporabljati
 - odgovoren si za zakonitost vsebine, ki jo pošlješ
-- Note ne smeš uporabljati za nalaganje zlonamerne programske opreme, zlorabo sistemov tretjih oseb, zajemanje zasebnih sistemov ali kršenje šolskih, službenih ali platformnih pravil
+- Memo ne smeš uporabljati za nalaganje zlonamerne programske opreme, zlorabo sistemov tretjih oseb, zajemanje zasebnih sistemov ali kršenje šolskih, službenih ali platformnih pravil
+
+## Dovoljenja za snemanje in gradiva
+
+Z uporabo Memo potrjuješ, da imaš pred snemanjem, nalaganjem, lepljenjem ali povezovanjem vsebine vsa potrebna dovoljenja in pravice. To vključuje dovoljenja šole, učitelja, predavatelja, ustanove, delodajalca, udeležencev snemanja ali drugih imetnikov pravic, kadar so taka dovoljenja potrebna.
+
+Ne snemaj predavanj, pogovorov ali drugih oseb in ne nalagaj prosojnic, zapiskov, učnih gradiv, dokumentov ali drugih datotek, če za to nimaš dovoljenja oziroma zakonske podlage. Odgovoren si, da tvoja uporaba Memo ne krši pravil šole, pogodbenih omejitev, avtorskih pravic, zasebnosti, pravil o snemanju ali drugih veljavnih zakonov in pravil.
 
 ## AI obdelava
 
@@ -181,6 +187,12 @@ Glede na način uporabe aplikacije lahko posreduješ:
 - PDF-je, dokumente in izvožene datoteke
 - javne povezave, za katere želiš, da jih Memo prebere
 
+## Dovoljenja za snemanje in gradiva
+
+Z uporabo Memo potrjuješ, da imaš vsa potrebna dovoljenja in pravice za snemanje, nalaganje, lepljenje ali povezovanje vsebine, ki jo pošlješ v aplikacijo. To vključuje dovoljenja šole, učitelja, predavatelja, ustanove, delodajalca, udeležencev snemanja ali drugih imetnikov pravic, kadar so taka dovoljenja potrebna.
+
+V Memo ne nalagaj posnetkov predavanj, prosojnic, učnih gradiv, dokumentov ali druge vsebine, če za to nimaš dovoljenja oziroma zakonske podlage.
+
 ## Kako storitev uporablja tvojo vsebino
 
 Tvojo vsebino uporabljamo za:
@@ -203,11 +215,7 @@ To lahko po potrebi vključuje datoteke, besedilo, zvok in pozive, ki jih pošlj
 
 ## Hramba in brisanje
 
-Vsebina ostane povezana s tvojim računom, dokler je ne izbrišeš v izdelku ali je ne odstranimo prek podpore ali operativnega čiščenja. Če potrebuješ strožje pogoje glede hrambe, brisanja ali pogodbenih določil, se ne zanašaj samo na to privzeto politiko.
-
-## Pravno obvestilo
-
-To je povzetek za uporabniški vmesnik izdelka in ni pravni nasvet. Preden ga obravnavaš kot končno produkcijsko politiko zasebnosti, naj ga pregleda pravni strokovnjak.`,
+Vsebina ostane povezana s tvojim računom, dokler je ne izbrišeš v izdelku ali je ne odstranimo prek podpore ali operativnega čiščenja. Če potrebuješ strožje pogoje glede hrambe, brisanja ali pogodbenih določil, se ne zanašaj samo na to privzeto politiko.`,
   },
 ];
 

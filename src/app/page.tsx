@@ -42,8 +42,9 @@ export default async function HomePage() {
           Z nadaljevanjem se strinjaš s {`${BRAND_NAME}`}{" "}
           <Link href="/app/support/terms-of-use">pogoji uporabe</Link> in{" "}
           <Link href="/app/support/privacy-policy">politiko zasebnosti</Link>, vključno z AI
-          obdelavo zvoka, besedila, dokumentov in povezav, ki jih pošlješ za ustvarjanje
-          prepisov, zapiskov, kartic, kvizov in odgovorov v klepetu.
+          obdelavo zvoka, besedila, dokumentov in povezav. Potrjuješ tudi, da imaš
+          potrebna dovoljenja za snemanje, nalaganje in uporabo gradiva, ki ga pošlješ
+          v Memo.
         </p>
 
         {!hasPublicSupabaseEnv ? (
