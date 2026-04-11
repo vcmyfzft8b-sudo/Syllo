@@ -71,16 +71,14 @@ export async function createAudioLectureWithProcessingChunks(params: {
   assertNotAborted(params.signal);
   params.onStageChange?.("uploading-original", "Uploading audio...");
 
-  const originalUpload = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .uploadToSignedUrl(createData.path, createData.token, params.file, {
-      contentType: normalizedMimeType,
-      upsert: true,
-    });
-
-  if (originalUpload.error) {
-    throw new Error(originalUpload.error.message);
-  }
+  await uploadAudioFileToSignedUrl({
+    supabase,
+    path: createData.path,
+    token: createData.token,
+    file: params.file,
+    contentType: normalizedMimeType,
+    signal: params.signal,
+  });
 
   const shouldChunk = shouldUseClientAudioChunking({
     sizeBytes: params.file.size,
@@ -134,16 +132,14 @@ export async function createAudioLectureWithProcessingChunks(params: {
           throw new Error(`Missing upload target for chunk ${chunk.index}.`);
         }
 
-        const uploadResult = await supabase.storage
-          .from(STORAGE_BUCKET)
-          .uploadToSignedUrl(uploadTarget.path, uploadTarget.token, chunk.file, {
-            contentType: chunk.mimeType,
-            upsert: true,
-          });
-
-        if (uploadResult.error) {
-          throw new Error(uploadResult.error.message);
-        }
+        await uploadAudioFileToSignedUrl({
+          supabase,
+          path: uploadTarget.path,
+          token: uploadTarget.token,
+          file: chunk.file,
+          contentType: chunk.mimeType,
+          signal: params.signal,
+        });
       }
     } catch (chunkError) {
       if (params.signal?.aborted) {
@@ -174,6 +170,85 @@ export async function createAudioLectureWithProcessingChunks(params: {
     lectureId: createData.lectureId,
     path: createData.path,
   };
+}
+
+function shouldRetryWithRawBody(error: { message?: string; name?: string }) {
+  const message = `${error.name ?? ""} ${error.message ?? ""}`.toLowerCase();
+
+  return (
+    message.includes("load failed") ||
+    message.includes("failed to fetch") ||
+    message.includes("network")
+  );
+}
+
+function createUploadError(error: { message?: string; name?: string }) {
+  if (shouldRetryWithRawBody(error)) {
+    return new Error(
+      "Zvočnega posnetka ni bilo mogoče naložiti. Preveri povezavo in poskusi znova.",
+    );
+  }
+
+  return new Error(error.message ?? "Zvočnega posnetka ni bilo mogoče naložiti.");
+}
+
+async function readUploadBytes(file: File) {
+  try {
+    return await file.arrayBuffer();
+  } catch (error) {
+    throw createUploadError(error instanceof Error ? error : {});
+  }
+}
+
+async function uploadAudioFileToSignedUrl(params: {
+  supabase: ReturnType<typeof createSupabaseBrowserClient>;
+  path: string;
+  token: string;
+  file: File;
+  contentType: string;
+  signal?: AbortSignal;
+}) {
+  const upload = async (body: File | ArrayBuffer) =>
+    params.supabase.storage
+      .from(STORAGE_BUCKET)
+      .uploadToSignedUrl(params.path, params.token, body, {
+        contentType: params.contentType,
+        upsert: true,
+      });
+
+  assertNotAborted(params.signal);
+  let uploadError: { message?: string; name?: string } | null = null;
+
+  try {
+    const uploadResult = await upload(params.file);
+
+    if (!uploadResult.error) {
+      return;
+    }
+
+    uploadError = uploadResult.error;
+  } catch (error) {
+    uploadError = error instanceof Error ? error : {};
+  }
+
+  if (!shouldRetryWithRawBody(uploadError)) {
+    throw createUploadError(uploadError);
+  }
+
+  assertNotAborted(params.signal);
+  const fileBytes = await readUploadBytes(params.file);
+  assertNotAborted(params.signal);
+  let rawUploadResult: Awaited<ReturnType<typeof upload>>;
+
+  try {
+    rawUploadResult = await upload(fileBytes);
+  } catch (error) {
+    throw createUploadError(error instanceof Error ? error : {});
+  }
+
+  if (rawUploadResult.error) {
+    throw createUploadError(rawUploadResult.error);
+  }
 }
 
 export function parseAudioChunkPaths(value: unknown) {
