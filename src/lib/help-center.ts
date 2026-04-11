@@ -18,7 +18,13 @@ Z ustvarjanjem računa ali nadaljevanjem v Memo se strinjaš s temi pogoji.
 
 - nalagaš, snemaš, lepiš ali povezuješ lahko samo gradivo, ki ga imaš v lasti ali ga smeš uporabljati
 - odgovoren si za zakonitost vsebine, ki jo pošlješ
-- Note ne smeš uporabljati za nalaganje zlonamerne programske opreme, zlorabo sistemov tretjih oseb, zajemanje zasebnih sistemov ali kršenje šolskih, službenih ali platformnih pravil
+- Memo ne smeš uporabljati za nalaganje zlonamerne programske opreme, zlorabo sistemov tretjih oseb, zajemanje zasebnih sistemov ali kršenje šolskih, službenih ali platformnih pravil
+
+## Dovoljenja za snemanje in gradiva
+
+Z uporabo Memo potrjuješ, da imaš pred snemanjem, nalaganjem, lepljenjem ali povezovanjem vsebine vsa potrebna dovoljenja in pravice. To vključuje dovoljenja šole, učitelja, predavatelja, ustanove, delodajalca, udeležencev snemanja ali drugih imetnikov pravic, kadar so taka dovoljenja potrebna.
+
+Ne snemaj predavanj, pogovorov ali drugih oseb in ne nalagaj prosojnic, zapiskov, učnih gradiv, dokumentov ali drugih datotek, če za to nimaš dovoljenja oziroma zakonske podlage. Odgovoren si, da tvoja uporaba Memo ne krši pravil šole, pogodbenih omejitev, avtorskih pravic, zasebnosti, pravil o snemanju ali drugih veljavnih zakonov in pravil.
 
 ## AI obdelava
 
@@ -178,6 +184,12 @@ Glede na način uporabe aplikacije lahko posreduješ:
 - prilepljeno besedilo, zapiske, pozive in sporočila v klepetu
 - PDF-je, dokumente in izvožene datoteke
 - javne povezave, za katere želiš, da jih Memo prebere
+
+## Dovoljenja za snemanje in gradiva
+
+Z uporabo Memo potrjuješ, da imaš vsa potrebna dovoljenja in pravice za snemanje, nalaganje, lepljenje ali povezovanje vsebine, ki jo pošlješ v aplikacijo. To vključuje dovoljenja šole, učitelja, predavatelja, ustanove, delodajalca, udeležencev snemanja ali drugih imetnikov pravic, kadar so taka dovoljenja potrebna.
+
+V Memo ne nalagaj posnetkov predavanj, prosojnic, učnih gradiv, dokumentov ali druge vsebine, če za to nimaš dovoljenja oziroma zakonske podlage.
 
 ## Kako storitev uporablja tvojo vsebino
 

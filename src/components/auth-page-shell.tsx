@@ -142,8 +142,9 @@ export async function AuthPageShell(props: {
               Z nadaljevanjem se strinjaš s {`${BRAND_NAME}`}{" "}
               <Link href="/app/support/terms-of-use">pogoji uporabe</Link> in{" "}
               <Link href="/app/support/privacy-policy">politiko zasebnosti</Link>, vključno
-              z obdelavo zvoka, besedila, dokumentov in povezav pri AI ponudnikih za
-              ustvarjanje prepisov, zapiskov, kartic, kvizov in odgovorov v klepetu.
+              z obdelavo zvoka, besedila, dokumentov in povezav pri AI ponudnikih. Potrjuješ
+              tudi, da imaš potrebna dovoljenja za snemanje, nalaganje in uporabo gradiva,
+              ki ga pošlješ v Memo.
             </p>
 
             <p className="auth-switch-copy">
