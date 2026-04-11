@@ -8,6 +8,8 @@ import { requireGeminiEnv } from "@/lib/server-env";
 
 const GEMINI_GENERATION_MAX_ATTEMPTS = 4;
 const GEMINI_EMBEDDING_DIMENSION = 1536;
+const GEMINI_EMBEDDING_MAX_BATCH_SIZE = 100;
+const GEMINI_EMBEDDING_BATCH_DELAY_MS = 250;
 const GEMINI_GENERATION_TIMEOUT_MS = 90_000;
 const GEMINI_RETRY_BASE_DELAY_MS = 1_500;
 
@@ -349,13 +351,47 @@ export async function createGeminiEmbeddings(texts: string[]) {
 
   const ai = getGeminiClient();
   const env = requireGeminiEnv();
-  const response = await ai.models.embedContent({
-    model: env.GEMINI_EMBEDDING_MODEL,
-    contents: texts,
-    config: {
-      outputDimensionality: GEMINI_EMBEDDING_DIMENSION,
-    },
-  });
+  const embeddings: number[][] = [];
 
-  return (response.embeddings ?? []).map((embedding) => embedding.values ?? []);
+  for (let start = 0; start < texts.length; start += GEMINI_EMBEDDING_MAX_BATCH_SIZE) {
+    const batch = texts.slice(start, start + GEMINI_EMBEDDING_MAX_BATCH_SIZE);
+    let batchEmbeddings: number[][] | null = null;
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt < GEMINI_GENERATION_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        const response = await ai.models.embedContent({
+          model: env.GEMINI_EMBEDDING_MODEL,
+          contents: batch,
+          config: {
+            outputDimensionality: GEMINI_EMBEDDING_DIMENSION,
+          },
+        });
+
+        batchEmbeddings = (response.embeddings ?? []).map((embedding) => embedding.values ?? []);
+        break;
+      } catch (error) {
+        lastError = error;
+
+        if (attempt < GEMINI_GENERATION_MAX_ATTEMPTS - 1 && isRetryableAiError(error)) {
+          await sleep(GEMINI_RETRY_BASE_DELAY_MS * (attempt + 1));
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    if (!batchEmbeddings) {
+      throw new Error(toErrorMessage(lastError));
+    }
+
+    embeddings.push(...batchEmbeddings);
+
+    if (start + GEMINI_EMBEDDING_MAX_BATCH_SIZE < texts.length) {
+      await sleep(GEMINI_EMBEDDING_BATCH_DELAY_MS);
+    }
+  }
+
+  return embeddings;
 }

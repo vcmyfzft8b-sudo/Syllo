@@ -124,23 +124,54 @@ function htmlToText(html: string) {
   );
 }
 
-function isPrivateIpv4(value: string) {
+function parseIpv4Address(value: string) {
   const octets = value.split(".").map((part) => Number(part));
 
   if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+    return null;
+  }
+
+  return octets.reduce((accumulator, octet) => (accumulator << 8) + octet, 0) >>> 0;
+}
+
+function isIpv4InCidr(value: number, base: string, bits: number) {
+  const baseAddress = parseIpv4Address(base);
+
+  if (baseAddress == null) {
     return true;
   }
 
-  const [a, b] = octets;
+  const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
 
-  return (
-    a === 0 ||
-    a === 10 ||
-    a === 127 ||
-    (a === 169 && b === 254) ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168)
-  );
+  return (value & mask) === (baseAddress & mask);
+}
+
+function isDisallowedIpv4Address(value: string) {
+  const address = parseIpv4Address(value);
+
+  if (address == null) {
+    return true;
+  }
+
+  const disallowedRanges: Array<[string, number]> = [
+    ["0.0.0.0", 8],
+    ["10.0.0.0", 8],
+    ["100.64.0.0", 10],
+    ["127.0.0.0", 8],
+    ["169.254.0.0", 16],
+    ["172.16.0.0", 12],
+    ["192.0.0.0", 24],
+    ["192.0.2.0", 24],
+    ["192.88.99.0", 24],
+    ["192.168.0.0", 16],
+    ["198.18.0.0", 15],
+    ["198.51.100.0", 24],
+    ["203.0.113.0", 24],
+    ["224.0.0.0", 4],
+    ["240.0.0.0", 4],
+  ];
+
+  return disallowedRanges.some(([base, bits]) => isIpv4InCidr(address, base, bits));
 }
 
 function expandIpv6(value: string) {
@@ -160,39 +191,74 @@ function expandIpv6(value: string) {
   ];
 }
 
-function isPrivateIpv6(value: string) {
-  const normalized = value.toLowerCase();
+function isDisallowedIpv6Address(value: string) {
+  const normalized = value.toLowerCase().replace(/^\[|\]$/g, "");
 
-  if (normalized === "::1") {
-    return true;
+  if (normalized.includes(".")) {
+    if (!normalized.startsWith("::ffff:")) {
+      return true;
+    }
+
+    const mappedIpv4 = normalized.split(":").pop();
+    return !mappedIpv4 || isDisallowedIpv4Address(mappedIpv4);
   }
 
-  if (normalized.startsWith("fe80:") || normalized.startsWith("fc") || normalized.startsWith("fd")) {
+  if (normalized === "::" || normalized === "::1") {
     return true;
   }
 
   const groups = expandIpv6(normalized).map((part) => part.padStart(4, "0"));
   const firstGroup = Number.parseInt(groups[0] ?? "0", 16);
+  const secondGroup = Number.parseInt(groups[1] ?? "0", 16);
 
-  return (firstGroup & 0xfe00) === 0xfc00;
+  if (!Number.isFinite(firstGroup) || !Number.isFinite(secondGroup)) {
+    return true;
+  }
+
+  const isIpv4Mapped =
+    groups.slice(0, 5).every((part) => part === "0000") && groups[5] === "ffff";
+
+  if (isIpv4Mapped) {
+    const high = Number.parseInt(groups[6] ?? "0", 16);
+    const low = Number.parseInt(groups[7] ?? "0", 16);
+
+    if (!Number.isFinite(high) || !Number.isFinite(low)) {
+      return true;
+    }
+
+    return isDisallowedIpv4Address(
+      `${(high >> 8) & 255}.${high & 255}.${(low >> 8) & 255}.${low & 255}`,
+    );
+  }
+
+  if ((firstGroup & 0xe000) !== 0x2000) {
+    return true;
+  }
+
+  return (
+    (firstGroup === 0x2001 && (secondGroup & 0xfe00) === 0x0000) ||
+    (firstGroup === 0x2001 && secondGroup === 0x0db8) ||
+    firstGroup === 0x2002
+  );
 }
 
 function isDisallowedIpAddress(value: string) {
-  const version = isIP(value);
+  const normalized = value.trim().toLowerCase().replace(/^\[|\]$/g, "");
+  const version = isIP(normalized);
 
   if (version === 4) {
-    return isPrivateIpv4(value);
+    return isDisallowedIpv4Address(normalized);
   }
 
   if (version === 6) {
-    return isPrivateIpv6(value);
+    return isDisallowedIpv6Address(normalized);
   }
 
   return true;
 }
 
 async function assertPublicHostname(hostname: string) {
-  const normalizedHostname = hostname.trim().toLowerCase();
+  const normalizedHostname = hostname.trim().toLowerCase().replace(/^\[|\]$/g, "");
 
   if (
     normalizedHostname === "localhost" ||
@@ -286,7 +352,7 @@ async function fetchReadableWebpageResponse(targetUrl: URL, redirectCount = 0): 
     const response = await fetch(targetUrl, {
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; NotaBot/1.0; +https://nota.local)",
+          "Mozilla/5.0 (compatible; MemoAI/1.0; +https://memoai.eu)",
         Accept: "text/html,application/xhtml+xml",
       },
       redirect: "manual",

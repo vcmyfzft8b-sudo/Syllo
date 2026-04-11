@@ -38,6 +38,10 @@ export const rateLimitPresets = {
     { windowSeconds: 600, maxRequests: 8, scope: "user" },
     { windowSeconds: 3600, maxRequests: 24, scope: "user" },
   ] satisfies RateLimitRule[],
+  linkImport: [
+    { windowSeconds: 300, maxRequests: 8, scope: "user" },
+    { windowSeconds: 3600, maxRequests: 40, scope: "user" },
+  ] satisfies RateLimitRule[],
   uploadCreate: [
     { windowSeconds: 600, maxRequests: 10, scope: "user" },
     { windowSeconds: 3600, maxRequests: 30, scope: "user" },
