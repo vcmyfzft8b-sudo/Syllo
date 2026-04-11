@@ -1,4 +1,10 @@
-import { STORAGE_BUCKET, SUPPORTED_AUDIO_MIME_TYPES } from "@/lib/constants";
+import {
+  STORAGE_BUCKET,
+  SUPPORTED_AUDIO_EXTENSIONS,
+  SUPPORTED_AUDIO_MIME_TYPES,
+  SUPPORTED_SCAN_IMAGE_EXTENSIONS,
+  SUPPORTED_SCAN_IMAGE_MIME_TYPES,
+} from "@/lib/constants";
 
 const mimeTypeAliasMap = new Map<string, string>([
   ["audio/mp3", "audio/mpeg"],
@@ -53,9 +59,16 @@ const extensionToMimeTypeMap = new Map<string, string>([
   ["caf", "audio/x-caf"],
   ["aif", "audio/aiff"],
   ["aiff", "audio/aiff"],
+  ["jpg", "image/jpeg"],
+  ["jpeg", "image/jpeg"],
+  ["png", "image/png"],
+  ["webp", "image/webp"],
+  ["heic", "image/heic"],
+  ["heif", "image/heif"],
 ]);
 
-const supportedAudioExtensions = new Set(extensionMap.values());
+const supportedAudioExtensions = new Set<string>(SUPPORTED_AUDIO_EXTENSIONS);
+const supportedScanImageExtensions = new Set<string>(SUPPORTED_SCAN_IMAGE_EXTENSIONS);
 
 function getExtensionFromFileName(fileName: string) {
   const match = /\.([a-z0-9]+)$/i.exec(fileName.trim());
@@ -98,11 +111,47 @@ export function isSupportedAudioMimeType(mimeType: string, fileName?: string | n
   );
 }
 
+export function inferScanImageMimeTypeFromFile(params: {
+  mimeType: string;
+  fileName?: string | null;
+}) {
+  const normalizedMimeType = normalizeMimeType(params.mimeType);
+
+  if (
+    normalizedMimeType &&
+    normalizedMimeType !== "application/octet-stream" &&
+    normalizedMimeType !== "binary/octet-stream"
+  ) {
+    return normalizedMimeType;
+  }
+
+  const extension = getExtensionFromFileName(params.fileName ?? "");
+  return extensionToMimeTypeMap.get(extension) ?? normalizedMimeType;
+}
+
+export function isSupportedScanImageMimeType(mimeType: string, fileName?: string | null) {
+  const normalizedMimeType = inferScanImageMimeTypeFromFile({
+    mimeType,
+    fileName,
+  });
+
+  return SUPPORTED_SCAN_IMAGE_MIME_TYPES.includes(
+    normalizedMimeType as (typeof SUPPORTED_SCAN_IMAGE_MIME_TYPES)[number],
+  );
+}
+
 export function normalizeUploadAudioMimeType(params: {
   mimeType: string;
   fileName?: string | null;
 }) {
   return inferAudioMimeTypeFromFile(params);
+}
+
+export function normalizeUploadScanImageMimeType(params: {
+  mimeType: string;
+  fileName?: string | null;
+}) {
+  return inferScanImageMimeTypeFromFile(params);
 }
 
 export function getExtensionForMimeType(mimeType: string) {
@@ -146,6 +195,39 @@ export function buildLectureChunkStoragePath(params: {
 }) {
   const ext = getExtensionForMimeType(params.mimeType);
   return `${params.userId}/${params.lectureId}/chunks/chunk-${String(params.index).padStart(3, "0")}.${ext}`;
+}
+
+export function buildLectureScanImageStoragePath(params: {
+  userId: string;
+  lectureId: string;
+  index: number;
+  mimeType: string;
+}) {
+  const ext = getExtensionForMimeType(params.mimeType);
+  return `${params.userId}/${params.lectureId}/scans/photo-${String(params.index).padStart(3, "0")}.${ext}`;
+}
+
+export function isCanonicalLectureScanImageStoragePath(params: {
+  path: string;
+  userId: string;
+  lectureId: string;
+}) {
+  const expectedPrefix = `${params.userId}/${params.lectureId}/scans/photo-`;
+
+  if (!params.path.startsWith(expectedPrefix)) {
+    return false;
+  }
+
+  const fileName = params.path.slice(expectedPrefix.length);
+
+  if (!/^\d{3}\.[a-z0-9]+$/i.test(fileName)) {
+    return false;
+  }
+
+  const extension = fileName.split(".").pop()?.toLowerCase() ?? "";
+  return supportedScanImageExtensions.has(
+    extension as (typeof SUPPORTED_SCAN_IMAGE_EXTENSIONS)[number],
+  );
 }
 
 export function buildStorageObjectUrl(path: string) {

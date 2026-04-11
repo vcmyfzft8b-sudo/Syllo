@@ -4,8 +4,26 @@ export const MAX_AUDIO_BYTES = 300 * 1024 * 1024;
 export const MAX_AUDIO_SECONDS = 3 * 60 * 60;
 export const MAX_PDF_BYTES = 4 * 1024 * 1024;
 export const MAX_DOCUMENT_BYTES = MAX_PDF_BYTES;
-export const MAX_SCAN_IMAGE_BYTES = 4 * 1024 * 1024;
+export const MAX_SCAN_IMAGE_BYTES = 10 * 1024 * 1024;
 export const MAX_SCAN_IMAGE_COUNT = 10;
+
+export const SUPPORTED_SCAN_IMAGE_MIME_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+] as const;
+
+export const SUPPORTED_SCAN_IMAGE_EXTENSIONS = [
+  "jpg",
+  "jpeg",
+  "png",
+  "webp",
+  "heic",
+  "heif",
+] as const;
 
 export const SUPPORTED_AUDIO_MIME_TYPES = [
   "audio/mpeg",
@@ -79,7 +97,10 @@ export const DOCUMENT_FILE_INPUT_ACCEPT = [
   ...SUPPORTED_DOCUMENT_EXTENSIONS.map((extension) => `.${extension}`),
 ].join(",");
 
-export const SCAN_IMAGE_INPUT_ACCEPT = "image/*";
+export const SCAN_IMAGE_INPUT_ACCEPT = [
+  "image/*",
+  ...SUPPORTED_SCAN_IMAGE_EXTENSIONS.map((extension) => `.${extension}`),
+].join(",");
 
 export const LECTURE_STATUS = [
   "uploading",

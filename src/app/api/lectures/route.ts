@@ -10,6 +10,7 @@ import {
 import { MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS } from "@/lib/constants";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
+import { extractScanImageStoragePaths } from "@/lib/scan-image-uploads";
 import {
   buildLectureStoragePath,
   isSupportedAudioMimeType,
@@ -222,12 +223,15 @@ export async function DELETE(request: Request) {
         : null,
     ).map((chunk) => chunk.path),
   );
+  const scanImagePaths = ownedLectureRows.flatMap((lecture) =>
+    extractScanImageStoragePaths(lecture.processing_metadata),
+  );
 
-  if (storagePaths.length > 0 || chunkPaths.length > 0) {
+  if (storagePaths.length > 0 || chunkPaths.length > 0 || scanImagePaths.length > 0) {
     await createSupabaseServiceRoleClient()
       .storage
       .from("lecture-audio")
-      .remove([...storagePaths, ...chunkPaths]);
+      .remove([...storagePaths, ...chunkPaths, ...scanImagePaths]);
   }
 
   return NextResponse.json({ ok: true, deletedCount: lectureIds.length });
