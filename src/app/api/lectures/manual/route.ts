@@ -69,7 +69,7 @@ export async function POST(request: Request) {
         user_id: user.id,
         source_type: parsed.data.sourceType,
         access_tier: entitlement.hasPaidAccess ? "paid" : "trial",
-        status: "generating_notes",
+        status: "uploading",
         language_hint: parsed.data.languageHint,
       } as never,
     )

@@ -1,7 +1,11 @@
 import "server-only";
 
 import { inngest } from "@/inngest/client";
-import { runLecturePipeline } from "@/lib/pipeline";
+import {
+  generateLectureNotesFromStoredTranscript,
+  markLecturePipelineFailed,
+  runLecturePipeline,
+} from "@/lib/pipeline";
 import { generateLecturePracticeTest } from "@/lib/practice-test";
 import { generateLectureQuiz } from "@/lib/quiz";
 import { getServerEnv } from "@/lib/server-env";
@@ -108,6 +112,26 @@ export async function enqueueLectureProcessing(lectureId: string) {
 
   await runLecturePipeline({ lectureId }).catch(() => {
     // Errors are persisted on the lecture row by the pipeline.
+  });
+}
+
+export async function enqueueLectureNotesGeneration(lectureId: string) {
+  const env = getServerEnv();
+
+  if (env.INNGEST_EVENT_KEY && env.INNGEST_SIGNING_KEY) {
+    await inngest.send({
+      name: "lecture/notes.requested",
+      data: { lectureId },
+    });
+    return;
+  }
+
+  if (await enqueueLectureProcessingStage({ lectureId, stage: "generate_notes" })) {
+    return;
+  }
+
+  await generateLectureNotesFromStoredTranscript({ lectureId }).catch(async (error) => {
+    await markLecturePipelineFailed({ lectureId, error });
   });
 }
 

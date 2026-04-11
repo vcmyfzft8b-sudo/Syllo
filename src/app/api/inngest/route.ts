@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { inngest } from "@/inngest/client";
 import {
   processLectureFunction,
+  processLectureNotesFunction,
   processLectureQuizFunction,
   processLectureStudyFunction,
 } from "@/inngest/functions";
@@ -19,7 +20,12 @@ const INNGEST_ROUTE_METHODS = "GET, POST, PUT, OPTIONS";
 
 const handlers = serve({
   client: inngest,
-  functions: [processLectureFunction, processLectureStudyFunction, processLectureQuizFunction],
+  functions: [
+    processLectureFunction,
+    processLectureNotesFunction,
+    processLectureStudyFunction,
+    processLectureQuizFunction,
+  ],
 });
 
 function withRestrictedCors(request: NextRequest, response: Response) {

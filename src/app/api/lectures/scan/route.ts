@@ -1,12 +1,33 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { z } from "zod";
 
 import { createBillingRequiredResponse, getUserEntitlementState } from "@/lib/billing";
 import { MAX_SCAN_IMAGE_BYTES, MAX_SCAN_IMAGE_COUNT } from "@/lib/constants";
-import { extractTextFromImage } from "@/lib/manual-lectures";
+import { enqueueLectureNotesGeneration } from "@/lib/jobs";
+import { extractTextFromImage, prepareLectureFromTextSource } from "@/lib/manual-lectures";
+import { markLecturePipelineFailed } from "@/lib/pipeline";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  languageHintSchema,
+  optionalDocumentLectureIdSchema,
+} from "@/lib/validation";
 
 export const maxDuration = 300;
+
+const scanLectureFieldsSchema = z.object({
+  lectureId: optionalDocumentLectureIdSchema,
+  languageHint: z
+    .union([z.string(), z.null()])
+    .transform((value) => (typeof value === "string" ? value : "sl"))
+    .pipe(languageHintSchema),
+  text: z
+    .union([z.string(), z.null()])
+    .transform((value) => (typeof value === "string" ? value.trim() : ""))
+    .refine((value) => value.length <= 120000, {
+      message: "Text is too long.",
+    }),
+});
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
@@ -40,6 +61,16 @@ export async function POST(request: Request) {
 
   try {
     const formData = await request.formData();
+    const parsedFields = scanLectureFieldsSchema.safeParse({
+      lectureId: formData.get("lectureId"),
+      languageHint: formData.get("languageHint"),
+      text: formData.get("text"),
+    });
+
+    if (!parsedFields.success) {
+      return NextResponse.json({ error: parsedFields.error.flatten() }, { status: 400 });
+    }
+
     const fileCandidates = formData
       .getAll("files")
       .filter((candidate): candidate is File => candidate instanceof File);
@@ -60,6 +91,118 @@ export async function POST(request: Request) {
         { error: `Dosegel si največ ${MAX_SCAN_IMAGE_COUNT} fotografij naenkrat.` },
         { status: 400 },
       );
+    }
+
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) {
+        return NextResponse.json(
+          { error: "Za skeniranje uporabi slikovno datoteko." },
+          { status: 400 },
+        );
+      }
+
+      if (file.size > MAX_SCAN_IMAGE_BYTES) {
+        return NextResponse.json(
+          { error: "Slika za skeniranje je prevelika. Omejitev je 4 MB." },
+          { status: 400 },
+        );
+      }
+    }
+
+    if (parsedFields.data.lectureId) {
+      if (
+        !entitlement.hasPaidAccess &&
+        parsedFields.data.lectureId !== entitlement.trialLectureId
+      ) {
+        return createBillingRequiredResponse(
+          "Brez plačljivega paketa lahko obdelaš samo svoje brezplačno poskusno gradivo.",
+          "trial_exhausted",
+        );
+      }
+
+      const { data: lecture, error: lectureError } = await supabase
+        .from("lectures")
+        .select("id")
+        .eq("id", parsedFields.data.lectureId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (lectureError) {
+        throw new Error(lectureError.message);
+      }
+
+      if (!lecture) {
+        return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
+      }
+
+      const lectureId = parsedFields.data.lectureId;
+      const filesForProcessing = files;
+      const languageHint = parsedFields.data.languageHint;
+      const pastedText = parsedFields.data.text.trim();
+
+      after(async () => {
+        try {
+          const extractedBlocks: Array<{
+            label: string;
+            pageNumber: number;
+            text: string;
+          }> = [];
+
+          for (const [index, file] of filesForProcessing.entries()) {
+            const extracted = await extractTextFromImage(file);
+            const text = extracted.text.trim();
+
+            if (!text) {
+              throw new Error(
+                filesForProcessing.length === 1
+                  ? "Na fotografiji ni bilo mogoče najti berljivega besedila."
+                  : `Na fotografiji "${file.name}" ni bilo mogoče najti berljivega besedila.`,
+              );
+            }
+
+            extractedBlocks.push({
+              label: file.name,
+              pageNumber: index + 1,
+              text,
+            });
+          }
+
+          const blocks = pastedText
+            ? [
+                ...extractedBlocks,
+                {
+                  label: "Prilepljeno besedilo",
+                  pageNumber: extractedBlocks.length + 1,
+                  text: pastedText,
+                },
+              ]
+            : extractedBlocks;
+          const sourceFileNames = filesForProcessing.map((file) => file.name);
+          const titleHint =
+            filesForProcessing.length === 1
+              ? filesForProcessing[0].name.replace(/\.[^.]+$/i, "")
+              : `${filesForProcessing.length} fotografij`;
+
+          await prepareLectureFromTextSource({
+            lectureId,
+            userId: user.id,
+            sourceType: "text",
+            text: blocks.map((block) => block.text).join("\n\n"),
+            blocks,
+            titleHint,
+            languageHint,
+            modelMetadata: {
+              importMode: "scan",
+              sourceFileNames,
+            },
+          });
+          await enqueueLectureNotesGeneration(lectureId);
+        } catch (error) {
+          await markLecturePipelineFailed({ lectureId, error });
+        }
+      });
+
+      return NextResponse.json({ lectureId });
     }
 
     const extractedTexts: string[] = [];

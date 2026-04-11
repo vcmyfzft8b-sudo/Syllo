@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createBillingRequiredResponse, getUserEntitlementState } from "@/lib/billing";
-import { createLectureFromTextSource } from "@/lib/manual-lectures";
+import { enqueueLectureNotesGeneration } from "@/lib/jobs";
+import { prepareLectureFromTextSource } from "@/lib/manual-lectures";
+import { markLecturePipelineFailed } from "@/lib/pipeline";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -74,7 +76,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const lectureId = await createLectureFromTextSource({
+    const lectureId = await prepareLectureFromTextSource({
       lectureId: parsed.data.lectureId,
       userId: user.id,
       sourceType: "text",
@@ -83,6 +85,14 @@ export async function POST(request: Request) {
       modelMetadata: {
         importMode: "text",
       },
+    });
+
+    after(async () => {
+      try {
+        await enqueueLectureNotesGeneration(lectureId);
+      } catch (error) {
+        await markLecturePipelineFailed({ lectureId, error });
+      }
     });
 
     return NextResponse.json({ lectureId });

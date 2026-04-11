@@ -37,6 +37,29 @@ export const processLectureFunction = inngest.createFunction(
   },
 );
 
+export const processLectureNotesFunction = inngest.createFunction(
+  { id: "process-lecture-notes" },
+  { event: "lecture/notes.requested" },
+  async ({ event, step }) => {
+    try {
+      await step.run("generate-lecture-notes", async () => {
+        await generateLectureNotesFromStoredTranscript({
+          lectureId: event.data.lectureId,
+        });
+      });
+    } catch (error) {
+      await step.run("mark-lecture-failed", async () => {
+        await markLecturePipelineFailed({
+          lectureId: event.data.lectureId,
+          error,
+        });
+      });
+
+      throw error;
+    }
+  },
+);
+
 export const processLectureStudyFunction = inngest.createFunction(
   { id: "process-lecture-study" },
   { event: "lecture/study.requested" },
