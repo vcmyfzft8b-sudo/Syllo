@@ -5,6 +5,7 @@ import { parseAudioChunkManifest } from "@/lib/audio-processing";
 import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
+import { extractScanImageStoragePaths } from "@/lib/scan-image-uploads";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { lectureTitleSchema, routeIdParamSchema } from "@/lib/validation";
 
@@ -112,7 +113,10 @@ export async function DELETE(
       ? (lecture.processing_metadata as Record<string, unknown>).audioChunks
       : null,
   ).map((chunk) => chunk.path);
-  const storagePaths = lecture.storage_path ? [lecture.storage_path, ...chunkPaths] : chunkPaths;
+  const scanImagePaths = extractScanImageStoragePaths(lecture.processing_metadata);
+  const storagePaths = lecture.storage_path
+    ? [lecture.storage_path, ...chunkPaths, ...scanImagePaths]
+    : [...chunkPaths, ...scanImagePaths];
 
   if (storagePaths.length > 0) {
     await createSupabaseServiceRoleClient()

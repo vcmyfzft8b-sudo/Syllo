@@ -2,15 +2,27 @@ import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createBillingRequiredResponse, getUserEntitlementState } from "@/lib/billing";
-import { MAX_SCAN_IMAGE_BYTES, MAX_SCAN_IMAGE_COUNT } from "@/lib/constants";
+import { MAX_SCAN_IMAGE_BYTES, MAX_SCAN_IMAGE_COUNT, STORAGE_BUCKET } from "@/lib/constants";
 import { enqueueLectureNotesGeneration } from "@/lib/jobs";
 import { extractTextFromImage, prepareLectureFromTextSource } from "@/lib/manual-lectures";
 import { markLecturePipelineFailed } from "@/lib/pipeline";
+import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
+  isCanonicalLectureScanImageStoragePath,
+  isSupportedScanImageMimeType,
+  normalizeUploadScanImageMimeType,
+} from "@/lib/storage";
+import {
+  createSupabaseServerClient,
+  createSupabaseServiceRoleClient,
+} from "@/lib/supabase/server";
+import {
+  createSanitizedStringSchema,
   languageHintSchema,
   optionalDocumentLectureIdSchema,
+  optionalOriginalFileNameSchema,
+  storagePathSchema,
 } from "@/lib/validation";
 
 export const maxDuration = 300;
@@ -28,6 +40,72 @@ const scanLectureFieldsSchema = z.object({
       message: "Text is too long.",
     }),
 });
+
+const storedScanImageSchema = z.object({
+  index: z.number().int().min(0).max(MAX_SCAN_IMAGE_COUNT - 1),
+  path: storagePathSchema,
+  mimeType: createSanitizedStringSchema({ minLength: 1, maxLength: 120 }),
+  fileName: optionalOriginalFileNameSchema,
+  size: z.number().int().positive().max(MAX_SCAN_IMAGE_BYTES),
+});
+
+const storedScanLectureSchema = z.object({
+  lectureId: optionalDocumentLectureIdSchema.pipe(z.string().uuid()),
+  languageHint: languageHintSchema.default("sl"),
+  text: z
+    .string()
+    .optional()
+    .default("")
+    .transform((value) => value.trim())
+    .refine((value) => value.length <= 120000, {
+      message: "Text is too long.",
+    }),
+  images: z.array(storedScanImageSchema).min(1).max(MAX_SCAN_IMAGE_COUNT),
+});
+
+type StoredScanImage = z.infer<typeof storedScanImageSchema>;
+
+async function downloadStoredScanImage(image: StoredScanImage) {
+  const normalizedMimeType = normalizeUploadScanImageMimeType({
+    mimeType: image.mimeType,
+    fileName: image.fileName,
+  });
+
+  const { data: blob, error } = await createSupabaseServiceRoleClient()
+    .storage
+    .from(STORAGE_BUCKET)
+    .download(image.path);
+
+  if (error || !blob) {
+    throw new Error(error?.message ?? "Fotografije ni bilo mogoče prebrati.");
+  }
+
+  if (blob.size <= 0 || blob.size > MAX_SCAN_IMAGE_BYTES) {
+    throw new Error("Slika za skeniranje je prevelika ali prazna.");
+  }
+
+  return new File([blob], image.fileName || `photo-${image.index + 1}`, {
+    type: normalizedMimeType,
+  });
+}
+
+function buildBlocks(params: {
+  extractedBlocks: Array<{ label: string; pageNumber: number; text: string }>;
+  pastedText: string;
+}) {
+  if (!params.pastedText) {
+    return params.extractedBlocks;
+  }
+
+  return [
+    ...params.extractedBlocks,
+    {
+      label: "Prilepljeno besedilo",
+      pageNumber: params.extractedBlocks.length + 1,
+      text: params.pastedText,
+    },
+  ];
+}
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
@@ -60,6 +138,124 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (request.headers.get("content-type")?.includes("application/json")) {
+      const parsed = await parseJsonRequest(request, storedScanLectureSchema, {
+        maxBytes: 64 * 1024,
+      });
+
+      if (!parsed.success) {
+        return parsed.response;
+      }
+
+      const { lectureId, languageHint, text, images } = parsed.data;
+
+      if (!entitlement.hasPaidAccess && lectureId !== entitlement.trialLectureId) {
+        return createBillingRequiredResponse(
+          "Brez plačljivega paketa lahko obdelaš samo svoje brezplačno poskusno gradivo.",
+          "trial_exhausted",
+        );
+      }
+
+      const { data: lecture, error: lectureError } = await supabase
+        .from("lectures")
+        .select("id")
+        .eq("id", lectureId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (lectureError) {
+        throw new Error(lectureError.message);
+      }
+
+      if (!lecture) {
+        return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
+      }
+
+      for (const image of images) {
+        if (
+          !isSupportedScanImageMimeType(image.mimeType, image.fileName) ||
+          !isCanonicalLectureScanImageStoragePath({
+            path: image.path,
+            userId: user.id,
+            lectureId,
+          })
+        ) {
+          return NextResponse.json(
+            { error: "Neveljavna pot ali format fotografije." },
+            { status: 400 },
+          );
+        }
+      }
+
+      after(async () => {
+        try {
+          const extractedBlocks: Array<{
+            label: string;
+            pageNumber: number;
+            text: string;
+          }> = [];
+
+          for (const image of [...images].sort((left, right) => left.index - right.index)) {
+            const file = await downloadStoredScanImage(image);
+            const extracted = await extractTextFromImage(file);
+            const extractedText = extracted.text.trim();
+
+            if (!extractedText) {
+              throw new Error(
+                images.length === 1
+                  ? "Na fotografiji ni bilo mogoče najti berljivega besedila."
+                  : `Na fotografiji "${image.fileName || `photo-${image.index + 1}`}" ni bilo mogoče najti berljivega besedila.`,
+              );
+            }
+
+            extractedBlocks.push({
+              label: image.fileName || `photo-${image.index + 1}`,
+              pageNumber: image.index + 1,
+              text: extractedText,
+            });
+          }
+
+          const blocks = buildBlocks({
+            extractedBlocks,
+            pastedText: text,
+          });
+          const sourceFileNames = images.map(
+            (image) => image.fileName || `photo-${image.index + 1}`,
+          );
+          const titleHint =
+            images.length === 1
+              ? sourceFileNames[0].replace(/\.[^.]+$/i, "")
+              : `${images.length} fotografij`;
+
+          await prepareLectureFromTextSource({
+            lectureId,
+            userId: user.id,
+            sourceType: "text",
+            text: blocks.map((block) => block.text).join("\n\n"),
+            blocks,
+            titleHint,
+            languageHint,
+            modelMetadata: {
+              importMode: "scan",
+              sourceFileNames,
+              sourceImageUploads: images.map((image) => ({
+                index: image.index,
+                path: image.path,
+                fileName: image.fileName,
+                mimeType: image.mimeType,
+                size: image.size,
+              })),
+            },
+          });
+          await enqueueLectureNotesGeneration(lectureId);
+        } catch (error) {
+          await markLecturePipelineFailed({ lectureId, error });
+        }
+      });
+
+      return NextResponse.json({ lectureId });
+    }
+
     const formData = await request.formData();
     const parsedFields = scanLectureFieldsSchema.safeParse({
       lectureId: formData.get("lectureId"),
@@ -103,7 +299,7 @@ export async function POST(request: Request) {
 
       if (file.size > MAX_SCAN_IMAGE_BYTES) {
         return NextResponse.json(
-          { error: "Slika za skeniranje je prevelika. Omejitev je 4 MB." },
+          { error: "Slika za skeniranje je prevelika. Omejitev je 10 MB." },
           { status: 400 },
         );
       }
@@ -218,7 +414,7 @@ export async function POST(request: Request) {
 
       if (file.size > MAX_SCAN_IMAGE_BYTES) {
         return NextResponse.json(
-          { error: "Slika za skeniranje je prevelika. Omejitev je 4 MB." },
+          { error: "Slika za skeniranje je prevelika. Omejitev je 10 MB." },
           { status: 400 },
         );
       }

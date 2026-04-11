@@ -21,6 +21,7 @@ import {
   MAX_SCAN_IMAGE_COUNT,
   MAX_SCAN_IMAGE_BYTES,
   SCAN_IMAGE_INPUT_ACCEPT,
+  STORAGE_BUCKET,
 } from "@/lib/constants";
 import { parseApiResponse, redirectToBillingIfNeeded } from "@/lib/billing-client";
 import {
@@ -28,7 +29,12 @@ import {
   isSupportedDocumentFile,
 } from "@/lib/document-files";
 import { NOTE_LANGUAGE_OPTIONS } from "@/lib/languages";
-import { getExtensionForMimeType, normalizeMimeType } from "@/lib/storage";
+import {
+  getExtensionForMimeType,
+  normalizeMimeType,
+  normalizeUploadScanImageMimeType,
+} from "@/lib/storage";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { formatTimestamp } from "@/lib/utils";
 
 export type NoteSourceMode = "record" | "link" | "text" | "upload";
@@ -38,6 +44,14 @@ type AudioSource = {
   durationSeconds: number;
   previewUrl: string;
   origin: "upload" | "recording";
+};
+
+type ScanUploadResponse = {
+  uploads: Array<{
+    index: number;
+    path: string;
+    token: string;
+  }>;
 };
 
 const MODES: Array<{
@@ -755,26 +769,92 @@ export function NoteSourceModal({
         return;
       }
 
-      const formData = new FormData();
-      formData.append("lectureId", lectureId);
-      formData.append("languageHint", languageHint);
-
-      if (combinedTextSource.length > 0) {
-        formData.append("text", combinedTextSource);
-      }
-
-      for (const file of photoSources) {
-        formData.append("files", file);
-      }
-
+      const filesForUpload = photoSources.map((file, index) => ({
+        file,
+        index,
+        mimeType: normalizeUploadScanImageMimeType({
+          mimeType: file.type || "application/octet-stream",
+          fileName: file.name,
+        }),
+      }));
       const controller = new AbortController();
       activeRequestControllerRef.current = controller;
-      setBusyLabel("Nalagam fotografije...");
+
+      setBusyLabel("Pripravljam nalaganje fotografij...");
+      const uploadTargetsResponse = await fetch(`/api/lectures/${lectureId}/scan-uploads`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          files: filesForUpload.map(({ file, index, mimeType }) => ({
+            index,
+            mimeType,
+            fileName: file.name,
+            size: file.size,
+          })),
+        }),
+      });
+      const uploadTargets = await parseApiResponse<ScanUploadResponse>(uploadTargetsResponse);
+      const uploadTargetsByIndex = new Map(
+        uploadTargets.uploads.map((upload) => [upload.index, upload] as const),
+      );
+      const supabase = createSupabaseBrowserClient();
+
+      for (const [position, uploadFile] of filesForUpload.entries()) {
+        const uploadTarget = uploadTargetsByIndex.get(uploadFile.index);
+
+        if (!uploadTarget) {
+          throw new Error(`Manjka cilj za fotografijo ${position + 1}.`);
+        }
+
+        setBusyLabel(
+          filesForUpload.length === 1
+            ? "Nalagam fotografijo..."
+            : `Nalagam fotografijo ${position + 1} od ${filesForUpload.length}...`,
+        );
+
+        const uploadResult = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .uploadToSignedUrl(uploadTarget.path, uploadTarget.token, uploadFile.file, {
+            contentType: uploadFile.mimeType,
+            upsert: true,
+          });
+
+        if (uploadResult.error) {
+          throw new Error(uploadResult.error.message);
+        }
+      }
+
+      setBusyLabel("Dodajam v vrsto...");
 
       const response = await fetch("/api/lectures/scan", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         signal: controller.signal,
-        body: formData,
+        body: JSON.stringify({
+          lectureId,
+          languageHint,
+          text: combinedTextSource,
+          images: filesForUpload.map(({ file, index, mimeType }) => {
+            const uploadTarget = uploadTargetsByIndex.get(index);
+
+            if (!uploadTarget) {
+              throw new Error(`Manjka cilj za fotografijo ${index + 1}.`);
+            }
+
+            return {
+              index,
+              path: uploadTarget.path,
+              mimeType,
+              fileName: file.name,
+              size: file.size,
+            };
+          }),
+        }),
       });
 
       await parseApiResponse<{ lectureId: string }>(response);
@@ -876,7 +956,7 @@ export function NoteSourceModal({
       }
 
       if (file.size > MAX_SCAN_IMAGE_BYTES) {
-        throw new Error("Slika za skeniranje je prevelika. Omejitev je 4 MB.");
+        throw new Error("Slika za skeniranje je prevelika. Omejitev je 10 MB.");
       }
     }
 
