@@ -142,7 +142,7 @@ async function main() {
     productId: product.id,
     plan: "weekly",
     nickname: "Memo Pro Weekly",
-    unitAmount: 900,
+    unitAmount: 1000,
     interval: "week",
     intervalCount: 1,
   });
@@ -151,7 +151,7 @@ async function main() {
     productId: product.id,
     plan: "monthly",
     nickname: "Memo Pro Monthly",
-    unitAmount: 1800,
+    unitAmount: 2000,
     interval: "month",
     intervalCount: 1,
   });
@@ -160,7 +160,7 @@ async function main() {
     productId: product.id,
     plan: "yearly",
     nickname: "Memo Pro Yearly",
-    unitAmount: 11900,
+    unitAmount: 13000,
     interval: "year",
     intervalCount: 1,
   });

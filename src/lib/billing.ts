@@ -45,9 +45,6 @@ export const BILLING_PLANS: Record<
     label: string;
     cadence: string;
     amount: number;
-    displayAmount?: string;
-    originalDisplayAmount?: string;
-    discountNote?: string;
     billingNote?: string;
     annualizedAmount: number;
     blurb: string;
@@ -57,32 +54,25 @@ export const BILLING_PLANS: Record<
     id: "weekly",
     label: "Tedensko",
     cadence: "na teden",
-    amount: 9,
-    originalDisplayAmount: "10",
-    discountNote: "Trenutno 10 % popusta",
-    annualizedAmount: 468,
+    amount: 10,
+    annualizedAmount: 520,
     blurb: "Najhitrejši način, da preizkusiš celoten izdelek.",
   },
   monthly: {
     id: "monthly",
     label: "Mesečno",
     cadence: "na mesec",
-    amount: 18,
-    originalDisplayAmount: "20",
-    discountNote: "Trenutno 10 % popusta",
-    annualizedAmount: 216,
+    amount: 20,
+    annualizedAmount: 240,
     blurb: "Najboljša privzeta izbira za večino študentov.",
   },
   yearly: {
     id: "yearly",
     label: "Letno",
-    cadence: "na mesec",
-    amount: 119,
-    displayAmount: "9.92",
-    originalDisplayAmount: "11.02",
-    discountNote: "Trenutno 10 % popusta",
+    cadence: "na leto",
+    amount: 130,
     billingNote: "Obračunano letno",
-    annualizedAmount: 119,
+    annualizedAmount: 130,
     blurb: "Najnižja dejanska cena, če uporabljaš aplikacijo celo leto.",
   },
 };
