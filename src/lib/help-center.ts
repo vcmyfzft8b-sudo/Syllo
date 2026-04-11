@@ -213,11 +213,7 @@ To lahko po potrebi vključuje datoteke, besedilo, zvok in pozive, ki jih pošlj
 
 ## Hramba in brisanje
 
-Vsebina ostane povezana s tvojim računom, dokler je ne izbrišeš v izdelku ali je ne odstranimo prek podpore ali operativnega čiščenja. Če potrebuješ strožje pogoje glede hrambe, brisanja ali pogodbenih določil, se ne zanašaj samo na to privzeto politiko.
-
-## Pravno obvestilo
-
-To je povzetek za uporabniški vmesnik izdelka in ni pravni nasvet. Preden ga obravnavaš kot končno produkcijsko politiko zasebnosti, naj ga pregleda pravni strokovnjak.`,
+Vsebina ostane povezana s tvojim računom, dokler je ne izbrišeš v izdelku ali je ne odstranimo prek podpore ali operativnega čiščenja. Če potrebuješ strožje pogoje glede hrambe, brisanja ali pogodbenih določil, se ne zanašaj samo na to privzeto politiko.`,
   },
 ];
 
