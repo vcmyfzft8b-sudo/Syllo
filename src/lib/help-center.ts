@@ -70,13 +70,9 @@ Za zdaj ima vsak račun svojo knjižnico zapiskov, zgodovino obdelav in izvoze.
     category: "Pogosto",
     content: `# Podarjanje dostopa
 
-Darilne kode v tej različici še niso na voljo.
+Če imaš promocijsko ali darilno kodo, jo lahko prejemnik uporabi v Stripe Checkout pred zaključkom nakupa.
 
-Če želiš, da Memo uporablja nekdo drug, je trenutno najbolj praktično, da si ustvari svoj račun ali da mu deliš izvožene zapiske.
-
-## Kaj sledi
-
-Ko bo sistem kod pripravljen, bo povezan z možnostjo **Unovči kodo** v nastavitvah.`,
+Za uporabo Memo naj si prejemnik ustvari svoj račun, nato pa pri plačilu v Stripe vnese kodo in preveri, da se popust prikaže pred potrditvijo plačila.`,
   },
   {
     slug: "supported-language",
@@ -157,9 +153,15 @@ Kakovost prepisa je odvisna od čistosti zvoka, prekrivanja govorcev in izbraneg
     category: "Račun in dostop",
     content: `# Unovčenje kode
 
-Promocijske in darilne kode bodo dodane v kasnejši fazi.
+Promocijsko ali darilno kodo lahko uporabiš v Stripe Checkout pred zaključkom nakupa.
 
-Vstopna točka že obstaja v nastavitvah, zato bo mogoče potek povezati brez nove prenove.`,
+## Kako vneseš kodo
+
+- v nastavitvah izberi možnost za nakup ali nadgradnjo
+- v Stripe plačilnem obrazcu odpri polje za promocijsko kodo
+- vnesi kodo in potrdi, da se popust prikaže pred plačilom
+
+Če se polje ne prikaže ali koda ni sprejeta, preveri, ali je koda še veljavna in ali je namenjena izbranemu paketu.`,
   },
   {
     slug: "privacy-policy",
