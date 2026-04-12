@@ -5859,7 +5859,8 @@ select:disabled {
 }
 
 .landing-public-page,
-.landing-auth-page {
+.landing-auth-page,
+.auth-shell {
   --canvas: #e9e9ed;
   --canvas-rgb: 233 233 237;
   --surface: rgba(255, 255, 255, 0.72);
@@ -7568,7 +7569,7 @@ select:disabled {
 
 .check-email-title {
   margin: 0;
-  color: white;
+  color: var(--label);
   font-size: clamp(3rem, 8vw, 4.8rem);
   font-weight: 750;
   letter-spacing: -0.07em;
@@ -7578,14 +7579,14 @@ select:disabled {
 .check-email-copy {
   margin: 0;
   max-width: 36rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--secondary-label);
   font-size: clamp(1rem, 2.4vw, 1.28rem);
   line-height: 1.5;
   text-align: center;
 }
 
 .check-email-copy strong {
-  color: white;
+  color: var(--label);
   font-weight: 650;
 }
 
@@ -7601,33 +7602,33 @@ select:disabled {
 .check-email-code-field {
   min-height: 4.9rem;
   padding: 0 1.35rem;
-  border: 1px solid rgba(76, 91, 122, 0.9);
+  border: 1px solid color-mix(in srgb, var(--separator-strong) 76%, transparent);
   border-radius: 22px;
-  background: rgba(27, 27, 31, 0.82);
+  background: color-mix(in srgb, var(--surface-solid) 92%, var(--tint-soft));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 18px 46px rgba(0, 0, 0, 0.22);
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    var(--shadow-soft);
 }
 
 .check-email-code-field:focus-within {
-  border-color: color-mix(in srgb, var(--tint) 62%, white 10%);
+  border-color: color-mix(in srgb, var(--tint) 42%, var(--separator));
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--tint) 42%, transparent),
-    0 18px 46px rgba(0, 0, 0, 0.24);
+    0 0 0 1px color-mix(in srgb, var(--tint) 22%, transparent),
+    0 14px 32px rgba(0, 102, 204, 0.08);
 }
 
 .check-email-code-input {
   text-align: left;
   letter-spacing: 0.26em;
-  color: white;
-  -webkit-text-fill-color: white;
-  caret-color: white;
+  color: var(--label);
+  -webkit-text-fill-color: var(--label);
+  caret-color: var(--tint);
   font-size: clamp(1.18rem, 2.7vw, 1.42rem);
 }
 
 .check-email-code-input::placeholder {
-  color: rgba(214, 221, 235, 0.48);
-  -webkit-text-fill-color: rgba(214, 221, 235, 0.48);
+  color: var(--tertiary-label);
+  -webkit-text-fill-color: var(--tertiary-label);
   font-weight: 600;
   letter-spacing: 0.22em;
 }
@@ -7641,7 +7642,7 @@ select:disabled {
 
 .check-email-status-note {
   margin-top: 1rem;
-  color: rgba(214, 221, 235, 0.64);
+  color: var(--secondary-label);
   font-size: 0.98rem;
 }
 
@@ -7652,32 +7653,32 @@ select:disabled {
 
 .check-email-secondary {
   min-height: 3.65rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid color-mix(in srgb, var(--separator) 76%, transparent);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.05);
-  color: white;
-  -webkit-text-fill-color: white;
+  background: color-mix(in srgb, var(--surface-solid) 82%, transparent);
+  color: var(--label);
+  -webkit-text-fill-color: var(--label);
   font-size: 1rem;
   font-weight: 650;
 }
 
 .check-email-secondary[disabled] {
-  background: rgba(255, 255, 255, 0.035);
-  color: rgba(255, 255, 255, 0.58);
-  -webkit-text-fill-color: rgba(255, 255, 255, 0.58);
+  background: color-mix(in srgb, var(--surface-muted) 72%, transparent);
+  color: var(--secondary-label);
+  -webkit-text-fill-color: var(--secondary-label);
   opacity: 1;
 }
 
 .landing-auth-page .app-back-button {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(29, 29, 33, 0.92);
-  color: white;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+  border-color: color-mix(in srgb, var(--separator) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-solid) 88%, transparent);
+  color: var(--label);
+  box-shadow: var(--shadow-soft);
 }
 
 .landing-auth-page .app-back-button:hover {
   opacity: 1;
-  background: rgba(36, 36, 41, 0.96);
+  background: var(--surface-solid);
 }
 
 .email-entry-page {
@@ -7719,16 +7720,18 @@ select:disabled {
   width: 100%;
   min-height: 4.5rem;
   padding: 0 1.35rem;
-  border: 1px solid rgba(116, 129, 154, 0.58);
+  border: 1px solid color-mix(in srgb, var(--separator-strong) 76%, transparent);
   border-radius: 18px;
-  background: rgba(24, 24, 28, 0.92);
-  color: white;
+  background: color-mix(in srgb, var(--surface-solid) 92%, var(--tint-soft));
+  color: var(--label);
   font-size: 1rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    var(--shadow-soft);
 }
 
 .email-entry-input::placeholder {
-  color: rgba(145, 159, 182, 0.9);
+  color: var(--secondary-label);
 }
 
 .email-entry-submit {
