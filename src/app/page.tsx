@@ -61,7 +61,7 @@ const FEATURE_CARDS = [
   },
   {
     icon: "🗒️",
-    title: "Dobi čiste zapiske",
+    title: "Dobi clean zapiske",
     detail: "Urejeni zapiski in prepisi brez ročnega prepisovanja.",
   },
   {
@@ -86,7 +86,7 @@ const FEATURE_CARDS = [
   },
 ] as const;
 
-const HERO_PROOF_ITEMS = ["Prepisi", "Varno", "Flashcardi", "Kvizi", "Testi", "AI chat"] as const;
+const HERO_PROOF_ITEMS = ["Prepisi", "Flashcardi", "Kvizi", "Testi", "AI chat"] as const;
 
 export default async function HomePage() {
   if (hasPublicSupabaseEnv) {
@@ -128,9 +128,9 @@ export default async function HomePage() {
             </div>
             <h1 id="landing-public-title">Nikoli več ne piši zapiskov!</h1>
             <p>
-              Memo je tvoj AI notetaker za predavanja. Iz posnetkov, PDF-jev,
-              dokumentov in povezav pripravi zapiske, prepise, flashcarde,
-              kvize, teste in AI chat.
+              Memo je tvoj AI notetaker za predavanja. Iz audio posnetkov,
+              PDF-jev, dokumentov in povezav pripravi zapiske, prepise,
+              flashcarde, kvize, teste in AI chat.
             </p>
             <div className="landing-public-actions">
               <LandingLoadingLink href="/auth/continue" className="landing-public-cta primary">
