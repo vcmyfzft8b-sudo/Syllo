@@ -11,16 +11,19 @@ import { hasPublicSupabaseEnv } from "@/lib/public-env";
 
 const WORKFLOW_STEPS = [
   {
-    title: "Dodaj gradivo",
-    detail: "Posnemi predavanje, naloži zvok, prilepi besedilo ali dodaj povezavo.",
+    icon: "🎙️",
+    title: "1. Posnemi ali naloži",
+    detail: "Predavanja, PDF-je, dokumente, povezave in besedilo.",
   },
   {
-    title: "Preberi jasne zapiske",
-    detail: "Memo izlušči glavne ideje, razlago in strukturo za hitro ponavljanje.",
+    icon: "📝",
+    title: "2. Dobi zapiske",
+    detail: "Urejeni zapiski in prepis so pripravljeni v istem prostoru.",
   },
   {
-    title: "Uči se aktivno",
-    detail: "Iz iste vsebine dobiš flashcarde, kvize, testna vprašanja in klepet.",
+    icon: "🧠",
+    title: "3. Ponavljaj snov",
+    detail: "Flashcardi, kvizi, testna vprašanja in klepet z zapiski.",
   },
 ] as const;
 
@@ -51,6 +54,24 @@ const STUDY_EXAMPLES = [
   },
 ] as const;
 
+const FEATURE_CARDS = [
+  {
+    icon: "🎙️",
+    title: "Record or upload",
+    detail: "Lectures, PDFs, documents, links and pasted text.",
+  },
+  {
+    icon: "🗒️",
+    title: "Get clean notes",
+    detail: "Organized notes and transcripts without manual rewriting.",
+  },
+  {
+    icon: "💬",
+    title: "AI Chat",
+    detail: "Ask the note and keep context from the original material.",
+  },
+] as const;
+
 export default async function HomePage() {
   const isVercelPreview = process.env.VERCEL_ENV === "preview";
 
@@ -74,50 +95,93 @@ export default async function HomePage() {
         <nav className="landing-public-links" aria-label="Glavna navigacija">
           <Link href="#examples">Primeri</Link>
           <Link href="#continue" className="landing-public-nav-cta">
-            Nadaljuj
+            Try for $0
           </Link>
         </nav>
       </header>
 
       <section className="landing-public-hero" aria-labelledby="landing-public-title">
-        <Image
-          src="/hero-nota-illustration.svg"
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="landing-public-hero-image"
-        />
-        <div className="landing-public-hero-shade" />
-
         <div className="landing-public-hero-inner">
-          <p className="landing-public-eyebrow">AI zapiski za predavanja</p>
-          <h1 id="landing-public-title">Iz gradiva do učenja v enem prostoru.</h1>
-          <p>
-            Posnemi predavanje, naloži dokument ali dodaj povezavo. Memo pripravi
-            zapiske, flashcarde, kvize, testna vprašanja in klepet z vsebino.
-          </p>
-          <div className="landing-public-actions">
-            <Link href="#continue" className="landing-public-cta primary">
-              Nadaljuj v Memo
-            </Link>
-            <Link href="#examples" className="landing-public-cta secondary">
-              Poglej primere
-            </Link>
+          <div className="landing-public-hero-copy">
+            <div className="landing-hero-proof" aria-label="Prednosti">
+              <span>Transcripts</span>
+              <span>Secure</span>
+              <span>Flashcards</span>
+              <span>Quizzes</span>
+            </div>
+            <h1 id="landing-public-title">Never take notes again</h1>
+            <p>
+              Memo je tvoj AI pomočnik za predavanja. Iz posnetkov, PDF-jev,
+              dokumentov in povezav pripravi zapiske, prepise in učno gradivo.
+            </p>
+            <div className="landing-public-actions">
+              <Link href="#continue" className="landing-public-cta primary">
+                Try for $0
+              </Link>
+              <Link href="#continue" className="landing-public-cta secondary">
+                Continue on web
+              </Link>
+            </div>
+          </div>
+
+          <div className="landing-phone-preview" aria-label="Primer Memo aplikacije">
+            <div className="landing-phone-frame">
+              <div className="landing-phone-bars" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
+              <div className="landing-phone-topline">
+                <span className="landing-phone-logo">
+                  <Image
+                    src="/memo-logo.png"
+                    alt=""
+                    width={3651}
+                    height={3285}
+                    sizes="1.7rem"
+                  />
+                </span>
+                <strong>memoai.eu</strong>
+                <span>2 min ago</span>
+              </div>
+              <div className="landing-phone-note">
+                <Image
+                  src="/hero-nota-illustration.svg"
+                  alt=""
+                  fill
+                  sizes="18rem"
+                  className="landing-phone-image"
+                />
+                <div className="landing-phone-note-content">
+                  <p>Chat with your notes</p>
+                  <div className="landing-phone-chat-card">
+                    <span>NEW</span>
+                    <strong>Vprašaj zapisek</strong>
+                    <p>Razloži mi glavno idejo in pripravi 5 flashcardov.</p>
+                    <div>Ustvari kviz ↑</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <span className="landing-phone-badge" aria-hidden="true">
+              <Image src="/memo-logo.png" alt="" width={3651} height={3285} sizes="3.3rem" />
+            </span>
           </div>
         </div>
       </section>
 
       <section className="landing-public-section" aria-labelledby="landing-workflow-title">
         <div className="landing-public-section-heading">
-          <p className="landing-public-eyebrow">Tok dela</p>
-          <h2 id="landing-workflow-title">Od predavanja do ponavljanja.</h2>
+          <p className="landing-section-pill">How it works</p>
+          <h2 id="landing-workflow-title">Memo keeps it simple.</h2>
         </div>
 
         <div className="landing-workflow-grid">
-          {WORKFLOW_STEPS.map((step, index) => (
+          {WORKFLOW_STEPS.map((step) => (
             <article key={step.title} className="landing-workflow-item">
-              <span>{String(index + 1).padStart(2, "0")}</span>
+              <span className="landing-workflow-icon">{step.icon}</span>
               <h3>{step.title}</h3>
               <p>{step.detail}</p>
             </article>
@@ -125,10 +189,27 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="landing-public-section landing-feature-section" aria-labelledby="landing-feature-title">
+        <div className="landing-public-section-heading">
+          <p className="landing-section-pill">Features</p>
+          <h2 id="landing-feature-title">Capture, organize, and learn faster</h2>
+        </div>
+
+        <div className="landing-feature-grid">
+          {FEATURE_CARDS.map((feature) => (
+            <article key={feature.title} className="landing-feature-large-card">
+              <span className="landing-feature-large-icon">{feature.icon}</span>
+              <h3>{feature.title}</h3>
+              <p>{feature.detail}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="landing-public-section" id="examples" aria-labelledby="landing-examples-title">
         <div className="landing-public-section-heading">
-          <p className="landing-public-eyebrow">Primeri</p>
-          <h2 id="landing-examples-title">Čist pogled na to, kar dobiš iz zapiska.</h2>
+          <p className="landing-section-pill">Study materials</p>
+          <h2 id="landing-examples-title">Flashcards, quizzes, tests and chat from the same note.</h2>
         </div>
 
         <div className="landing-example-grid">
