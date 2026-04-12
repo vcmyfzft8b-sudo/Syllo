@@ -6,7 +6,7 @@ import { useState } from "react";
 const STORY_SLIDES = [
   {
     kind: "notes",
-    title: "Čisti zapiski",
+    title: "Clean zapiski",
     caption: "Predavanje postane urejen povzetek.",
     label: "Zapiski",
   },

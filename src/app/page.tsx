@@ -118,7 +118,7 @@ export default async function HomePage() {
               <span>Testi</span>
               <span>AI chat</span>
             </div>
-            <h1 id="landing-public-title">Nikoli več ne piši zapiskov</h1>
+            <h1 id="landing-public-title">Nikoli več ne piši zapiskov!</h1>
             <p>
               Memo je tvoj AI notetaker za predavanja. Iz posnetkov, PDF-jev,
               dokumentov in povezav pripravi zapiske, prepise, flashcarde,
