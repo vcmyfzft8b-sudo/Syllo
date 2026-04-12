@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 
 import { ThemeController } from "@/components/theme-controller";
 import { BRAND_NAME } from "@/lib/brand";
@@ -74,6 +75,7 @@ export default function RootLayout({
       <body>
         <ThemeController />
         {children}
+        <Analytics />
       </body>
     </html>
   );
