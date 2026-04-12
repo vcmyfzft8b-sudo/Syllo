@@ -4,7 +4,6 @@
 
 import {
   ArrowUp,
-  Download,
   Loader2,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -271,10 +270,6 @@ function stripLeadingRedundantHeading(markdown: string, title?: string | null) {
   }
 
   return remainingLines.join("\n").trim();
-}
-
-function sanitizeFileName(value?: string | null) {
-  return value?.replace(/[\\/:*?"<>|]+/g, "").trim() || "zapisek";
 }
 
 function sourceLabel(sourceType: string) {
@@ -675,7 +670,6 @@ export function LectureWorkspace({
     initialTrialChatMessagesRemaining,
   );
   const [isRetrying, setIsRetrying] = useState(false);
-  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isRegeneratingStudy, setIsRegeneratingStudy] = useState(false);
   const [isRegeneratingQuiz, setIsRegeneratingQuiz] = useState(false);
   const [isStartingPracticeTest, setIsStartingPracticeTest] = useState(false);
@@ -1762,26 +1756,6 @@ export function LectureWorkspace({
     void submitChatQuestion();
   }
 
-  async function downloadPdf() {
-    if (!detail.artifact) {
-      return;
-    }
-
-    setIsExportingPdf(true);
-
-    const anchor = document.createElement("a");
-    anchor.href = `/api/lectures/${detail.lecture.id}/pdf`;
-    anchor.download = `${sanitizeFileName(detail.lecture.title)}.pdf`;
-    anchor.rel = "noopener";
-    document.body.append(anchor);
-    anchor.click();
-    anchor.remove();
-
-    window.setTimeout(() => {
-      setIsExportingPdf(false);
-    }, 800);
-  }
-
   function renderPanel() {
     if (activeTab === "notes") {
       return (
@@ -2606,22 +2580,6 @@ export function LectureWorkspace({
             </div>
 
             <div className="lecture-actions">
-              {detail.artifact && activeTab === "notes" ? (
-                <button
-                  type="button"
-                  onClick={downloadPdf}
-                  className="lecture-action-button"
-                  aria-label="Prenesi PDF"
-                  title="Prenesi PDF"
-                >
-                  {isExportingPdf ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4" />
-                  )}
-                </button>
-              ) : null}
-
               {detail.lecture.status === "failed" ? (
                 <button
                   type="button"

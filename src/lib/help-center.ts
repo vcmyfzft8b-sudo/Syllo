@@ -62,12 +62,12 @@ Ti pogoji se lahko posodobijo, ko se izdelek spreminja. Če po posodobitvi nadal
 
 Skupni družinski delovni prostor še ni podprt.
 
-Za zdaj ima vsak račun svojo knjižnico zapiskov, zgodovino obdelav in izvoze.
+Za zdaj ima vsak račun svojo knjižnico zapiskov in zgodovino obdelav.
 
 ## Kaj lahko narediš zdaj
 
 - prijavi se z računom, ki naj bo lastnik zapiskov
-- izvožene PDF ali Markdown datoteke deli ročno
+- zapiske po potrebi kopiraj iz prikaza zapiska
 - za bolj dosledne rezultate uporabljaj enake jezikovne nastavitve`,
   },
   {
@@ -175,7 +175,7 @@ Promocijsko ali darilno kodo lahko uporabiš v Stripe Checkout pred zaključkom 
     category: "Račun in dostop",
     content: `# Politika zasebnosti
 
-Tvoji zapiski ostanejo povezani s tvojim računom. Naloženo gradivo se uporablja za prepise, povzetke, strukturirane zapiske, izvoze, kartice, kvize in odgovore v klepetu znotraj aplikacije.
+Tvoji zapiski ostanejo povezani s tvojim računom. Naloženo gradivo se uporablja za prepise, povzetke, strukturirane zapiske, kartice, kvize in odgovore v klepetu znotraj aplikacije.
 
 ## Kaj posreduješ
 
@@ -184,7 +184,7 @@ Glede na način uporabe aplikacije lahko posreduješ:
 - podatke o računu, kot so e-naslov in avtentikacijski podatki
 - zvočne posnetke in naložene zvočne datoteke
 - prilepljeno besedilo, zapiske, pozive in sporočila v klepetu
-- PDF-je, dokumente in izvožene datoteke
+- PDF-je in dokumente
 - javne povezave, za katere želiš, da jih Memo prebere
 
 ## Dovoljenja za snemanje in gradiva
@@ -200,7 +200,7 @@ Tvojo vsebino uporabljamo za:
 - prijavo v račun in ohranjanje aktivne seje
 - shranjevanje in urejanje tvoje knjižnice zapiskov
 - prepisovanje in analizo izvornega gradiva
-- ustvarjanje povzetkov, zapiskov, kartic, kvizov, izvozov in odgovorov v klepetu
+- ustvarjanje povzetkov, zapiskov, kartic, kvizov in odgovorov v klepetu
 - izvajanje ozadnih opravil, omejevanje zahtevkov in preprečevanje zlorab
 
 ## Obdelava pri tretjih ponudnikih
