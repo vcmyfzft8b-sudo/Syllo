@@ -86,6 +86,8 @@ const FEATURE_CARDS = [
   },
 ] as const;
 
+const HERO_PROOF_ITEMS = ["Prepisi", "Varno", "Flashcardi", "Kvizi", "Testi", "AI chat"] as const;
+
 export default async function HomePage() {
   if (hasPublicSupabaseEnv) {
     const user = await getOptionalUser();
@@ -111,12 +113,18 @@ export default async function HomePage() {
         <div className="landing-public-hero-inner">
           <div className="landing-public-hero-copy">
             <div className="landing-hero-proof" aria-label="Prednosti">
-              <span>Prepisi</span>
-              <span>Varno</span>
-              <span>Flashcardi</span>
-              <span>Kvizi</span>
-              <span>Testi</span>
-              <span>AI chat</span>
+              <div className="landing-hero-proof-track">
+                <div className="landing-hero-proof-group">
+                  {HERO_PROOF_ITEMS.map((item) => (
+                    <span key={item}>{item}</span>
+                  ))}
+                </div>
+                <div className="landing-hero-proof-group" aria-hidden="true">
+                  {HERO_PROOF_ITEMS.map((item) => (
+                    <span key={item}>{item}</span>
+                  ))}
+                </div>
+              </div>
             </div>
             <h1 id="landing-public-title">Nikoli več ne piši zapiskov!</h1>
             <p>
