@@ -6429,6 +6429,20 @@ select:disabled {
   color: var(--label);
 }
 
+.landing-public-brand .brand-logo {
+  gap: 0.85rem;
+}
+
+.landing-public-brand .brand-logo-mark {
+  width: clamp(2.9rem, 4.2vw, 3.8rem);
+  height: clamp(2.55rem, 3.7vw, 3.35rem);
+}
+
+.landing-public-brand .brand-logo-copy strong {
+  font-size: clamp(1.3rem, 2vw, 1.75rem);
+  line-height: 1;
+}
+
 .landing-public-brand .brand-logo-copy small {
   display: none;
 }
