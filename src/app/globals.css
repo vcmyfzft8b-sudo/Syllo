@@ -6897,12 +6897,12 @@ select:disabled {
   min-height: 36rem;
   overflow: hidden;
   padding: 1.15rem;
-  border: 0.8rem solid var(--surface-solid);
+  border: 0.8rem solid color-mix(in srgb, var(--surface-solid) 88%, var(--tint-soft));
   border-radius: 8px;
   background:
-    linear-gradient(180deg, rgba(5, 5, 5, 0.08), rgba(5, 5, 5, 0.64)),
-    linear-gradient(150deg, color-mix(in srgb, var(--surface-muted) 76%, var(--tint) 24%), var(--canvas) 42%, color-mix(in srgb, var(--surface-muted) 80%, var(--tint-strong) 20%));
-  box-shadow: var(--shadow-raised);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.18) 42%, color-mix(in srgb, var(--tint) 12%, transparent)),
+    linear-gradient(150deg, color-mix(in srgb, var(--surface-solid) 78%, var(--tint) 22%), color-mix(in srgb, var(--canvas) 72%, var(--surface-solid) 28%) 42%, color-mix(in srgb, var(--surface-muted) 64%, var(--tint-strong) 36%));
+  box-shadow: 0 1.6rem 3.8rem rgba(0, 0, 0, 0.07);
 }
 
 .landing-study-story::before {
@@ -7131,19 +7131,19 @@ select:disabled {
 .landing-public-hero .landing-study-story .landing-study-story-title {
   margin: 0;
   max-width: none;
-  color: #ffffff;
+  color: var(--label);
   font-size: 2.6rem;
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1.08;
-  text-shadow: 0 0.12rem 0.85rem rgba(0, 0, 0, 0.44);
+  text-shadow: 0 0.12rem 0.85rem rgba(255, 255, 255, 0.48);
   text-wrap: balance;
 }
 
 .landing-public-hero .landing-study-story .landing-study-story-copy p:not(.landing-study-story-title) {
   margin: 0;
   max-width: none;
-  color: rgba(255, 255, 255, 0.78);
+  color: color-mix(in srgb, var(--secondary-label) 90%, var(--label));
   font-size: 1rem;
   line-height: 1.35;
 }
