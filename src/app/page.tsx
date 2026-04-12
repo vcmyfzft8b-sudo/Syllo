@@ -114,6 +114,29 @@ export default async function HomePage() {
               </Link>
             </div>
           </div>
+          <div className="landing-study-visual" aria-label="Primer učnega gradiva">
+            <div className="landing-study-story">
+              <div className="landing-study-story-bars" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
+              <div className="landing-study-story-brand">
+                <span className="landing-study-story-logo">
+                  <Image src="/memo-logo.png" alt="" width={3651} height={3285} sizes="2.4rem" />
+                </span>
+                <span>memoai.eu</span>
+                <small>5 min nazaj</small>
+              </div>
+              <div className="landing-study-story-card">
+                <span>Flashcard</span>
+                <p>Kaj je aktivni priklic?</p>
+              </div>
+              <p className="landing-study-story-title">AI flashcardi, kvizi, testi in klepet</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -169,31 +192,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="landing-public-section landing-study-showcase" aria-label="Primer učnega gradiva">
-        <div className="landing-study-visual">
-          <div className="landing-study-story">
-            <div className="landing-study-story-bars" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-            <div className="landing-study-story-brand">
-              <span className="landing-study-story-logo">
-                <Image src="/memo-logo.png" alt="" width={3651} height={3285} sizes="2.4rem" />
-              </span>
-              <span>memoai.eu</span>
-              <small>5 min nazaj</small>
-            </div>
-            <div className="landing-study-story-card">
-              <span>Flashcard</span>
-              <p>Kaj je aktivni priklic?</p>
-            </div>
-            <p className="landing-study-story-title">AI flashcardi, kvizi, testi in klepet</p>
-          </div>
-        </div>
-      </section>
     </main>
   );
 }
