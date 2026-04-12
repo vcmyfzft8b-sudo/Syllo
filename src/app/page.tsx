@@ -21,7 +21,7 @@ const WORKFLOW_STEPS = [
   {
     icon: "🧠",
     title: "3. Ponavljaj snov",
-    detail: "Flashcardi, kvizi, testna vprašanja in klepet z zapiski.",
+    detail: "Flashcardi, kvizi, testi in AI chat z zapiski.",
   },
 ] as const;
 
@@ -65,7 +65,7 @@ const FEATURE_CARDS = [
   },
   {
     icon: "💬",
-    title: "AI klepet",
+    title: "AI chat",
     detail: "Vprašaj zapisek in ohrani kontekst iz izvirnega gradiva.",
   },
 ] as const;
@@ -99,11 +99,14 @@ export default async function HomePage() {
               <span>Varno</span>
               <span>Flashcardi</span>
               <span>Kvizi</span>
+              <span>Testi</span>
+              <span>AI chat</span>
             </div>
             <h1 id="landing-public-title">Nikoli več ne piši zapiskov</h1>
             <p>
               Memo je tvoj AI notetaker za predavanja. Iz posnetkov, PDF-jev,
-              dokumentov in povezav pripravi zapiske, prepise in učno gradivo.
+              dokumentov in povezav pripravi zapiske, prepise, flashcarde,
+              kvize, teste in AI chat.
             </p>
             <div className="landing-public-actions">
               <Link href="/auth/continue" className="landing-public-cta primary">
@@ -134,7 +137,7 @@ export default async function HomePage() {
                 <span>Flashcard</span>
                 <p>Kaj je aktivni priklic?</p>
               </div>
-              <p className="landing-study-story-title">AI flashcardi, kvizi, testi in klepet</p>
+              <p className="landing-study-story-title">Flashcardi, kvizi, testi in AI chat</p>
             </div>
           </div>
         </div>
@@ -177,7 +180,7 @@ export default async function HomePage() {
       <section className="landing-public-section" id="examples" aria-labelledby="landing-examples-title">
         <div className="landing-public-section-heading">
           <p className="landing-section-pill">Učno gradivo</p>
-          <h2 id="landing-examples-title">Flashcardi, kvizi, testi in klepet iz istega zapiska.</h2>
+          <h2 id="landing-examples-title">Flashcardi, kvizi, testi in AI chat iz istega zapiska.</h2>
         </div>
 
         <div className="landing-example-grid">
