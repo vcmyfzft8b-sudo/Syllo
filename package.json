@@ -30,7 +30,6 @@
     "mammoth": "^1.12.0",
     "next": "16.1.6",
     "pdfjs-dist": "^5.4.296",
-    "pdfmake": "^0.3.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0",
@@ -42,7 +41,6 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/pdfmake": "^0.3.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

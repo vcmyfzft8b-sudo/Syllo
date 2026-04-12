@@ -28,7 +28,7 @@ function getChrome(pathname: string) {
   if (pathname.startsWith("/app/lectures/")) {
     return {
       title: "Zapisek",
-      subtitle: "Preglej, izvozi in klepetaj o vsebini",
+      subtitle: "Preglej in klepetaj o vsebini",
       backHref: "/app",
     };
   }
