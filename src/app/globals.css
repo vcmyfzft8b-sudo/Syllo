@@ -6425,6 +6425,7 @@ select:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.45rem;
   padding: 0 1.05rem;
   color: var(--secondary-label);
 }
@@ -6544,6 +6545,7 @@ select:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
   min-width: 12.5rem;
   min-height: 3.65rem;
   padding: 0 1.35rem;
@@ -6568,6 +6570,25 @@ select:disabled {
 .landing-public-cta.secondary {
   background: color-mix(in srgb, var(--surface-solid) 72%, transparent);
   color: var(--label);
+}
+
+.landing-public-links a[aria-busy="true"],
+.landing-public-cta[aria-busy="true"] {
+  pointer-events: none;
+  opacity: 0.86;
+}
+
+.landing-loading-link-spinner {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  animation: landing-loading-spin 0.85s linear infinite;
+}
+
+@keyframes landing-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .landing-public-section {

@@ -3,6 +3,7 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { LandingLoadingLink } from "@/components/landing-loading-link";
 import { getOptionalUser } from "@/lib/auth";
 import { BRAND_NAME } from "@/lib/brand";
 import { hasPublicSupabaseEnv } from "@/lib/public-env";
@@ -100,9 +101,9 @@ export default async function HomePage() {
           <BrandLogo subtitle="" priority />
         </Link>
         <nav className="landing-public-links" aria-label="Glavna navigacija">
-          <Link href="/auth/continue" className="landing-public-nav-cta">
+          <LandingLoadingLink href="/auth/continue" className="landing-public-nav-cta">
             Preizkusi za 0 €
-          </Link>
+          </LandingLoadingLink>
         </nav>
       </header>
 
@@ -124,12 +125,12 @@ export default async function HomePage() {
               kvize, teste in AI chat.
             </p>
             <div className="landing-public-actions">
-              <Link href="/auth/continue" className="landing-public-cta primary">
+              <LandingLoadingLink href="/auth/continue" className="landing-public-cta primary">
                 Preizkusi za 0 €
-              </Link>
-              <Link href="/auth/continue" className="landing-public-cta secondary">
+              </LandingLoadingLink>
+              <LandingLoadingLink href="/auth/continue" className="landing-public-cta secondary">
                 Nadaljuj na spletu
-              </Link>
+              </LandingLoadingLink>
             </div>
           </div>
           <div className="landing-study-visual" aria-label="Primer učnega gradiva">
