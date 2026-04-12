@@ -5858,6 +5858,33 @@ select:disabled {
   min-height: 100vh;
 }
 
+.landing-public-page,
+.landing-auth-page {
+  --canvas: #e9e9ed;
+  --canvas-rgb: 233 233 237;
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-strong: rgba(255, 255, 255, 1);
+  --surface-solid: #ffffff;
+  --surface-muted: rgba(245, 245, 247, 1);
+  --label: #000000;
+  --secondary-label: #86868b;
+  --tertiary-label: #d2d2d7;
+  --separator: rgba(0, 0, 0, 0.08);
+  --separator-strong: rgba(0, 0, 0, 0.16);
+  --tint: #0066cc;
+  --tint-strong: #004eb1;
+  --tint-soft: rgba(0, 102, 204, 0.1);
+  --green: #34c759;
+  --green-soft: rgba(52, 199, 89, 0.12);
+  --red: #ff3b30;
+  --red-soft: rgba(255, 59, 48, 0.12);
+  --purple: #bf5af2;
+  --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.04);
+  --shadow-raised: 0 8px 30px rgba(0, 0, 0, 0.06);
+  --shadow-float: 0 20px 40px rgba(0, 0, 0, 0.08);
+  color-scheme: light;
+}
+
 .auth-shell {
   background:
     radial-gradient(circle at top, color-mix(in srgb, var(--tint-soft) 38%, transparent), transparent 38%),
@@ -5866,9 +5893,8 @@ select:disabled {
 
 .landing-auth-page {
   background:
-    radial-gradient(circle at top, rgba(11, 24, 61, 0.42), transparent 28%),
-    radial-gradient(circle at top left, rgba(172, 112, 34, 0.2), transparent 24%),
-    #121214;
+    radial-gradient(circle at top, color-mix(in srgb, var(--tint-soft) 58%, transparent), transparent 30%),
+    color-mix(in srgb, var(--canvas) 90%, var(--surface-solid));
 }
 
 .landing-dashboard {
@@ -6230,7 +6256,7 @@ select:disabled {
   display: flex;
   justify-content: center;
   width: 100%;
-  color: white;
+  color: var(--label);
   margin-bottom: 1.9rem;
 }
 
@@ -6240,7 +6266,7 @@ select:disabled {
 }
 
 .landing-auth-brand .brand-logo.compact .brand-logo-copy strong {
-  color: white;
+  color: var(--label);
   font-size: clamp(3.2rem, 8vw, 5.2rem);
   line-height: 1;
 }
@@ -6260,7 +6286,7 @@ select:disabled {
 
 .landing-auth-title {
   margin: 0;
-  color: white;
+  color: var(--label);
   font-size: clamp(1.5rem, 4vw, 2.3rem);
   font-weight: 700;
   letter-spacing: -0.06em;
@@ -6269,7 +6295,7 @@ select:disabled {
 
 .landing-auth-copy {
   margin: 0;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--secondary-label);
   max-width: 36rem;
   font-size: clamp(1.1rem, 2.6vw, 1.45rem);
   line-height: 1.35;
@@ -6300,22 +6326,22 @@ select:disabled {
 }
 
 .landing-provider-button.primary {
-  background: #0c0c0d;
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: var(--shadow-raised);
+  background: var(--surface-solid);
+  color: var(--label);
+  border: 1px solid color-mix(in srgb, var(--separator-strong) 75%, transparent);
+  box-shadow: var(--shadow-soft);
 }
 
 .landing-provider-button.secondary {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #f4f4f5;
-  color: #111111;
+  border: 1px solid transparent;
+  background: var(--label);
+  color: var(--canvas);
 }
 
 .landing-provider-button.tertiary {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #2b2d3f;
-  color: white;
+  border: 1px solid transparent;
+  background: var(--label);
+  color: var(--canvas);
 }
 
 .landing-provider-button:hover {
@@ -6325,14 +6351,14 @@ select:disabled {
 .landing-auth-legal {
   margin: 0;
   max-width: 28rem;
-  color: rgba(255, 255, 255, 0.64);
+  color: var(--secondary-label);
   font-size: 0.92rem;
   line-height: 1.45;
   text-align: center;
 }
 
 .landing-auth-legal a {
-  color: white;
+  color: var(--label);
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 0.18em;
@@ -6875,7 +6901,7 @@ select:disabled {
   border-radius: 8px;
   background:
     linear-gradient(180deg, rgba(5, 5, 5, 0.08), rgba(5, 5, 5, 0.64)),
-    linear-gradient(150deg, color-mix(in srgb, var(--surface-muted) 86%, var(--green) 14%), var(--canvas) 42%, color-mix(in srgb, var(--surface-muted) 78%, var(--red) 22%));
+    linear-gradient(150deg, color-mix(in srgb, var(--surface-muted) 76%, var(--tint) 24%), var(--canvas) 42%, color-mix(in srgb, var(--surface-muted) 80%, var(--tint-strong) 20%));
   box-shadow: var(--shadow-raised);
 }
 
