@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { BrandLogo } from "@/components/brand-logo";
@@ -113,52 +112,6 @@ export default async function HomePage() {
                 Nadaljuj na spletu
               </Link>
             </div>
-          </div>
-
-          <div className="landing-phone-preview" aria-label="Predogled Memo aplikacije">
-            <div className="landing-phone-frame">
-              <div className="landing-phone-bars" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-              </div>
-              <div className="landing-phone-topline">
-                <span className="landing-phone-logo">
-                  <Image
-                    src="/memo-logo.png"
-                    alt=""
-                    width={3651}
-                    height={3285}
-                    sizes="1.7rem"
-                  />
-                </span>
-                <strong>memoai.eu</strong>
-                <span>pred 2 min</span>
-              </div>
-              <div className="landing-phone-note">
-                <Image
-                  src="/hero-nota-illustration.svg"
-                  alt=""
-                  fill
-                  sizes="18rem"
-                  className="landing-phone-image"
-                />
-                <div className="landing-phone-note-content">
-                  <p>Klepetaj z zapiski</p>
-                  <div className="landing-phone-chat-card">
-                    <span>NOVO</span>
-                    <strong>Vprašaj zapisek</strong>
-                    <p>Razloži mi glavno idejo in pripravi 5 flashcardov.</p>
-                    <div>Ustvari kviz ↑</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <span className="landing-phone-badge" aria-hidden="true">
-              <Image src="/memo-logo.png" alt="" width={3651} height={3285} sizes="3.3rem" />
-            </span>
           </div>
         </div>
       </section>

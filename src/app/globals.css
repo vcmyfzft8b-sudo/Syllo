@@ -6447,10 +6447,8 @@ select:disabled {
 
 .landing-public-hero-inner {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(22rem, 30rem);
   align-content: center;
   align-items: center;
-  gap: 4rem;
   width: min(100%, 78rem);
   min-height: inherit;
   margin: 0 auto;
@@ -6499,7 +6497,7 @@ select:disabled {
 
 .landing-section-pill {
   display: inline-flex;
-  justify-self: center;
+  justify-self: start;
   min-height: 2.35rem;
   align-items: center;
   justify-content: center;
@@ -6572,157 +6570,6 @@ select:disabled {
   color: var(--label);
 }
 
-.landing-phone-preview {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  padding-bottom: 2.2rem;
-}
-
-.landing-phone-frame {
-  position: relative;
-  display: grid;
-  gap: 0.9rem;
-  width: min(100%, 25.5rem);
-  min-height: 34rem;
-  overflow: hidden;
-  padding: 1.1rem;
-  border: 8px solid var(--surface-solid);
-  border-radius: 32px;
-  background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.96), rgba(0, 0, 0, 0.76) 28%, color-mix(in srgb, var(--surface-solid) 72%, transparent));
-  box-shadow: 0 26px 56px rgba(0, 0, 0, 0.12);
-}
-
-.landing-phone-bars {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0.35rem;
-}
-
-.landing-phone-bars span {
-  height: 0.2rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.74);
-}
-
-.landing-phone-bars span:last-child {
-  opacity: 0.18;
-}
-
-.landing-phone-topline {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 0.9rem;
-}
-
-.landing-phone-topline strong {
-  color: white;
-  font-weight: 700;
-}
-
-.landing-phone-logo {
-  display: inline-flex;
-  width: 1.45rem;
-  height: 1.45rem;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border-radius: 999px;
-  background: white;
-}
-
-.landing-phone-logo img,
-.landing-phone-badge img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.landing-phone-note {
-  position: relative;
-  display: grid;
-  min-height: 26rem;
-  overflow: hidden;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-solid) 90%, transparent);
-}
-
-.landing-phone-image {
-  object-fit: cover;
-  opacity: 0.42;
-  filter: saturate(0.84);
-}
-
-.landing-phone-note-content {
-  position: relative;
-  display: grid;
-  align-content: center;
-  gap: 1rem;
-  padding: 1.5rem;
-  color: var(--label);
-}
-
-.landing-phone-note-content > p {
-  margin: 0;
-  font-size: 1.7rem;
-  line-height: 1.1;
-}
-
-.landing-phone-chat-card {
-  display: grid;
-  gap: 0.75rem;
-  padding: 1rem;
-  border: 1px solid color-mix(in srgb, var(--separator) 72%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-solid) 80%, transparent);
-  backdrop-filter: blur(16px);
-}
-
-.landing-phone-chat-card span {
-  width: fit-content;
-  border-radius: 8px;
-  padding: 0.35rem 0.6rem;
-  background: color-mix(in srgb, var(--purple) 20%, transparent);
-  color: var(--purple);
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-
-.landing-phone-chat-card strong,
-.landing-phone-chat-card p,
-.landing-phone-chat-card div {
-  margin: 0;
-}
-
-.landing-phone-chat-card div {
-  display: flex;
-  min-height: 2.6rem;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 0.8rem;
-  border: 2px solid var(--purple);
-  border-radius: 999px;
-  color: var(--label);
-  font-size: 0.9rem;
-}
-
-.landing-phone-badge {
-  position: absolute;
-  bottom: 0;
-  display: inline-flex;
-  width: 4.2rem;
-  height: 4.2rem;
-  align-items: center;
-  justify-content: center;
-  padding: 0.55rem;
-  border-radius: 8px;
-  background: var(--surface-solid);
-  box-shadow: var(--shadow-soft);
-}
-
 .landing-public-section,
 .landing-continue-section {
   width: min(100%, 78rem);
@@ -6732,10 +6579,10 @@ select:disabled {
 
 .landing-public-section-heading {
   display: grid;
-  justify-items: center;
+  justify-items: start;
   gap: 1.35rem;
   margin-bottom: 3.25rem;
-  text-align: center;
+  text-align: left;
 }
 
 .landing-public-section-heading h2,
@@ -6878,9 +6725,9 @@ select:disabled {
 
 .landing-continue-section {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(20rem, 28rem);
-  align-items: center;
-  gap: 2rem;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1.5rem;
   padding-top: 4rem;
 }
 
@@ -6890,7 +6737,8 @@ select:disabled {
 }
 
 .landing-continue-panel {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   padding: 1.1rem;
 }
@@ -6929,10 +6777,6 @@ select:disabled {
 }
 
 @media (max-width: 1099px) {
-  .landing-public-hero-inner {
-    gap: 2rem;
-  }
-
   .landing-public-hero h1 {
     font-size: 4rem;
   }
@@ -6944,7 +6788,6 @@ select:disabled {
 }
 
 @media (max-width: 799px) {
-  .landing-public-hero-inner,
   .landing-workflow-grid,
   .landing-continue-section {
     grid-template-columns: minmax(0, 1fr);
@@ -6956,18 +6799,6 @@ select:disabled {
 
   .landing-public-hero-inner {
     padding-top: 3rem;
-  }
-
-  .landing-phone-preview {
-    order: -1;
-  }
-
-  .landing-phone-frame {
-    min-height: 28rem;
-  }
-
-  .landing-phone-note {
-    min-height: 20rem;
   }
 
   .landing-workflow-grid::before {
