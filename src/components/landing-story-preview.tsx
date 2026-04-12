@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import type { CSSProperties } from "react";
+import { useEffect, useState } from "react";
 
 const STORY_SLIDES = [
   {
@@ -41,6 +42,8 @@ const STORY_SLIDES = [
     label: "AI chat",
   },
 ] as const;
+
+const STORY_AUTOPLAY_MS = 3200;
 
 function StoryGraphic({ kind }: { kind: (typeof STORY_SLIDES)[number]["kind"] }) {
   if (kind === "notes") {
@@ -107,6 +110,17 @@ function StoryGraphic({ kind }: { kind: (typeof STORY_SLIDES)[number]["kind"] })
 export function LandingStoryPreview() {
   const [activeIndex, setActiveIndex] = useState(0);
   const activeSlide = STORY_SLIDES[activeIndex];
+  const storyStyle = { "--story-duration": `${STORY_AUTOPLAY_MS}ms` } as CSSProperties;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveIndex((current) => (current === STORY_SLIDES.length - 1 ? 0 : current + 1));
+    }, STORY_AUTOPLAY_MS);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
 
   function showPrevious() {
     setActiveIndex((current) => (current === 0 ? STORY_SLIDES.length - 1 : current - 1));
@@ -118,7 +132,7 @@ export function LandingStoryPreview() {
 
   return (
     <div className="landing-study-visual" aria-label="Primeri učnega gradiva">
-      <div className={`landing-study-story landing-study-story-${activeSlide.kind}`}>
+      <div className={`landing-study-story landing-study-story-${activeSlide.kind}`} style={storyStyle}>
         <div className="landing-study-story-bars" aria-label="Izberi primer">
           {STORY_SLIDES.map((slide, index) => (
             <button
@@ -144,11 +158,11 @@ export function LandingStoryPreview() {
           <small>{activeSlide.label}</small>
         </div>
 
-        <div className="landing-study-story-card">
+        <div key={`${activeSlide.kind}-card`} className="landing-study-story-card">
           <StoryGraphic kind={activeSlide.kind} />
         </div>
 
-        <div className="landing-study-story-copy">
+        <div key={`${activeSlide.kind}-copy`} className="landing-study-story-copy">
           <p className="landing-study-story-title">{activeSlide.title}</p>
           <p>{activeSlide.caption}</p>
         </div>

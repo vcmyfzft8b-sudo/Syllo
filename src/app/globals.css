@@ -6476,6 +6476,27 @@ select:disabled {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  animation: landing-proof-pulse 4.8s ease-in-out infinite;
+}
+
+.landing-hero-proof span:nth-child(2) {
+  animation-delay: 0.22s;
+}
+
+.landing-hero-proof span:nth-child(3) {
+  animation-delay: 0.44s;
+}
+
+.landing-hero-proof span:nth-child(4) {
+  animation-delay: 0.66s;
+}
+
+.landing-hero-proof span:nth-child(5) {
+  animation-delay: 0.88s;
+}
+
+.landing-hero-proof span:nth-child(6) {
+  animation-delay: 1.1s;
 }
 
 .landing-hero-proof span::before {
@@ -6489,6 +6510,28 @@ select:disabled {
   border-radius: 999px;
   font-size: 0.58rem;
   line-height: 1;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.landing-hero-proof span:hover::before {
+  background: currentColor;
+  color: var(--canvas);
+}
+
+@keyframes landing-proof-pulse {
+  0%,
+  62%,
+  100% {
+    color: color-mix(in srgb, var(--secondary-label) 80%, transparent);
+    transform: translateY(0);
+  }
+
+  12% {
+    color: var(--label);
+    transform: translateY(-0.08rem);
+  }
 }
 
 .landing-public-eyebrow,
@@ -6897,12 +6940,23 @@ select:disabled {
 .landing-study-story-bars span {
   height: 0.22rem;
   width: 100%;
+  overflow: hidden;
   border-radius: 8px;
   background: color-mix(in srgb, var(--label) 26%, transparent);
 }
 
 .landing-study-story-bars button.active span {
+  position: relative;
+  background: color-mix(in srgb, var(--label) 26%, transparent);
+}
+
+.landing-study-story-bars button.active span::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   background: color-mix(in srgb, var(--label) 78%, transparent);
+  animation: landing-story-progress var(--story-duration, 3200ms) linear forwards;
 }
 
 .landing-study-story-brand {
@@ -6958,6 +7012,7 @@ select:disabled {
   color: var(--label);
   box-shadow: var(--shadow-soft);
   transform: rotate(-5deg);
+  animation: landing-story-card-enter 0.46s var(--motion-curve-soft) both;
 }
 
 .landing-study-story-transcript .landing-study-story-card {
@@ -7055,6 +7110,7 @@ select:disabled {
   z-index: 1;
   display: grid;
   gap: 0.65rem;
+  animation: landing-story-copy-enter 0.5s var(--motion-curve-soft) both;
 }
 
 .landing-public-hero .landing-study-story .landing-study-story-title {
@@ -7125,6 +7181,40 @@ select:disabled {
 .landing-study-story-controls button:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--tint) 82%, white);
   outline-offset: -0.35rem;
+}
+
+@keyframes landing-story-progress {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes landing-story-card-enter {
+  from {
+    opacity: 0;
+    translate: -1.4rem 0;
+  }
+
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes landing-story-copy-enter {
+  from {
+    opacity: 0;
+    translate: -1rem 0;
+  }
+
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
 }
 
 @media (max-width: 639px) {
