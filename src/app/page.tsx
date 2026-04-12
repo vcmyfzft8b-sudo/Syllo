@@ -3,8 +3,6 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { BrandLogo } from "@/components/brand-logo";
-import { LandingAuthOptions } from "@/components/landing-auth-options";
-import { getAuthProviderAvailability } from "@/lib/auth-providers";
 import { getOptionalUser } from "@/lib/auth";
 import { BRAND_NAME } from "@/lib/brand";
 import { hasPublicSupabaseEnv } from "@/lib/public-env";
@@ -57,24 +55,22 @@ const STUDY_EXAMPLES = [
 const FEATURE_CARDS = [
   {
     icon: "🎙️",
-    title: "Record or upload",
-    detail: "Lectures, PDFs, documents, links and pasted text.",
+    title: "Posnemi ali naloži",
+    detail: "Predavanja, PDF-je, dokumente, povezave in prilepljeno besedilo.",
   },
   {
     icon: "🗒️",
-    title: "Get clean notes",
-    detail: "Organized notes and transcripts without manual rewriting.",
+    title: "Dobi čiste zapiske",
+    detail: "Urejeni zapiski in prepisi brez ročnega prepisovanja.",
   },
   {
     icon: "💬",
-    title: "AI Chat",
-    detail: "Ask the note and keep context from the original material.",
+    title: "AI klepet",
+    detail: "Vprašaj zapisek in ohrani kontekst iz izvirnega gradiva.",
   },
 ] as const;
 
 export default async function HomePage() {
-  const isVercelPreview = process.env.VERCEL_ENV === "preview";
-
   if (hasPublicSupabaseEnv) {
     const user = await getOptionalUser();
     if (user) {
@@ -82,20 +78,15 @@ export default async function HomePage() {
     }
   }
 
-  const providers = hasPublicSupabaseEnv
-    ? await getAuthProviderAvailability()
-    : { apple: false, email: false, google: false };
-
   return (
     <main className="landing-shell landing-public-page">
       <header className="landing-public-nav">
         <Link href="/" className="landing-public-brand" aria-label={`Domov ${BRAND_NAME}`}>
-          <BrandLogo priority />
+          <BrandLogo subtitle="" priority />
         </Link>
         <nav className="landing-public-links" aria-label="Glavna navigacija">
-          <Link href="#examples">Primeri</Link>
-          <Link href="#continue" className="landing-public-nav-cta">
-            Try for $0
+          <Link href="/auth/continue" className="landing-public-nav-cta">
+            Preizkusi za 0 €
           </Link>
         </nav>
       </header>
@@ -104,27 +95,27 @@ export default async function HomePage() {
         <div className="landing-public-hero-inner">
           <div className="landing-public-hero-copy">
             <div className="landing-hero-proof" aria-label="Prednosti">
-              <span>Transcripts</span>
-              <span>Secure</span>
-              <span>Flashcards</span>
-              <span>Quizzes</span>
+              <span>Prepisi</span>
+              <span>Varno</span>
+              <span>Flashcardi</span>
+              <span>Kvizi</span>
             </div>
-            <h1 id="landing-public-title">Never take notes again</h1>
+            <h1 id="landing-public-title">Nikoli več ne piši zapiskov</h1>
             <p>
-              Memo je tvoj AI pomočnik za predavanja. Iz posnetkov, PDF-jev,
+              Memo je tvoj AI notetaker za predavanja. Iz posnetkov, PDF-jev,
               dokumentov in povezav pripravi zapiske, prepise in učno gradivo.
             </p>
             <div className="landing-public-actions">
-              <Link href="#continue" className="landing-public-cta primary">
-                Try for $0
+              <Link href="/auth/continue" className="landing-public-cta primary">
+                Preizkusi za 0 €
               </Link>
-              <Link href="#continue" className="landing-public-cta secondary">
-                Continue on web
+              <Link href="/auth/continue" className="landing-public-cta secondary">
+                Nadaljuj na spletu
               </Link>
             </div>
           </div>
 
-          <div className="landing-phone-preview" aria-label="Primer Memo aplikacije">
+          <div className="landing-phone-preview" aria-label="Predogled Memo aplikacije">
             <div className="landing-phone-frame">
               <div className="landing-phone-bars" aria-hidden="true">
                 <span />
@@ -144,7 +135,7 @@ export default async function HomePage() {
                   />
                 </span>
                 <strong>memoai.eu</strong>
-                <span>2 min ago</span>
+                <span>pred 2 min</span>
               </div>
               <div className="landing-phone-note">
                 <Image
@@ -155,9 +146,9 @@ export default async function HomePage() {
                   className="landing-phone-image"
                 />
                 <div className="landing-phone-note-content">
-                  <p>Chat with your notes</p>
+                  <p>Klepetaj z zapiski</p>
                   <div className="landing-phone-chat-card">
-                    <span>NEW</span>
+                    <span>NOVO</span>
                     <strong>Vprašaj zapisek</strong>
                     <p>Razloži mi glavno idejo in pripravi 5 flashcardov.</p>
                     <div>Ustvari kviz ↑</div>
@@ -174,8 +165,8 @@ export default async function HomePage() {
 
       <section className="landing-public-section" aria-labelledby="landing-workflow-title">
         <div className="landing-public-section-heading">
-          <p className="landing-section-pill">How it works</p>
-          <h2 id="landing-workflow-title">Memo keeps it simple.</h2>
+          <p className="landing-section-pill">Kako deluje</p>
+          <h2 id="landing-workflow-title">Memo vse poenostavi.</h2>
         </div>
 
         <div className="landing-workflow-grid">
@@ -191,8 +182,8 @@ export default async function HomePage() {
 
       <section className="landing-public-section landing-feature-section" aria-labelledby="landing-feature-title">
         <div className="landing-public-section-heading">
-          <p className="landing-section-pill">Features</p>
-          <h2 id="landing-feature-title">Capture, organize, and learn faster</h2>
+          <p className="landing-section-pill">Funkcije</p>
+          <h2 id="landing-feature-title">Zajemi, uredi in se uči hitreje</h2>
         </div>
 
         <div className="landing-feature-grid">
@@ -208,8 +199,8 @@ export default async function HomePage() {
 
       <section className="landing-public-section" id="examples" aria-labelledby="landing-examples-title">
         <div className="landing-public-section-heading">
-          <p className="landing-section-pill">Study materials</p>
-          <h2 id="landing-examples-title">Flashcards, quizzes, tests and chat from the same note.</h2>
+          <p className="landing-section-pill">Učno gradivo</p>
+          <h2 id="landing-examples-title">Flashcardi, kvizi, testi in klepet iz istega zapiska.</h2>
         </div>
 
         <div className="landing-example-grid">
@@ -235,26 +226,12 @@ export default async function HomePage() {
         </div>
 
         <div className="landing-continue-panel">
-          <LandingAuthOptions providers={providers} next="/app/start" />
-
-          <p className="landing-auth-legal landing-public-legal">
-            Z nadaljevanjem se strinjaš s {`${BRAND_NAME}`}{" "}
-            <Link href="/app/support/terms-of-use">pogoji uporabe</Link> in{" "}
-            <Link href="/app/support/privacy-policy">politiko zasebnosti</Link>, vključno z AI
-            obdelavo zvoka, besedila, dokumentov in povezav. Potrjuješ tudi, da imaš
-            potrebna dovoljenja za snemanje, nalaganje in uporabo gradiva, ki ga pošlješ
-            v Memo.
-          </p>
-
-          {!hasPublicSupabaseEnv ? (
-            <div className="dashboard-surface-card landing-env-warning">
-              <p className="ios-info ios-danger">
-                {isVercelPreview
-                  ? "Vercel Preview nima nastavljenih `NEXT_PUBLIC_SUPABASE_URL` in/ali `NEXT_PUBLIC_SUPABASE_ANON_KEY`."
-                  : "Manjkajo javne `Supabase` okoljske spremenljivke. Izpolni `.env.local`."}
-              </p>
-            </div>
-          ) : null}
+          <Link href="/auth/continue" className="landing-public-cta primary">
+            Preizkusi za 0 €
+          </Link>
+          <Link href="/auth/continue" className="landing-public-cta secondary">
+            Nadaljuj na spletu
+          </Link>
         </div>
       </section>
     </main>

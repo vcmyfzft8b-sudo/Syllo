@@ -6403,6 +6403,10 @@ select:disabled {
   color: var(--label);
 }
 
+.landing-public-brand .brand-logo-copy small {
+  display: none;
+}
+
 .landing-public-links {
   gap: 0.7rem;
   justify-content: flex-end;
