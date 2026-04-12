@@ -64,6 +64,21 @@ const FEATURE_CARDS = [
     detail: "Urejeni zapiski in prepisi brez ročnega prepisovanja.",
   },
   {
+    icon: "🧠",
+    title: "Flashcardi",
+    detail: "Ključni pojmi se spremenijo v kartice za hitro ponavljanje.",
+  },
+  {
+    icon: "✅",
+    title: "Kvizi",
+    detail: "Preveri razumevanje z vprašanji iz svojega gradiva.",
+  },
+  {
+    icon: "🧪",
+    title: "Testi",
+    detail: "Vadi daljše odgovore in pripravo na preverjanje znanja.",
+  },
+  {
     icon: "💬",
     title: "AI chat",
     detail: "Vprašaj zapisek in ohrani kontekst iz izvirnega gradiva.",
