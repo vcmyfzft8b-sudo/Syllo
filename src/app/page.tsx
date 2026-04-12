@@ -1,9 +1,9 @@
 import Link from "next/link";
-import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { LandingLoadingLink } from "@/components/landing-loading-link";
+import { LandingStoryPreview } from "@/components/landing-story-preview";
 import { getOptionalUser } from "@/lib/auth";
 import { BRAND_NAME } from "@/lib/brand";
 import { hasPublicSupabaseEnv } from "@/lib/public-env";
@@ -133,29 +133,7 @@ export default async function HomePage() {
               </LandingLoadingLink>
             </div>
           </div>
-          <div className="landing-study-visual" aria-label="Primer učnega gradiva">
-            <div className="landing-study-story">
-              <div className="landing-study-story-bars" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
-              </div>
-              <div className="landing-study-story-brand">
-                <span className="landing-study-story-logo">
-                  <Image src="/memo-logo.png" alt="" width={3651} height={3285} sizes="2.4rem" />
-                </span>
-                <span>memoai.eu</span>
-                <small>5 min nazaj</small>
-              </div>
-              <div className="landing-study-story-card">
-                <span>Flashcard</span>
-                <p>Kaj je aktivni priklic?</p>
-              </div>
-              <p className="landing-study-story-title">Flashcardi, kvizi, testi in AI chat</p>
-            </div>
-          </div>
+          <LandingStoryPreview />
         </div>
       </section>
 

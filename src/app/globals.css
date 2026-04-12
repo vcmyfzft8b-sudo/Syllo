@@ -6859,18 +6859,50 @@ select:disabled {
   transform: rotate(-11deg);
 }
 
+.landing-study-story-transcript::before {
+  transform: rotate(5deg);
+}
+
+.landing-study-story-quiz::before {
+  transform: rotate(-4deg);
+}
+
+.landing-study-story-test::before {
+  transform: rotate(4deg);
+}
+
+.landing-study-story-chat::before {
+  transform: rotate(-7deg);
+}
+
 .landing-study-story-bars {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.35rem;
+}
+
+.landing-study-story-bars button {
+  display: flex;
+  min-width: 0;
+  height: 1rem;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .landing-study-story-bars span {
   height: 0.22rem;
+  width: 100%;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--label) 64%, transparent);
+  background: color-mix(in srgb, var(--label) 26%, transparent);
+}
+
+.landing-study-story-bars button.active span {
+  background: color-mix(in srgb, var(--label) 78%, transparent);
 }
 
 .landing-study-story-brand {
@@ -6928,31 +6960,106 @@ select:disabled {
   transform: rotate(-5deg);
 }
 
-.landing-study-story-card span {
+.landing-study-story-transcript .landing-study-story-card {
+  transform: rotate(4deg);
+}
+
+.landing-study-story-quiz .landing-study-story-card {
+  transform: rotate(-3deg);
+}
+
+.landing-study-story-test .landing-study-story-card {
+  transform: rotate(3deg);
+}
+
+.landing-study-story-chat .landing-study-story-card {
+  transform: rotate(-2deg);
+}
+
+.landing-story-flashcard,
+.landing-story-notes,
+.landing-story-transcript,
+.landing-story-quiz,
+.landing-story-test,
+.landing-story-chat {
+  display: grid;
+  gap: 0.72rem;
+}
+
+.landing-story-flashcard strong,
+.landing-story-test strong,
+.landing-story-notes strong {
   color: var(--tint);
   font-size: 0.78rem;
   font-weight: 800;
   text-transform: uppercase;
 }
 
-.landing-public-hero .landing-study-story .landing-study-story-card p {
+.landing-story-notes span,
+.landing-story-test span {
+  display: block;
+  height: 0.55rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--secondary-label) 34%, transparent);
+}
+
+.landing-story-notes span.short {
+  width: 62%;
+}
+
+.landing-story-notes em {
+  color: var(--secondary-label);
+  font-size: 0.82rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.landing-public-hero .landing-study-story .landing-study-story-card p,
+.landing-public-hero .landing-study-story .landing-story-quiz strong,
+.landing-public-hero .landing-study-story .landing-story-quiz span,
+.landing-public-hero .landing-study-story .landing-story-transcript p,
+.landing-public-hero .landing-study-story .landing-story-test p {
   margin: 0;
   max-width: none;
   color: var(--label);
-  font-size: 1.18rem;
+  font-size: 1.02rem;
   font-weight: 750;
   letter-spacing: 0;
   line-height: 1.25;
 }
 
-.landing-public-hero .landing-study-story .landing-study-story-title {
-  position: absolute;
+.landing-story-quiz span,
+.landing-story-chat p {
+  padding: 0.58rem 0.7rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-muted) 70%, transparent);
+}
+
+.landing-public-hero .landing-study-story .landing-story-chat p {
+  margin: 0;
   max-width: none;
+  color: var(--label);
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.landing-story-chat p:nth-child(2) {
+  background: color-mix(in srgb, var(--tint) 12%, var(--surface-solid));
+}
+
+.landing-study-story-copy {
+  position: absolute;
   left: 2.4rem;
   right: 2.4rem;
   bottom: 3.4rem;
   z-index: 1;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.landing-public-hero .landing-study-story .landing-study-story-title {
   margin: 0;
+  max-width: none;
   color: #ffffff;
   font-size: 2.6rem;
   font-weight: 700;
@@ -6960,6 +7067,44 @@ select:disabled {
   line-height: 1.08;
   text-shadow: 0 0.12rem 0.85rem rgba(0, 0, 0, 0.44);
   text-wrap: balance;
+}
+
+.landing-public-hero .landing-study-story .landing-study-story-copy p:not(.landing-study-story-title) {
+  margin: 0;
+  max-width: none;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.landing-study-story-controls {
+  position: absolute;
+  right: 1.15rem;
+  bottom: 1.15rem;
+  z-index: 3;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.landing-study-story-controls button {
+  display: inline-flex;
+  width: 2.35rem;
+  height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-solid) 74%, transparent);
+  color: var(--label);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 800;
+  box-shadow: var(--shadow-soft);
+}
+
+.landing-study-story-controls button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--tint) 82%, white);
+  outline-offset: -0.35rem;
 }
 
 @media (max-width: 639px) {
@@ -6977,9 +7122,12 @@ select:disabled {
     width: calc(100% - 3.4rem);
   }
 
-  .landing-public-hero .landing-study-story .landing-study-story-title {
+  .landing-study-story-copy {
     left: 1.7rem;
     right: 1.7rem;
+  }
+
+  .landing-public-hero .landing-study-story .landing-study-story-title {
     font-size: 2.35rem;
   }
 }
