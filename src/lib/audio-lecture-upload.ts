@@ -7,6 +7,7 @@ import {
 } from "@/lib/audio-processing";
 import { createAudioProcessingChunks } from "@/lib/audio-processing-client";
 import { parseApiResponse } from "@/lib/billing-client";
+import { getPublicEnv } from "@/lib/public-env";
 import { normalizeUploadAudioMimeType } from "@/lib/storage";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { CreateLectureResponse } from "@/lib/types";
@@ -200,6 +201,65 @@ async function readUploadBytes(file: File) {
   }
 }
 
+function buildSignedUploadUrl(params: { path: string; token: string }) {
+  const { supabaseUrl } = getPublicEnv();
+
+  if (!supabaseUrl) {
+    throw new Error("Missing Supabase public environment variables.");
+  }
+
+  const encodedPath = params.path
+    .split("/")
+    .map((part) => encodeURIComponent(part))
+    .join("/");
+  const url = new URL(
+    `/storage/v1/object/upload/sign/${STORAGE_BUCKET}/${encodedPath}`,
+    supabaseUrl,
+  );
+  url.searchParams.set("token", params.token);
+  return url.toString();
+}
+
+async function uploadRawBytesToSignedUrl(params: {
+  path: string;
+  token: string;
+  bytes: ArrayBuffer;
+  contentType: string;
+  signal?: AbortSignal;
+}) {
+  const response = await fetch(
+    buildSignedUploadUrl({
+      path: params.path,
+      token: params.token,
+    }),
+    {
+      method: "PUT",
+      headers: {
+        "cache-control": "max-age=3600",
+        "content-type": params.contentType,
+      },
+      body: params.bytes,
+      signal: params.signal,
+    },
+  );
+
+  if (response.ok) {
+    return;
+  }
+
+  const clonedResponse = response.clone();
+  const payload = (await response.json().catch(() => null)) as
+    | { error?: string; message?: string }
+    | null;
+  const fallbackText = await clonedResponse.text().catch(() => "");
+  throw new Error(
+    payload?.message ??
+      payload?.error ??
+      (fallbackText.trim().length > 0 ? fallbackText.trim().slice(0, 240) : null) ??
+      `Upload failed with status ${response.status}.`,
+  );
+}
+
 async function uploadAudioFileToSignedUrl(params: {
   supabase: ReturnType<typeof createSupabaseBrowserClient>;
   path: string;
@@ -217,7 +277,6 @@ async function uploadAudioFileToSignedUrl(params: {
       });
 
   assertNotAborted(params.signal);
-  let uploadError: { message?: string; name?: string } | null = null;
 
   try {
     const uploadResult = await upload(params.file);
@@ -225,29 +284,26 @@ async function uploadAudioFileToSignedUrl(params: {
     if (!uploadResult.error) {
       return;
     }
-
-    uploadError = uploadResult.error;
   } catch (error) {
-    uploadError = error instanceof Error ? error : {};
-  }
-
-  if (!shouldRetryWithRawBody(uploadError)) {
-    throw createUploadError(uploadError);
+    if (params.signal?.aborted) {
+      throw error;
+    }
   }
 
   assertNotAborted(params.signal);
   const fileBytes = await readUploadBytes(params.file);
   assertNotAborted(params.signal);
-  let rawUploadResult: Awaited<ReturnType<typeof upload>>;
 
   try {
-    rawUploadResult = await upload(fileBytes);
+    await uploadRawBytesToSignedUrl({
+      path: params.path,
+      token: params.token,
+      bytes: fileBytes,
+      contentType: params.contentType,
+      signal: params.signal,
+    });
   } catch (error) {
     throw createUploadError(error instanceof Error ? error : {});
-  }
-
-  if (rawUploadResult.error) {
-    throw createUploadError(rawUploadResult.error);
   }
 }
 
