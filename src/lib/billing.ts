@@ -1,12 +1,14 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
+import { cache } from "react";
 import Stripe from "stripe";
 
+import { getOptionalUser } from "@/lib/auth";
 import type { BillingSubscriptionRow, ProfileRow } from "@/lib/database.types";
 import { getPublicEnv } from "@/lib/public-env";
 import { getServerEnv } from "@/lib/server-env";
-import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 
 export type BillingPlan = "weekly" | "monthly" | "yearly";
 export type BillingRequiredCode =
@@ -319,7 +321,7 @@ function buildEntitlementState(params: {
   } satisfies UserEntitlementState;
 }
 
-export async function getUserEntitlementState(userId: string) {
+export const getUserEntitlementState = cache(async function getUserEntitlementState(userId: string) {
   const { profile, subscriptions } = await fetchProfileAndSubscriptions(userId);
   const billingState = await resolveUserSubscriptionState({
     userId,
@@ -349,13 +351,10 @@ export async function getUserEntitlementState(userId: string) {
     canResumeTrialLecture,
     ...trialUsage,
   });
-}
+});
 
-export async function getViewerAppState() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export const getViewerAppState = cache(async function getViewerAppState() {
+  const user = await getOptionalUser();
 
   if (!user) {
     return null;
@@ -367,7 +366,7 @@ export async function getViewerAppState() {
     user,
     ...entitlement,
   };
-}
+});
 
 export function getPlanFromPriceId(priceId: string | null | undefined): BillingPlan | null {
   if (!priceId) {

@@ -10,6 +10,7 @@ import type {
   LectureStudySectionRow,
   TranscriptSegmentRow,
 } from "@/lib/database.types";
+import { TRANSCRIPT_SEGMENT_CONTENT_SELECT } from "@/lib/database-selects";
 import { countWords } from "@/lib/note-generation";
 import { createCoveragePlan, MAX_STUDY_ITEMS } from "@/lib/study-coverage";
 import { generateCoverageCards, repairCoverageCards } from "@/lib/study-cards";
@@ -497,7 +498,7 @@ export async function generateLectureFlashcards(params: { lectureId: string }) {
           .single(),
         supabase
           .from("transcript_segments")
-          .select("*")
+          .select(TRANSCRIPT_SEGMENT_CONTENT_SELECT)
           .eq("lecture_id", params.lectureId)
           .order("idx", { ascending: true }),
         fetchExistingDeck(params.lectureId, storage),

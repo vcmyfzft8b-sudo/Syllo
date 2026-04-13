@@ -10,6 +10,7 @@ import type {
   TranscriptSegmentRow,
 } from "@/lib/database.types";
 import { generateStructuredObject } from "@/lib/ai/json";
+import { TRANSCRIPT_SEGMENT_CONTENT_SELECT } from "@/lib/database-selects";
 import { buildGeneratedContentLanguageInstruction } from "@/lib/languages";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { createCoveragePlan, MAX_STUDY_ITEMS } from "@/lib/study-coverage";
@@ -661,7 +662,7 @@ export async function generateLectureQuiz(params: { lectureId: string }) {
         .single(),
       supabase
         .from("transcript_segments")
-        .select("*")
+        .select(TRANSCRIPT_SEGMENT_CONTENT_SELECT)
         .eq("lecture_id", params.lectureId)
         .order("idx", { ascending: true }),
     ]);
