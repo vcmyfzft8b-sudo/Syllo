@@ -1,10 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
-import {
-  enqueueLectureProcessingStage,
-  type LectureProcessingStage,
-} from "@/lib/jobs";
+import type { LectureProcessingStage } from "@/lib/jobs";
 import {
   generateLectureNotesFromStoredTranscript,
   markLecturePipelineFailed,
@@ -47,9 +44,8 @@ async function runLectureStage(params: {
       lectureId: params.lectureId,
     });
 
-    await enqueueLectureProcessingStage({
+    await generateLectureNotesFromStoredTranscript({
       lectureId: params.lectureId,
-      stage: "generate_notes",
     });
 
     return;

@@ -14,6 +14,7 @@ import type {
 } from "@/lib/database.types";
 import { generateStructuredObject } from "@/lib/ai/json";
 import { generateStructuredObjectWithGeminiFile } from "@/lib/ai/gemini";
+import { TRANSCRIPT_SEGMENT_CONTENT_SELECT } from "@/lib/database-selects";
 import { buildGeneratedContentLanguageInstruction } from "@/lib/languages";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { createCoveragePlan } from "@/lib/study-coverage";
@@ -540,7 +541,7 @@ export async function generateLecturePracticeTest(params: {
       supabase.from("lecture_artifacts").select("*").eq("lecture_id", params.lectureId).single(),
       supabase
         .from("transcript_segments")
-        .select("*")
+        .select(TRANSCRIPT_SEGMENT_CONTENT_SELECT)
         .eq("lecture_id", params.lectureId)
         .order("idx", { ascending: true }),
     ]);

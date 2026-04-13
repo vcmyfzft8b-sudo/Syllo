@@ -34,6 +34,7 @@ import type {
   StudySectionWithProgress,
   StudySession,
 } from "@/lib/types";
+import { TRANSCRIPT_SEGMENT_CONTENT_SELECT } from "@/lib/database-selects";
 import { buildPracticeTestHistorySummary, mapAttemptWithAnswers } from "@/lib/practice-test";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { uuidSchema } from "@/lib/validation";
@@ -574,10 +575,12 @@ function buildStudySections(params: {
 }
 
 export async function listLecturesForUser(userId: string): Promise<AppLectureListItem[]> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseServiceRoleClient();
   const { data, error } = await supabase
     .from("lectures")
-    .select("*")
+    .select(
+      "id, user_id, title, source_type, duration_seconds, status, language_hint, error_message, created_at, updated_at, access_tier",
+    )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
@@ -615,44 +618,53 @@ export async function getLectureDetailForUser(params: {
   }
 
   const lectureRow = lecture as LectureRow;
+  const detailClient = service;
 
-  const studySectionsPromise = supabase
+  const studySectionsPromise = detailClient
     .from("lecture_study_sections")
     .select("*")
     .eq("lecture_id", lectureRow.id)
     .order("idx", { ascending: true });
-  const quizAssetPromise = supabase
+  const quizAssetPromise = detailClient
     .from("lecture_quiz_assets")
     .select("*")
     .eq("lecture_id", lectureRow.id)
     .maybeSingle();
-  const studySessionPromise = supabase
+  const studySessionPromise = detailClient
     .from("lecture_study_sessions")
     .select("*")
     .eq("lecture_id", lectureRow.id)
     .eq("user_id", params.userId)
     .maybeSingle();
-  const quizQuestionsPromise = supabase
+  const quizQuestionsPromise = detailClient
     .from("quiz_questions")
     .select("*")
     .eq("lecture_id", lectureRow.id)
     .order("idx", { ascending: true });
-  const practiceTestAssetPromise = supabase
+  const practiceTestAssetPromise = detailClient
     .from("lecture_practice_test_assets")
     .select("*")
     .eq("lecture_id", lectureRow.id)
     .maybeSingle();
-  const practiceTestQuestionsPromise = supabase
+  const practiceTestQuestionsPromise = detailClient
     .from("practice_test_questions")
     .select("*")
     .eq("lecture_id", lectureRow.id)
     .order("idx", { ascending: true });
-  const practiceTestAttemptsPromise = supabase
+  const practiceTestAttemptsPromise = detailClient
     .from("practice_test_attempts")
     .select("*")
     .eq("lecture_id", lectureRow.id)
     .eq("user_id", params.userId)
     .order("created_at", { ascending: true });
+  const transcriptPromise =
+    lectureRow.source_type === "audio"
+      ? detailClient
+          .from("transcript_segments")
+          .select(TRANSCRIPT_SEGMENT_CONTENT_SELECT)
+          .eq("lecture_id", lectureRow.id)
+          .order("idx", { ascending: true })
+      : Promise.resolve({ data: [], error: null });
 
   const [
     { data: artifact, error: artifactError },
@@ -668,27 +680,23 @@ export async function getLectureDetailForUser(params: {
     practiceTestQuestionsResult,
     practiceTestAttemptsResult,
   ] = await Promise.all([
-    supabase
+    detailClient
       .from("lecture_artifacts")
       .select("*")
       .eq("lecture_id", lectureRow.id)
       .maybeSingle(),
-    supabase
+    detailClient
       .from("lecture_study_assets")
       .select("*")
       .eq("lecture_id", lectureRow.id)
       .maybeSingle(),
-    supabase
+    detailClient
       .from("flashcards")
       .select("*")
       .eq("lecture_id", lectureRow.id)
       .order("idx", { ascending: true }),
-    supabase
-      .from("transcript_segments")
-      .select("*")
-      .eq("lecture_id", lectureRow.id)
-      .order("idx", { ascending: true }),
-    supabase
+    transcriptPromise,
+    detailClient
       .from("chat_messages")
       .select("*")
       .eq("lecture_id", lectureRow.id)
@@ -798,7 +806,7 @@ export async function getLectureDetailForUser(params: {
   const flashcardRows = (flashcards ?? []) as FlashcardRow[];
   const flashcardIds = flashcardRows.map((flashcard) => flashcard.id);
   const flashcardProgress = await fetchFlashcardProgressRows({
-    supabase,
+    supabase: detailClient,
     userId: params.userId,
     flashcardIds,
   });

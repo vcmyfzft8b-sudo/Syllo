@@ -55,6 +55,22 @@ export async function enqueueLectureProcessingStage(params: {
   return true;
 }
 
+async function tryEnqueueLectureProcessingStage(params: {
+  lectureId: string;
+  stage: LectureProcessingStage;
+}) {
+  try {
+    return await enqueueLectureProcessingStage(params);
+  } catch (error) {
+    console.error("Lecture processing stage could not be started", {
+      lectureId: params.lectureId,
+      stage: params.stage,
+      error,
+    });
+    return false;
+  }
+}
+
 async function enqueueInternalLectureJob(params: {
   lectureId: string;
   path: string;
@@ -95,6 +111,24 @@ async function enqueueInternalLectureJob(params: {
   return true;
 }
 
+async function tryEnqueueInternalLectureJob(params: {
+  lectureId: string;
+  path: string;
+  regenerate?: boolean;
+}) {
+  try {
+    return await enqueueInternalLectureJob(params);
+  } catch (error) {
+    console.error("Lecture background job could not be started", {
+      lectureId: params.lectureId,
+      path: params.path,
+      regenerate: params.regenerate,
+      error,
+    });
+    return false;
+  }
+}
+
 export async function enqueueLectureProcessing(lectureId: string) {
   const env = getServerEnv();
 
@@ -106,7 +140,7 @@ export async function enqueueLectureProcessing(lectureId: string) {
     return;
   }
 
-  if (await enqueueLectureProcessingStage({ lectureId, stage: "transcribe" })) {
+  if (await tryEnqueueLectureProcessingStage({ lectureId, stage: "transcribe" })) {
     return;
   }
 
@@ -126,7 +160,7 @@ export async function enqueueLectureNotesGeneration(lectureId: string) {
     return;
   }
 
-  if (await enqueueLectureProcessingStage({ lectureId, stage: "generate_notes" })) {
+  if (await tryEnqueueLectureProcessingStage({ lectureId, stage: "generate_notes" })) {
     return;
   }
 
@@ -182,7 +216,7 @@ export async function enqueueLecturePracticeTestGeneration(
   }
 
   if (
-    await enqueueInternalLectureJob({
+    await tryEnqueueInternalLectureJob({
       lectureId,
       path: INTERNAL_LECTURE_PRACTICE_TEST_PATH,
       regenerate,
