@@ -310,6 +310,84 @@ function isScanImport(detail: LectureDetail) {
   return isRecord(modelMetadata) && modelMetadata.importMode === "scan";
 }
 
+function getScanTranscriptFallback(detail: LectureDetail) {
+  if (!isScanImport(detail)) {
+    return [];
+  }
+
+  const metadata = detail.lecture.processing_metadata;
+
+  if (!isRecord(metadata)) {
+    return [];
+  }
+
+  const manualImport = metadata.manualImport;
+
+  if (!isRecord(manualImport)) {
+    return [];
+  }
+
+  const blocks = Array.isArray(manualImport.blocks) ? manualImport.blocks : [];
+  const segments: Array<{
+    id: string;
+    start_ms: number;
+    end_ms: number;
+    speaker_label: string | null;
+    text: string;
+  }> = [];
+  let startMs = 0;
+
+  for (const [index, block] of blocks.entries()) {
+    if (!isRecord(block)) {
+      continue;
+    }
+
+    const text = typeof block.text === "string" ? block.text.trim() : "";
+
+    if (!text) {
+      continue;
+    }
+
+    const label = typeof block.label === "string" && block.label.trim() ? block.label.trim() : null;
+    const pageNumber = typeof block.pageNumber === "number" ? block.pageNumber : null;
+    const durationMs = Math.max(Math.round(text.split(/\s+/).filter(Boolean).length * 420), 6000);
+
+    segments.push({
+      id: `scan-fallback-${index}`,
+      start_ms: startMs,
+      end_ms: startMs + durationMs,
+      speaker_label:
+        pageNumber != null
+          ? label
+            ? `Page ${pageNumber} · ${label}`
+            : `Page ${pageNumber}`
+          : label,
+      text,
+    });
+    startMs += durationMs;
+  }
+
+  if (segments.length > 0) {
+    return segments;
+  }
+
+  const text = typeof manualImport.text === "string" ? manualImport.text.trim() : "";
+
+  if (!text) {
+    return [];
+  }
+
+  return [
+    {
+      id: "scan-fallback-text",
+      start_ms: 0,
+      end_ms: Math.max(Math.round(text.split(/\s+/).filter(Boolean).length * 420), 6000),
+      speaker_label: null,
+      text,
+    },
+  ];
+}
+
 function studyStageLabel(stage: unknown) {
   if (stage === "building_sections") {
     return "Gradim učne sklope";
@@ -2545,9 +2623,12 @@ export function LectureWorkspace({
     }
 
     if (activeTab === "transcript") {
-      return detail.transcript.length > 0 ? (
+      const transcriptSegments =
+        detail.transcript.length > 0 ? detail.transcript : getScanTranscriptFallback(detail);
+
+      return transcriptSegments.length > 0 ? (
         <div className="ios-card lecture-transcript-card">
-          {detail.transcript.map((segment) => (
+          {transcriptSegments.map((segment) => (
             <div key={segment.id} className="timeline-row">
               <p className="timeline-time">
                 {formatTimestamp(segment.start_ms)}
@@ -2556,7 +2637,7 @@ export function LectureWorkspace({
                   : ""}
                 {segment.speaker_label ? ` · ${segment.speaker_label}` : ""}
               </p>
-              <p className="m-0 text-[0.98rem] leading-8 text-[var(--label)]">
+              <p className="m-0 whitespace-pre-wrap text-[0.98rem] leading-8 text-[var(--label)]">
                 {segment.text}
               </p>
             </div>
