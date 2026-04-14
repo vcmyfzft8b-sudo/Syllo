@@ -82,6 +82,7 @@ AI_PROVIDER=gemini
 GEMINI_API_KEY=...
 GEMINI_TEXT_MODEL=gemini-2.5-flash-lite
 GEMINI_TRANSCRIPTION_MODEL=gemini-2.5-flash
+GEMINI_OCR_MODEL=gemini-3-flash-preview
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 ```
 

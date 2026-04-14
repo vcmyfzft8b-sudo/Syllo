@@ -512,7 +512,7 @@ export async function extractTextFromPdf(file: File) {
     schema: pdfExtractionSchema,
     instructions: `${fallbackInstructions}\n\nExtract the document text as faithfully and completely as possible so it can be turned into detailed study notes and flashcards.`,
     file,
-    model: env.GEMINI_TEXT_MODEL,
+    model: env.GEMINI_OCR_MODEL,
     maxOutputTokens: 7000,
   });
 
@@ -579,7 +579,7 @@ export async function extractTextFromImage(file: File) {
       schema: imageExtractionSchema,
       instructions,
       file,
-      model: env.GEMINI_TEXT_MODEL,
+      model: env.GEMINI_OCR_MODEL,
       maxOutputTokens: 6000,
     });
 
@@ -596,7 +596,7 @@ TITLE: <short title>
 TEXT:
 <full extracted text>`,
       file,
-      model: env.GEMINI_TEXT_MODEL,
+      model: env.GEMINI_OCR_MODEL,
       maxOutputTokens: 12000,
     });
 

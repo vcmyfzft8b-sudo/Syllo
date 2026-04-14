@@ -66,6 +66,7 @@ GEMINI_API_KEY=...
 
 ```bash
 GEMINI_TEXT_MODEL=gemini-2.5-flash-lite
+GEMINI_OCR_MODEL=gemini-3-flash-preview
 GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 
 # required for transcription
