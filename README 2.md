@@ -153,7 +153,7 @@ Current plan values in code:
 
 To set up Stripe:
 
-1. Create recurring Stripe prices for weekly, monthly, and yearly plans.
+1. Create recurring Stripe prices for weekly, monthly, and yearly plans, plus the `MEMO50` promotion code.
 2. Set `STRIPE_SECRET_KEY`.
 3. Run:
 
@@ -184,7 +184,7 @@ npm run stripe:setup
 - `npm run build` create a production build
 - `npm run start` run the production server
 - `npm run lint` run ESLint
-- `npm run stripe:setup` bootstrap Stripe product, prices, portal, and webhook
+- `npm run stripe:setup` bootstrap Stripe product, prices, `MEMO50` promotion code, portal, and webhook
 
 ## Verification
 
