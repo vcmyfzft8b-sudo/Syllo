@@ -1,5 +1,8 @@
 import Stripe from "stripe";
 
+const MEMO50_COUPON_ID = "memo50-first-cycle";
+const MEMO50_PROMOTION_CODE = "MEMO50";
+
 function requireEnv(name) {
   const value = process.env[name]?.trim();
 
@@ -75,6 +78,112 @@ async function findOrCreatePrice(stripe, params) {
       plan: params.plan,
     },
     nickname: params.nickname,
+  });
+}
+
+function isStripeMissingResourceError(error) {
+  return (
+    error &&
+    typeof error === "object" &&
+    ("code" in error || "type" in error) &&
+    error.code === "resource_missing"
+  );
+}
+
+function getPromotionCodeCouponId(promotionCode) {
+  const coupon = promotionCode.promotion?.coupon;
+  return typeof coupon === "string" ? coupon : coupon?.id ?? null;
+}
+
+function assertMemo50Coupon(coupon, productId) {
+  if (coupon.deleted) {
+    throw new Error(`Stripe coupon ${MEMO50_COUPON_ID} was deleted and cannot be reused.`);
+  }
+
+  const products = coupon.applies_to?.products ?? [];
+  const appliesToProduct = products.length === 1 && products[0] === productId;
+
+  if (coupon.percent_off !== 50 || coupon.duration !== "once" || !appliesToProduct) {
+    throw new Error(
+      `Stripe coupon ${MEMO50_COUPON_ID} already exists, but it is not a 50% first-cycle discount for product ${productId}.`,
+    );
+  }
+}
+
+async function findOrCreateMemo50Coupon(stripe, productId) {
+  try {
+    const coupon = await stripe.coupons.retrieve(MEMO50_COUPON_ID);
+    assertMemo50Coupon(coupon, productId);
+    return coupon;
+  } catch (error) {
+    if (!isStripeMissingResourceError(error)) {
+      throw error;
+    }
+  }
+
+  return stripe.coupons.create({
+    id: MEMO50_COUPON_ID,
+    name: "MEMO50 - 50% off first billing cycle",
+    percent_off: 50,
+    duration: "once",
+    applies_to: {
+      products: [productId],
+    },
+    metadata: {
+      app: "memo",
+      billing_key: "pro",
+      promotion_code: MEMO50_PROMOTION_CODE,
+    },
+  });
+}
+
+function assertMemo50PromotionCode(promotionCode, couponId) {
+  const couponMatches = getPromotionCodeCouponId(promotionCode) === couponId;
+  const isCustomerRestricted = Boolean(promotionCode.customer || promotionCode.customer_account);
+  const hasUsageLimit = promotionCode.max_redemptions !== null;
+  const expires = promotionCode.expires_at !== null;
+  const isFirstTransactionOnly = promotionCode.restrictions?.first_time_transaction === true;
+  const hasMinimumAmount = promotionCode.restrictions?.minimum_amount != null;
+
+  if (
+    !couponMatches ||
+    isCustomerRestricted ||
+    hasUsageLimit ||
+    expires ||
+    isFirstTransactionOnly ||
+    hasMinimumAmount
+  ) {
+    throw new Error(
+      `Active Stripe promotion code ${MEMO50_PROMOTION_CODE} already exists, but it does not match the expected unrestricted first-cycle discount.`,
+    );
+  }
+}
+
+async function findOrCreateMemo50PromotionCode(stripe, couponId) {
+  const existingCodes = await stripe.promotionCodes.list({
+    active: true,
+    code: MEMO50_PROMOTION_CODE,
+    limit: 100,
+  });
+  const existing = existingCodes.data[0] ?? null;
+
+  if (existing) {
+    assertMemo50PromotionCode(existing, couponId);
+    return existing;
+  }
+
+  return stripe.promotionCodes.create({
+    code: MEMO50_PROMOTION_CODE,
+    active: true,
+    promotion: {
+      type: "coupon",
+      coupon: couponId,
+    },
+    metadata: {
+      app: "memo",
+      billing_key: "pro",
+      coupon_id: couponId,
+    },
   });
 }
 
@@ -165,6 +274,9 @@ async function main() {
     intervalCount: 1,
   });
 
+  const memo50Coupon = await findOrCreateMemo50Coupon(stripe, product.id);
+  const memo50PromotionCode = await findOrCreateMemo50PromotionCode(stripe, memo50Coupon.id);
+
   const portal = await ensureBillingPortalConfiguration(stripe, `${siteUrl}/app/settings`);
   const existingWebhook = await findWebhookEndpoint(stripe, webhookUrl);
   let createdWebhook = null;
@@ -193,6 +305,8 @@ async function main() {
   console.log(`Weekly price: ${weekly.id}`);
   console.log(`Monthly price: ${monthly.id}`);
   console.log(`Yearly price: ${yearly.id}`);
+  console.log(`MEMO50 coupon: ${memo50Coupon.id}`);
+  console.log(`MEMO50 promotion code: ${memo50PromotionCode.id} (${memo50PromotionCode.code})`);
   console.log(`Billing portal config: ${portal.id}`);
   console.log("");
   console.log("Add these env vars:");

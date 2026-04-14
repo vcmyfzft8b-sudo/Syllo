@@ -386,7 +386,7 @@ export function OnboardingPaywall({
       </div>
 
       <p className="app-start-discount-note">
-        Imaš kodo za popust? Vnesi jo v Stripe Checkout pred zaključkom plačila.
+        Uporabi kodo MEMO50 za 50% popusta na prvi obračun. Naslednji obračuni so po redni ceni.
       </p>
 
       {subscription ? (
