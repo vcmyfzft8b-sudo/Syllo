@@ -32,6 +32,10 @@ const PRACTICE_TEST_CONCURRENCY = 3;
 const RECENT_ATTEMPT_MEMORY = 3;
 const PRACTICE_TEST_GENERATION_VERSION = "practice-test-v2";
 const PRACTICE_TEST_GENERATION_ATTEMPTS = 3;
+const RAW_GENERATED_PROMPT_MAX_LENGTH = 1200;
+const RAW_GENERATED_ANSWER_GUIDE_MAX_LENGTH = 6000;
+const PRACTICE_PROMPT_MAX_LENGTH = 220;
+const PRACTICE_ANSWER_GUIDE_MAX_LENGTH = 1000;
 
 type PracticeTestQuestionDraft = {
   prompt: string;
@@ -50,8 +54,8 @@ type AttemptQuestionMetadata = {
 };
 
 const practiceQuestionSchema = z.object({
-  prompt: z.string().min(12).max(420),
-  answerGuide: z.string().min(30).max(1200),
+  prompt: z.string().min(12).max(RAW_GENERATED_PROMPT_MAX_LENGTH),
+  answerGuide: z.string().min(30).max(RAW_GENERATED_ANSWER_GUIDE_MAX_LENGTH),
   difficulty: z.string().min(3).max(40),
   conceptKey: z.string().min(1).max(120),
 });
@@ -346,7 +350,7 @@ Do not refer to "the lecture", "the notes", "the table above", "the example show
 If a question depends on source-specific data, definitions, categories, scenarios, or examples, include that context directly in the prompt.
 Do not mention the source, material, lecture, notes, illustration, figure, table, graph, diagram, or example in the wording of the question.
 Write prompts as direct knowledge questions that can be answered from memory after studying the topic.${retryInstruction}
-Provide a concise but complete answerGuide that a grader can use for partial credit.
+Provide a concise but complete answerGuide that a grader can use for partial credit. Keep each answerGuide under 900 characters.
 Use the provided conceptKey exactly.
 Do not invent facts beyond the source.`,
       input: JSON.stringify(
@@ -381,8 +385,11 @@ Do not invent facts beyond the source.`,
       ...generatedQuestions,
       ...batch.questions
         .map((question) => ({
-          prompt: normalizeText(question.prompt, 220),
-          answerGuide: normalizeText(question.answerGuide, 1000),
+          prompt: normalizeText(question.prompt, PRACTICE_PROMPT_MAX_LENGTH),
+          answerGuide: normalizeText(
+            question.answerGuide,
+            PRACTICE_ANSWER_GUIDE_MAX_LENGTH,
+          ),
           difficulty: normalizeDifficulty(question.difficulty),
           conceptKey: question.conceptKey,
           sourceUnitIdx: params.unit.unitIndex,
