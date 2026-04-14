@@ -288,6 +288,28 @@ function sourceLabel(sourceType: string) {
   return "Zvočni posnetek";
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isScanImport(detail: LectureDetail) {
+  const metadata = detail.lecture.processing_metadata;
+
+  if (!isRecord(metadata)) {
+    return false;
+  }
+
+  const manualImport = metadata.manualImport;
+
+  if (!isRecord(manualImport)) {
+    return false;
+  }
+
+  const modelMetadata = manualImport.modelMetadata;
+
+  return isRecord(modelMetadata) && modelMetadata.importMode === "scan";
+}
+
 function studyStageLabel(stage: unknown) {
   if (stage === "building_sections") {
     return "Gradim učne sklope";
@@ -766,7 +788,7 @@ export function LectureWorkspace({
     [detail.practiceTestAttempts],
   );
   const currentReviewFlashcardId = reviewQueue[0] ?? null;
-  const showsTranscript = detail.lecture.source_type === "audio";
+  const showsTranscript = detail.lecture.source_type === "audio" || isScanImport(detail);
   const shouldPollCurrentDetail = shouldPollDetail(detail);
   const detailPollIntervalMs =
     shouldPollAsset(detail.studyAsset?.status) || shouldPollAsset(detail.quizAsset?.status)
