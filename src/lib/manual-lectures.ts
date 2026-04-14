@@ -34,11 +34,6 @@ const pdfExtractionSchema = z.object({
   text: z.string().min(120),
 });
 
-const imageExtractionSchema = z.object({
-  title: z.string().min(1),
-  text: z.string().min(1),
-});
-
 const MAX_LINK_FETCH_REDIRECTS = 3;
 const MAX_LINK_FETCH_BYTES = 1_000_000;
 const LINK_FETCH_TIMEOUT_MS = 10_000;
@@ -512,7 +507,7 @@ export async function extractTextFromPdf(file: File) {
     schema: pdfExtractionSchema,
     instructions: `${fallbackInstructions}\n\nExtract the document text as faithfully and completely as possible so it can be turned into detailed study notes and flashcards.`,
     file,
-    model: env.GEMINI_TEXT_MODEL,
+    model: env.GEMINI_OCR_MODEL,
     maxOutputTokens: 7000,
   });
 
@@ -572,23 +567,10 @@ export async function extractTextFromDocument(file: File) {
 export async function extractTextFromImage(file: File) {
   const env = getServerEnv();
   const instructions =
-    "Extract all readable text from this photo of notes or printed material. Do not summarize. Preserve the original language, headings, bullet points, equations, labels, and important details. Ignore decorative background elements. If handwriting is uncertain, make the best faithful reading instead of inventing content. Return a short title and the extracted text.";
+    "Extract all readable text from this photo of notes or printed material. The source is likely Slovenian, so preserve Slovenian characters such as č, š, and ž. Do not translate and do not summarize. Preserve the original language, headings, bullet points, equations, labels, line breaks, and important details. Ignore decorative background elements. If handwriting is uncertain, make the best faithful reading instead of inventing content.";
 
   try {
-    const extracted = await generateStructuredObjectWithGeminiFile({
-      schema: imageExtractionSchema,
-      instructions,
-      file,
-      model: env.GEMINI_TEXT_MODEL,
-      maxOutputTokens: 6000,
-    });
-
-    return {
-      title: extracted.title,
-      text: normalizeWhitespace(extracted.text),
-    };
-  } catch (error) {
-    const fallbackText = await generateTextWithGeminiFile({
+    const extractedText = await generateTextWithGeminiFile({
       instructions: `${instructions}
 
 Return plain text only in exactly this format:
@@ -596,24 +578,26 @@ TITLE: <short title>
 TEXT:
 <full extracted text>`,
       file,
-      model: env.GEMINI_TEXT_MODEL,
-      maxOutputTokens: 12000,
+      model: env.GEMINI_OCR_MODEL,
+      maxOutputTokens: 8000,
     });
 
-    const normalizedFallback = fallbackText.replace(/\r\n/g, "\n").trim();
+    const normalizedFallback = extractedText.replace(/\r\n/g, "\n").trim();
     const titleMatch = normalizedFallback.match(/^TITLE:\s*(.+)$/im);
     const textMatch = normalizedFallback.match(/TEXT:\s*\n([\s\S]*)$/i);
-    const extractedText = normalizeWhitespace(textMatch?.[1] ?? normalizedFallback);
+    const text = normalizeWhitespace(textMatch?.[1] ?? normalizedFallback);
     const extractedTitle = titleMatch?.[1]?.trim() || file.name.replace(/\.[^.]+$/i, "") || "Image";
 
-    if (!extractedText) {
-      throw new Error(toUserFacingAiErrorMessage(error));
+    if (!text) {
+      throw new Error("Model returned empty text output.");
     }
 
     return {
       title: extractedTitle,
-      text: extractedText,
+      text,
     };
+  } catch (error) {
+    throw new Error(toUserFacingAiErrorMessage(error));
   }
 }
 

@@ -48,6 +48,28 @@ type PostgrestLikeError = {
 
 const BATCHED_IN_QUERY_SIZE = 100;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isScanImportLecture(lecture: LectureRow) {
+  const metadata = lecture.processing_metadata;
+
+  if (!isRecord(metadata)) {
+    return false;
+  }
+
+  const manualImport = metadata.manualImport;
+
+  if (!isRecord(manualImport)) {
+    return false;
+  }
+
+  const modelMetadata = manualImport.modelMetadata;
+
+  return isRecord(modelMetadata) && modelMetadata.importMode === "scan";
+}
+
 function getSchemaErrorText(error: unknown) {
   if (!error || typeof error !== "object") {
     return "";
@@ -658,7 +680,7 @@ export async function getLectureDetailForUser(params: {
     .eq("user_id", params.userId)
     .order("created_at", { ascending: true });
   const transcriptPromise =
-    lectureRow.source_type === "audio"
+    lectureRow.source_type === "audio" || isScanImportLecture(lectureRow)
       ? detailClient
           .from("transcript_segments")
           .select(TRANSCRIPT_SEGMENT_CONTENT_SELECT)
