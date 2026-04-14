@@ -8,12 +8,14 @@ import {
 } from "@/lib/pipeline";
 import { generateLecturePracticeTest } from "@/lib/practice-test";
 import { generateLectureQuiz } from "@/lib/quiz";
+import { processStoredScanLecture } from "@/lib/scan-processing";
 import { getServerEnv } from "@/lib/server-env";
 import { generateLectureFlashcards } from "@/lib/study";
 
 export type LectureProcessingStage = "transcribe" | "generate_notes";
 
 const INTERNAL_LECTURE_PROCESSING_PATH = "/api/internal/lectures/process";
+const INTERNAL_LECTURE_SCAN_PATH = "/api/internal/lectures/scan";
 const INTERNAL_LECTURE_PRACTICE_TEST_PATH = "/api/internal/lectures/practice-test";
 
 export async function enqueueLectureProcessingStage(params: {
@@ -165,6 +167,21 @@ export async function enqueueLectureNotesGeneration(lectureId: string) {
   }
 
   await generateLectureNotesFromStoredTranscript({ lectureId }).catch(async (error) => {
+    await markLecturePipelineFailed({ lectureId, error });
+  });
+}
+
+export async function enqueueLectureScanProcessing(lectureId: string) {
+  if (
+    await tryEnqueueInternalLectureJob({
+      lectureId,
+      path: INTERNAL_LECTURE_SCAN_PATH,
+    })
+  ) {
+    return;
+  }
+
+  await processStoredScanLecture({ lectureId }).catch(async (error) => {
     await markLecturePipelineFailed({ lectureId, error });
   });
 }

@@ -2,8 +2,8 @@ import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createBillingRequiredResponse, getUserEntitlementState } from "@/lib/billing";
-import { MAX_SCAN_IMAGE_BYTES, MAX_SCAN_IMAGE_COUNT, STORAGE_BUCKET } from "@/lib/constants";
-import { enqueueLectureNotesGeneration } from "@/lib/jobs";
+import { MAX_SCAN_IMAGE_BYTES, MAX_SCAN_IMAGE_COUNT } from "@/lib/constants";
+import { enqueueLectureNotesGeneration, enqueueLectureScanProcessing } from "@/lib/jobs";
 import { extractTextFromImage, prepareLectureFromTextSource } from "@/lib/manual-lectures";
 import { markLecturePipelineFailed } from "@/lib/pipeline";
 import { parseJsonRequest } from "@/lib/request-validation";
@@ -11,12 +11,8 @@ import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import {
   isCanonicalLectureScanImageStoragePath,
   isSupportedScanImageMimeType,
-  normalizeUploadScanImageMimeType,
 } from "@/lib/storage";
-import {
-  createSupabaseServerClient,
-  createSupabaseServiceRoleClient,
-} from "@/lib/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   createSanitizedStringSchema,
   languageHintSchema,
@@ -62,50 +58,6 @@ const storedScanLectureSchema = z.object({
     }),
   images: z.array(storedScanImageSchema).min(1).max(MAX_SCAN_IMAGE_COUNT),
 });
-
-type StoredScanImage = z.infer<typeof storedScanImageSchema>;
-
-async function downloadStoredScanImage(image: StoredScanImage) {
-  const normalizedMimeType = normalizeUploadScanImageMimeType({
-    mimeType: image.mimeType,
-    fileName: image.fileName,
-  });
-
-  const { data: blob, error } = await createSupabaseServiceRoleClient()
-    .storage
-    .from(STORAGE_BUCKET)
-    .download(image.path);
-
-  if (error || !blob) {
-    throw new Error(error?.message ?? "Fotografije ni bilo mogoče prebrati.");
-  }
-
-  if (blob.size <= 0 || blob.size > MAX_SCAN_IMAGE_BYTES) {
-    throw new Error("Slika za skeniranje je prevelika ali prazna.");
-  }
-
-  return new File([blob], image.fileName || `photo-${image.index + 1}`, {
-    type: normalizedMimeType,
-  });
-}
-
-function buildBlocks(params: {
-  extractedBlocks: Array<{ label: string; pageNumber: number; text: string }>;
-  pastedText: string;
-}) {
-  if (!params.pastedText) {
-    return params.extractedBlocks;
-  }
-
-  return [
-    ...params.extractedBlocks,
-    {
-      label: "Prilepljeno besedilo",
-      pageNumber: params.extractedBlocks.length + 1,
-      text: params.pastedText,
-    },
-  ];
-}
 
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient();
@@ -187,67 +139,42 @@ export async function POST(request: Request) {
         }
       }
 
+      const sourceFileNames = images.map(
+        (image) => image.fileName || `photo-${image.index + 1}`,
+      );
+      const titleHint =
+        images.length === 1
+          ? sourceFileNames[0].replace(/\.[^.]+$/i, "")
+          : `${images.length} fotografij`;
+      const { error: updateError } = await supabase
+        .from("lectures")
+        .update(
+          {
+            status: "queued",
+            error_message: null,
+            title: titleHint,
+            language_hint: languageHint,
+            processing_metadata: {
+              pendingScanImages: images,
+              pendingScanText: text,
+              processing: {
+                stage: "extracting_scan_text",
+                updatedAt: new Date().toISOString(),
+                errorMessage: null,
+              },
+            },
+          } as never,
+        )
+        .eq("id", lectureId)
+        .eq("user_id", user.id);
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+
       after(async () => {
         try {
-          const extractedBlocks: Array<{
-            label: string;
-            pageNumber: number;
-            text: string;
-          }> = [];
-
-          for (const image of [...images].sort((left, right) => left.index - right.index)) {
-            const file = await downloadStoredScanImage(image);
-            const extracted = await extractTextFromImage(file);
-            const extractedText = extracted.text.trim();
-
-            if (!extractedText) {
-              throw new Error(
-                images.length === 1
-                  ? "Na fotografiji ni bilo mogoče najti berljivega besedila."
-                  : `Na fotografiji "${image.fileName || `photo-${image.index + 1}`}" ni bilo mogoče najti berljivega besedila.`,
-              );
-            }
-
-            extractedBlocks.push({
-              label: image.fileName || `photo-${image.index + 1}`,
-              pageNumber: image.index + 1,
-              text: extractedText,
-            });
-          }
-
-          const blocks = buildBlocks({
-            extractedBlocks,
-            pastedText: text,
-          });
-          const sourceFileNames = images.map(
-            (image) => image.fileName || `photo-${image.index + 1}`,
-          );
-          const titleHint =
-            images.length === 1
-              ? sourceFileNames[0].replace(/\.[^.]+$/i, "")
-              : `${images.length} fotografij`;
-
-          await prepareLectureFromTextSource({
-            lectureId,
-            userId: user.id,
-            sourceType: "text",
-            text: blocks.map((block) => block.text).join("\n\n"),
-            blocks,
-            titleHint,
-            languageHint,
-            modelMetadata: {
-              importMode: "scan",
-              sourceFileNames,
-              sourceImageUploads: images.map((image) => ({
-                index: image.index,
-                path: image.path,
-                fileName: image.fileName,
-                mimeType: image.mimeType,
-                size: image.size,
-              })),
-            },
-          });
-          await enqueueLectureNotesGeneration(lectureId);
+          await enqueueLectureScanProcessing(lectureId);
         } catch (error) {
           await markLecturePipelineFailed({ lectureId, error });
         }
