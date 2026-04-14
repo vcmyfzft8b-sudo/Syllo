@@ -388,6 +388,14 @@ function getScanTranscriptFallback(detail: LectureDetail) {
   ];
 }
 
+function formatScanTranscriptLabel(label: string | null) {
+  if (!label?.trim()) {
+    return "Prepis fotografije";
+  }
+
+  return label.trim().replace(/^Page\s+(\d+)/i, "Stran $1");
+}
+
 function studyStageLabel(stage: unknown) {
   if (stage === "building_sections") {
     return "Gradim učne sklope";
@@ -2625,17 +2633,24 @@ export function LectureWorkspace({
     if (activeTab === "transcript") {
       const transcriptSegments =
         detail.transcript.length > 0 ? detail.transcript : getScanTranscriptFallback(detail);
+      const isScanTranscript = isScanImport(detail);
 
       return transcriptSegments.length > 0 ? (
         <div className="ios-card lecture-transcript-card">
           {transcriptSegments.map((segment) => (
             <div key={segment.id} className="timeline-row">
               <p className="timeline-time">
-                {formatTimestamp(segment.start_ms)}
-                {segment.end_ms > segment.start_ms
-                  ? ` - ${formatTimestamp(segment.end_ms)}`
-                  : ""}
-                {segment.speaker_label ? ` · ${segment.speaker_label}` : ""}
+                {isScanTranscript ? (
+                  formatScanTranscriptLabel(segment.speaker_label)
+                ) : (
+                  <>
+                    {formatTimestamp(segment.start_ms)}
+                    {segment.end_ms > segment.start_ms
+                      ? ` - ${formatTimestamp(segment.end_ms)}`
+                      : ""}
+                    {segment.speaker_label ? ` · ${segment.speaker_label}` : ""}
+                  </>
+                )}
               </p>
               <p className="m-0 whitespace-pre-wrap text-[0.98rem] leading-8 text-[var(--label)]">
                 {segment.text}
