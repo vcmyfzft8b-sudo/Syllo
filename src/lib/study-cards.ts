@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { generateStructuredObject } from "@/lib/ai/json";
 import { buildGeneratedContentLanguageInstruction } from "@/lib/languages";
+import { isHighQualityFlashcard } from "@/lib/study-quality";
 import type {
   CoverageCardDraft,
   CoverageCardKind,
@@ -36,7 +37,7 @@ const generatedCardSchema = z.object({
 });
 
 const generatedCardBatchSchema = z.object({
-  flashcards: z.array(generatedCardSchema).min(1).max(32),
+  flashcards: z.array(generatedCardSchema).min(0).max(32),
 });
 
 function normalizeCardText(value: string) {
@@ -79,76 +80,6 @@ function normalizeCard(card: CoverageCardDraft): CoverageCardDraft {
     back: (normalizedBack.length >= 12 ? normalizedBack : `${normalizedBack}.`).slice(0, 260).trim(),
     hint: card.hint ? normalizeCardText(card.hint) : null,
   };
-}
-
-function sliceExcerpt(value: string, maxLength: number) {
-  return normalizeCardText(value).slice(0, maxLength).trim();
-}
-
-function buildFallbackFront(concept: CoverageConcept) {
-  const label = sliceExcerpt(concept.conceptLabel, 96) || "Ključni pojem";
-
-  switch (concept.preferredCardStyle) {
-    case "sequence":
-      return `Naštejte korake: ${label}`;
-    case "compare":
-      return `Primerjaj: ${label}`;
-    case "apply":
-      return `Primer uporabe: ${label}`;
-    case "explain":
-      return `Pojasni: ${label}`;
-    case "recall":
-    default:
-      return `Termin: ${label}`;
-  }
-}
-
-function buildFallbackBack(concept: CoverageConcept, unit: SourceUnit) {
-  const excerpt = sliceExcerpt(concept.supportingExcerpt, 220);
-
-  if (excerpt.length >= 12) {
-    return excerpt;
-  }
-
-  const sentence = unit.text.split(/(?<=[.!?])\s+/).find((candidate) => normalizeCardText(candidate).length >= 12);
-  return sliceExcerpt(sentence ?? unit.text, 220) || "Ključna informacija iz vira.";
-}
-
-function buildFallbackCard(params: {
-  concept: CoverageConcept;
-  unit: SourceUnit;
-}): CoverageCardDraft {
-  const difficulty: FlashcardDifficulty =
-    params.concept.studyValue === "high"
-      ? "hard"
-      : params.concept.studyValue === "low"
-        ? "easy"
-        : "medium";
-
-  return normalizeCard({
-    front: buildFallbackFront(params.concept),
-    back: buildFallbackBack(params.concept, params.unit),
-    hint: sliceExcerpt(params.unit.locatorLabel, 120) || null,
-    difficulty,
-    citations: normalizeCitations({
-      citations: [
-        {
-          idx: params.unit.unitIndex,
-          startMs: Math.max(params.unit.startMs ?? 0, 0),
-          endMs: Math.max(params.unit.endMs ?? params.unit.startMs ?? 0, params.unit.startMs ?? 0),
-          quote: params.concept.supportingExcerpt || params.unit.text,
-        },
-      ],
-      unit: params.unit,
-      contextUnits: [],
-    }),
-    conceptKey: params.concept.conceptKey,
-    cardKind: params.concept.preferredCardStyle,
-    sourceUnitIdx: params.unit.unitIndex,
-    sourceType: params.unit.sourceType,
-    sourceLocator: params.unit.locatorLabel,
-    coverageRank: params.concept.studyValue === "high" ? 8 : params.concept.studyValue === "medium" ? 6 : 4,
-  });
 }
 
 function splitConceptsIntoBatches(concepts: CoverageConcept[]) {
@@ -356,6 +287,7 @@ async function generateCardsForConceptBatch(params: {
   const conceptFallbackCardKind = new Map(
     params.concepts.map((concept) => [concept.conceptKey, concept.preferredCardStyle]),
   );
+  const requestedConceptKeys = new Set(params.concepts.map((concept) => concept.conceptKey));
 
   const batch = await generateStructuredObject({
     schema: generatedCardBatchSchema,
@@ -364,9 +296,14 @@ async function generateCardsForConceptBatch(params: {
       `${languageInstruction}
 ${params.repairOnly ? "Repair missing concept coverage." : "Generate source-grounded study flashcards."}
 Use only the supplied source units.
-Cover every requested concept explicitly.
+Create flashcards only for requested concepts that can produce high-quality standalone cards. The requested count is a maximum, not a quota.
 Make the deck feel like a high-quality study deck built for full-course review.
 Prefer short, atomic cards over broad paraphrases.
+Each card must test exactly one fact, definition, mechanism, comparison, sequence, formula, category, or cause-effect relationship.
+Each front must be self-contained and answerable from memory without the original lecture, notes, source, material, image, table, diagram, figure, or example.
+Do not mention the lecture, notes, source, material, image, table, diagram, figure, or example in the front.
+Do not use vague pronouns like "this", "that", "it", "to", or "ta" unless the exact term is also named in the front.
+Skip a concept if the only possible card would be vague, source-dependent, visual-only, caption-like, or created only to fill the count.
 Prioritize card fronts in patterns like:
 - "Kaj je X?"
 - "Kaj pomeni X?"
@@ -400,7 +337,8 @@ For list facts, ask for the complete set only when the set itself matters.
 Do not create cards about generic chapter goals, obvious figure captions, or "what does the picture show" unless the figure adds a distinct fact not stated elsewhere.
 Backs should usually be very short: one phrase, one sentence, one exact value, or one short list item unless a full sequence is required.
 Keep answers close to memorization form rather than long explanations.
-Keep fronts concise and backs concise enough to review quickly.`,
+Keep fronts concise and backs concise enough to review quickly.
+Return fewer than ${targetCount} cards, or zero cards, when fewer high-quality cards are supported.`,
     input: JSON.stringify(
       {
         title: params.title,
@@ -427,28 +365,31 @@ Keep fronts concise and backs concise enough to review quickly.`,
   });
 
   return dedupeCards(
-    batch.flashcards.map((card) =>
-      normalizeCard({
-        front: card.front,
-        back: card.back,
-        hint: card.hint,
-        difficulty: normalizeDifficulty(card.difficulty),
-        citations: normalizeCitations({
-          citations: card.citations,
-          unit: params.unit,
-          contextUnits: params.contextUnits,
+    batch.flashcards
+      .filter((card) => requestedConceptKeys.has(card.conceptKey))
+      .map((card) =>
+        normalizeCard({
+          front: card.front,
+          back: card.back,
+          hint: card.hint,
+          difficulty: normalizeDifficulty(card.difficulty),
+          citations: normalizeCitations({
+            citations: card.citations,
+            unit: params.unit,
+            contextUnits: params.contextUnits,
+          }),
+          conceptKey: card.conceptKey,
+          cardKind: normalizeCardKind(
+            card.cardKind,
+            conceptFallbackCardKind.get(card.conceptKey) ?? "recall",
+          ),
+          sourceUnitIdx: params.unit.unitIndex,
+          sourceType: params.unit.sourceType,
+          sourceLocator: params.unit.locatorLabel,
+          coverageRank: card.coverageRank,
         }),
-        conceptKey: card.conceptKey,
-        cardKind: normalizeCardKind(
-          card.cardKind,
-          conceptFallbackCardKind.get(card.conceptKey) ?? "recall",
-        ),
-        sourceUnitIdx: params.unit.unitIndex,
-        sourceType: params.unit.sourceType,
-        sourceLocator: params.unit.locatorLabel,
-        coverageRank: card.coverageRank,
-      }),
-    ),
+      )
+      .filter((card) => isHighQualityFlashcard(card.front, card.back)),
   );
 }
 
@@ -496,13 +437,13 @@ async function generateCardsForConceptBatchWithFallback(params: {
     }
 
     const [concept] = params.concepts;
-    console.warn("Falling back to deterministic flashcard generation for concept", {
+    console.warn("Skipping flashcard concept after generation failure", {
       unitIndex: params.unit.unitIndex,
       conceptKey: concept?.conceptKey,
       error: error instanceof Error ? error.message : String(error),
     });
 
-    return concept ? [buildFallbackCard({ concept, unit: params.unit })] : [];
+    return [];
   }
 }
 
