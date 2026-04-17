@@ -53,7 +53,7 @@ async function updateLectureProcessingState(params: {
   const supabase = createSupabaseServiceRoleClient();
   const metadata = parseProcessingMetadata(params.processingMetadata);
 
-  await supabase
+  const { error } = await supabase
     .from("lectures")
     .update(
       {
@@ -72,6 +72,10 @@ async function updateLectureProcessingState(params: {
       } as never,
     )
     .eq("id", params.lectureId);
+
+  if (error) {
+    throw error;
+  }
 }
 
 function toErrorMessage(error: unknown) {
