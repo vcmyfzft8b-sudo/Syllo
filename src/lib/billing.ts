@@ -28,6 +28,7 @@ export type UserEntitlementState = {
   hasPaidAccess: boolean;
   onboardingComplete: boolean;
   trialLectureId: string | null;
+  hasConsumedTrial: boolean;
   hasTrialLectureAvailable: boolean;
   canResumeTrialLecture: boolean;
   trialChatMessagesUsed: number;
@@ -299,8 +300,10 @@ function buildEntitlementState(params: {
 }) {
   const onboardingComplete = Boolean(params.profile?.onboarding_completed_at);
   const trialLectureId = params.profile?.trial_lecture_id ?? null;
+  const hasConsumedTrial = Boolean(params.profile?.trial_consumed_at || trialLectureId);
   const hasTrialLectureAvailable =
-    !params.hasPaidAccess && (!trialLectureId || params.canResumeTrialLecture);
+    !params.hasPaidAccess &&
+    (!hasConsumedTrial || Boolean(trialLectureId && params.canResumeTrialLecture));
   const canCreateNotes = params.hasPaidAccess || hasTrialLectureAvailable;
   const shouldShowTrialEntry = !params.hasPaidAccess;
 
@@ -311,6 +314,7 @@ function buildEntitlementState(params: {
     hasPaidAccess: params.hasPaidAccess,
     onboardingComplete,
     trialLectureId,
+    hasConsumedTrial,
     hasTrialLectureAvailable,
     canResumeTrialLecture: params.canResumeTrialLecture,
     trialChatMessagesUsed: params.trialChatMessagesUsed,
@@ -566,9 +570,28 @@ export async function claimTrialLecture(userId: string, lectureId: string) {
   }
 
   if (entitlement.profile.trial_lecture_id === lectureId) {
+    if (!entitlement.profile.trial_consumed_at) {
+      const claimedAt = new Date().toISOString();
+      await createSupabaseServiceRoleClient()
+        .from("profiles")
+        .update({
+          trial_started_at: entitlement.profile.trial_started_at ?? claimedAt,
+          trial_consumed_at: claimedAt,
+        } as never)
+        .eq("id", userId)
+        .eq("trial_lecture_id", lectureId);
+    }
+
     return {
       allowed: true,
       mode: "trial",
+    } satisfies ClaimTrialLectureResult;
+  }
+
+  if (entitlement.profile.trial_consumed_at) {
+    return {
+      allowed: false,
+      code: "trial_exhausted",
     } satisfies ClaimTrialLectureResult;
   }
 
@@ -583,6 +606,7 @@ export async function claimTrialLecture(userId: string, lectureId: string) {
     } as never)
     .eq("id", userId)
     .is("trial_lecture_id", null)
+    .is("trial_consumed_at", null)
     .select("id, trial_lecture_id")
     .maybeSingle();
 
@@ -599,7 +623,7 @@ export async function claimTrialLecture(userId: string, lectureId: string) {
 
   const { data: currentProfile, error: currentProfileError } = await service
     .from("profiles")
-    .select("trial_lecture_id")
+    .select("trial_lecture_id, trial_consumed_at")
     .eq("id", userId)
     .maybeSingle();
 
@@ -607,7 +631,10 @@ export async function claimTrialLecture(userId: string, lectureId: string) {
     throw currentProfileError;
   }
 
-  if ((currentProfile as { trial_lecture_id: string | null } | null)?.trial_lecture_id === lectureId) {
+  if (
+    (currentProfile as { trial_lecture_id: string | null; trial_consumed_at: string | null } | null)
+      ?.trial_lecture_id === lectureId
+  ) {
     return {
       allowed: true,
       mode: "trial",
