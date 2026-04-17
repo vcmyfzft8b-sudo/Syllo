@@ -3745,6 +3745,8 @@ select:disabled {
 .lecture-panel-stack {
   display: grid;
   gap: 1rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .workspace-side-card {
@@ -3760,6 +3762,8 @@ select:disabled {
 .lecture-workspace {
   display: grid;
   gap: 1.25rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .lecture-workspace-full {
@@ -3770,6 +3774,7 @@ select:disabled {
   display: grid;
   gap: 0.85rem;
   margin-bottom: 0.25rem;
+  min-width: 0;
 }
 
 .lecture-header-row {
@@ -3780,6 +3785,14 @@ select:disabled {
 
 .lecture-title-block {
   margin-bottom: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.lecture-title-block .ios-large-title {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .lecture-meta-row {
@@ -3872,6 +3885,7 @@ select:disabled {
 .lecture-main-column {
   width: 100%;
   min-width: 0;
+  max-width: 100%;
 }
 
 .lecture-card-heading {
@@ -3894,6 +3908,13 @@ select:disabled {
 .audio-panel {
   padding: 1.4rem;
   border-radius: 24px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.lecture-transcript-card {
+  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .lecture-study-shell {
@@ -5834,6 +5855,11 @@ select:disabled {
   border-bottom: 1px solid var(--separator);
 }
 
+.lecture-transcript-card .timeline-row {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .timeline-row:last-child {
   border-bottom: none;
 }
@@ -5842,6 +5868,17 @@ select:disabled {
   color: var(--secondary-label);
   font-size: 0.8rem;
   font-weight: 500;
+}
+
+.lecture-transcript-card .timeline-time,
+.lecture-transcript-text {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.lecture-transcript-card-scan .lecture-transcript-text {
+  white-space: pre-line;
 }
 
 .empty-state {
