@@ -436,6 +436,18 @@ function quizStageLabel(stage: unknown) {
   return "Pripravljam kviz";
 }
 
+function practiceTestStageLabel(stage: unknown) {
+  if (stage === "generating_question_bank") {
+    return "Sestavljam vprašanja";
+  }
+
+  if (stage === "ready") {
+    return "Preizkus je pripravljen";
+  }
+
+  return "Pripravljam preizkus";
+}
+
 function studyAssetStatusLabel(status: StudyAssetStatus | null | undefined) {
   if (status === "queued") {
     return "Priprava";
@@ -454,6 +466,25 @@ function studyAssetStatusLabel(status: StudyAssetStatus | null | undefined) {
   }
 
   return null;
+}
+
+function StudyGenerationNotice({ stageCopy }: { stageCopy: string }) {
+  return (
+    <div className="lecture-study-generation-notice" role="status" aria-live="polite">
+      <div className="lecture-study-generation-loader" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="lecture-study-generation-copy">
+        <p className="lecture-study-generation-stage">{stageCopy}</p>
+        <p>
+          Ustvarjanje teče v ozadju. Lahko zapreš ta pogled in se vrneš čez nekaj
+          minut.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 function isLegacySectionId(value: string) {
@@ -1223,6 +1254,14 @@ export function LectureWorkspace({
       ? detail.quizAsset.model_metadata.stage
       : null;
   const quizStageCopy = quizStageLabel(quizStage);
+  const practiceTestStage =
+    detail.practiceTestAsset?.model_metadata &&
+    typeof detail.practiceTestAsset.model_metadata === "object" &&
+    !Array.isArray(detail.practiceTestAsset.model_metadata) &&
+    "stage" in detail.practiceTestAsset.model_metadata
+      ? detail.practiceTestAsset.model_metadata.stage
+      : null;
+  const practiceTestStageCopy = practiceTestStageLabel(practiceTestStage);
   const totalFlashcards = studyDeck.length;
   const flashcardFirstPassKnownCount = studyDeck.reduce((total, flashcard) => {
     return flashcardSessionResults[flashcard.id]?.firstConfidence !== "again" &&
@@ -1980,8 +2019,8 @@ export function LectureWorkspace({
                       Ustvari kartice
                     </button>
                   ) : null}
-                  {shouldPollAsset(detail.studyAsset?.status) ? (
-                    <p className="lecture-study-hint">{studyStageCopy}</p>
+                  {isStudyGenerating ? (
+                    <StudyGenerationNotice stageCopy={studyStageCopy} />
                   ) : null}
                 </div>
             ) : currentFlashcard ? (
@@ -2176,8 +2215,8 @@ export function LectureWorkspace({
                       Ustvari kviz
                     </button>
                   ) : null}
-                  {shouldPollAsset(detail.quizAsset?.status) ? (
-                    <p className="lecture-study-hint">{quizStageCopy}</p>
+                  {isQuizGenerating ? (
+                    <StudyGenerationNotice stageCopy={quizStageCopy} />
                   ) : null}
                 </div>
               ) : quizRoundSummary ? (
@@ -2366,6 +2405,9 @@ export function LectureWorkspace({
                     <Loader2 className="h-4 w-4 animate-spin" />
                     {hasCompletedPracticeTest ? "Začni nov preizkus" : "Ustvari preizkus"}
                   </button>
+                ) : null}
+                {isPracticeTestGenerating ? (
+                  <StudyGenerationNotice stageCopy={practiceTestStageCopy} />
                 ) : null}
               </div>
             ) : currentPracticeAttempt ? (
