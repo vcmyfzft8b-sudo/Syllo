@@ -3,6 +3,11 @@ import "server-only";
 import { z } from "zod";
 
 import { generateStructuredObject } from "@/lib/ai/json";
+import {
+  dependsOnMissingStudyContext,
+  hasWeakGenericStudyShape,
+  MIN_CONCEPT_QUALITY_SCORE,
+} from "@/lib/study-quality";
 import type { CoverageCardKind, CoverageConcept, CoverageConceptType, CoverageUnitPlan, SourceUnit } from "@/lib/study-models";
 
 const UNIT_BATCH_SIZE = 5;
@@ -29,6 +34,10 @@ const plannerConceptSchema = z.object({
   conceptLabel: plannerTextSchema(3, 120),
   conceptType: plannerTextSchema(3, 40),
   studyValue: z.enum(["high", "medium", "low"]),
+  qualityScore: z.preprocess((value) => {
+    const score = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(score) ? Math.round(score) : 5;
+  }, z.number().int().min(0).max(10)),
   recommendedCardCount: z.number().int().min(1).max(3),
   preferredCardStyle: plannerTextSchema(3, 40),
   supportingExcerpt: plannerTextSchema(1, 1200),
@@ -182,23 +191,6 @@ function normalizeCardStyle(value: string, conceptType: CoverageConceptType): Co
   return fallbackCardStyle(conceptType);
 }
 
-function buildFallbackConcept(unit: SourceUnit): CoverageConcept {
-  const excerpt = unit.text.split(/(?<=[.!?])\s+/).find(Boolean) ?? unit.text.slice(0, 180);
-  const conceptType = fallbackConceptType(unit.text);
-  const maxRecommendedCardCount =
-    unit.sourceType === "audio" && unit.wordCount >= 90 ? 3 : 2;
-
-  return {
-    conceptKey: `${unit.unitIndex}-${slugify(excerpt) || "core-idea"}`,
-    conceptLabel: excerpt.slice(0, 100),
-    conceptType,
-    studyValue: unit.importance,
-    recommendedCardCount: unit.importance === "high" ? maxRecommendedCardCount : 1,
-    preferredCardStyle: fallbackCardStyle(conceptType),
-    supportingExcerpt: excerpt.slice(0, 200),
-  };
-}
-
 function normalizeUnitPlan(unit: SourceUnit, plan: PlannerUnitDraft | CoverageUnitPlan | undefined): CoverageUnitPlan {
   if (!plan) {
     return {
@@ -206,7 +198,7 @@ function normalizeUnitPlan(unit: SourceUnit, plan: PlannerUnitDraft | CoverageUn
       sectionIndex: unit.sectionIndex,
       sectionTitle: unit.sectionTitle,
       importance: unit.importance,
-      concepts: [buildFallbackConcept(unit)],
+      concepts: [],
     };
   }
 
@@ -215,30 +207,44 @@ function normalizeUnitPlan(unit: SourceUnit, plan: PlannerUnitDraft | CoverageUn
     sectionIndex: unit.sectionIndex,
     sectionTitle: plan.sectionTitle || unit.sectionTitle,
     importance: plan.importance || unit.importance,
-    concepts: plan.concepts.slice(0, 16).map((concept, index) => {
-      const conceptType = normalizeConceptType(concept.conceptType);
-      const maxRecommendedCardCount =
-        unit.sourceType === "audio" && unit.wordCount >= 90 ? 3 : 2;
-
-      return {
-        ...concept,
-        conceptType,
-        conceptLabel: normalizePlannerText(concept.conceptLabel, 120),
-        preferredCardStyle: normalizeCardStyle(concept.preferredCardStyle, conceptType),
-        conceptKey: normalizePlannerText(
-          concept.conceptKey || `${unit.unitIndex}-${slugify(concept.conceptLabel) || index}`,
-          80,
-        ),
-        recommendedCardCount: Math.min(
-          Math.max(concept.recommendedCardCount, 1),
-          maxRecommendedCardCount,
-        ),
-        supportingExcerpt: normalizeSupportingExcerpt(
+    concepts: plan.concepts
+      .slice(0, 16)
+      .map((concept, index) => {
+        const conceptType = normalizeConceptType(concept.conceptType);
+        const maxRecommendedCardCount =
+          unit.sourceType === "audio" && unit.wordCount >= 90 ? 3 : 2;
+        const conceptLabel = normalizePlannerText(concept.conceptLabel, 120);
+        const supportingExcerpt = normalizeSupportingExcerpt(
           concept.supportingExcerpt,
-          concept.conceptLabel || unit.text,
-        ),
-      };
-    }),
+          conceptLabel || unit.text,
+        );
+        const qualityScore = clamp(Math.round(concept.qualityScore), 0, 10);
+
+        return {
+          ...concept,
+          conceptType,
+          conceptLabel,
+          qualityScore,
+          preferredCardStyle: normalizeCardStyle(concept.preferredCardStyle, conceptType),
+          conceptKey: normalizePlannerText(
+            concept.conceptKey || `${unit.unitIndex}-${slugify(conceptLabel) || index}`,
+            80,
+          ),
+          recommendedCardCount: Math.min(
+            Math.max(concept.recommendedCardCount, 1),
+            maxRecommendedCardCount,
+          ),
+          supportingExcerpt,
+        };
+      })
+      .filter((concept) => {
+        if (concept.qualityScore < MIN_CONCEPT_QUALITY_SCORE) {
+          return false;
+        }
+
+        const qualityText = `${concept.conceptLabel} ${concept.supportingExcerpt}`;
+        return !dependsOnMissingStudyContext(qualityText) && !hasWeakGenericStudyShape(qualityText);
+      }),
   };
 }
 
@@ -260,7 +266,7 @@ function conceptPriorityScore(
         ? 1
         : 0;
 
-  return importanceScore * 10 + styleScore + Math.min(unit.wordCount / 200, 2);
+  return concept.qualityScore * 20 + importanceScore * 10 + styleScore + Math.min(unit.wordCount / 200, 2);
 }
 
 function sortConceptsByPriority(
@@ -522,7 +528,7 @@ export async function createCoveragePlan(params: {
       schema: plannerBatchSchema,
       maxOutputTokens: Math.max(3200, batch.length * 760),
       instructions:
-        "Create a study-worthy flashcard plan from the supplied source units. Preserve broad coverage of the material so a student can review the whole lecture through interactive study tools. The final deck and quiz have a strict global budget, so only keep the highest-yield, non-overlapping concepts, but keep adding distinct concepts whenever the material still introduces a new term, rule, model, mechanism, list, formula, step, category, or other study-worthy theme. Prefer atomic, testable facts over broad summaries. Prioritize facts that work well as short recall prompts similar to strong study decks: terminology, direct definitions, acronym meanings, equations, exact lists, named models, categories, classifications, step sequences, concrete numeric or structural facts, protocol purposes, device roles, and important cause-effect claims. When a unit contains several distinct facts, split them into separate concepts rather than merging them, but do not create near-duplicate concepts that test the same idea. If a unit is mostly slide metadata, learning goals, repeated headings, or image/diagram narration such as 'the figure shows ...', return an empty concepts array for that unit. Do not create concepts for generic chapter goals, obvious captions, or paraphrases of the same point. Use high importance only for core exam-relevant facts. Default to one card per concept; recommend two cards when a concept supports two clearly different high-value study angles such as recall plus process/comparison; recommend three cards only for truly dense source units with several distinct facts that deserve fuller review coverage. If a unit can be covered well with one strong concept, keep it to one, but do not undercount genuinely distinct topics just to stay sparse. Favor concepts that can become prompts like 'Kaj je X?', 'Kaj pomeni X?', 'Navedite ...', 'Naštejte ...', 'Dopolnite ...', 'Kateri model ...', or 'Termin: X'.",
+        "Create a study-worthy concept plan from the supplied source units. Quality is the gate: return concepts only when they can become high-quality standalone flashcards, quiz questions, or practice-test prompts. The final deck and quiz have strict global caps, so requested counts are maximums, never quotas. Prefer fewer excellent concepts over filler. A valid concept must test one specific fact, definition, mechanism, comparison, sequence, formula, category, or cause-effect relationship, and it must be fully supported by the source text. Prioritize facts that work well as short recall prompts: terminology, direct definitions, acronym meanings, equations, exact lists, named models, categories, classifications, step sequences, concrete numeric or structural facts, protocol purposes, device roles, and important cause-effect claims. When a unit contains several distinct high-quality facts, split them into separate non-overlapping concepts. Return an empty concepts array for weak units, slide metadata, learning goals, repeated headings, captions, visual-only descriptions, image/diagram narration such as 'the figure shows ...', obvious examples without a testable fact, or vague broad summaries. Do not create concepts that would require prompts mentioning the lecture, notes, source, material, figure, image, diagram, table, or example. Do not create concepts for generic chapter goals, obvious captions, or paraphrases of the same point. Assign qualityScore from 0 to 10: 10 means core, precise, self-contained, and exam-worthy; 6 means acceptable; 0-5 means weak and should usually be omitted. Use high importance only for core exam-relevant facts. Default to one card per concept; recommend two cards only when a concept supports two clearly different high-value study angles; recommend three cards only for dense source units with several distinct facts that deserve fuller review coverage. Favor concepts that can become prompts like 'Kaj je X?', 'Kaj pomeni X?', 'Navedite ...', 'Naštejte ...', 'Dopolnite ...', 'Kateri model ...', or 'Termin: X'.",
       input: JSON.stringify(
         {
           title: params.title,

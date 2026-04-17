@@ -70,6 +70,130 @@ function isScanImportLecture(lecture: LectureRow) {
   return isRecord(modelMetadata) && modelMetadata.importMode === "scan";
 }
 
+function parseMarkdownTitle(markdown: string) {
+  const heading = markdown.match(/^#{1,6}\s+(.+)$/m)?.[1]?.trim();
+
+  if (!heading) {
+    return null;
+  }
+
+  return heading
+    .replace(/[*_`#]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 160);
+}
+
+function isPlaceholderLectureTitle(title: string | null) {
+  if (!title) {
+    return true;
+  }
+
+  const normalized = title.trim().toLowerCase();
+
+  return (
+    normalized.length === 0 ||
+    normalized === "image" ||
+    normalized === "slika" ||
+    normalized === "fotografija" ||
+    /^photo-\d+/.test(normalized) ||
+    /^\d+\s+fotografij(?:a|e)?$/.test(normalized)
+  );
+}
+
+function buildReadyProcessingMetadata(metadata: unknown) {
+  const record = isRecord(metadata) ? metadata : {};
+
+  return {
+    ...record,
+    processing: {
+      stage: "ready",
+      updatedAt: new Date().toISOString(),
+      errorMessage: null,
+    },
+  };
+}
+
+async function reconcileLectureWithArtifact(
+  lecture: LectureRow,
+  artifact: Pick<LectureArtifactRow, "structured_notes_md"> | null,
+) {
+  if (
+    lecture.status === "ready" ||
+    lecture.status === "failed" ||
+    !artifact?.structured_notes_md?.trim()
+  ) {
+    return lecture;
+  }
+
+  const titleFromNotes = parseMarkdownTitle(artifact.structured_notes_md);
+  const nextTitle =
+    isPlaceholderLectureTitle(lecture.title) && titleFromNotes
+      ? titleFromNotes
+      : lecture.title;
+  const nextLecture = {
+    ...lecture,
+    title: nextTitle,
+    status: "ready" as const,
+    error_message: null,
+    processing_metadata: buildReadyProcessingMetadata(lecture.processing_metadata),
+  };
+
+  const { error } = await createSupabaseServiceRoleClient()
+    .from("lectures")
+    .update(
+      {
+        title: nextLecture.title,
+        status: nextLecture.status,
+        error_message: null,
+        processing_metadata: nextLecture.processing_metadata,
+      } as never,
+    )
+    .eq("id", lecture.id);
+
+  if (error) {
+    throw error;
+  }
+
+  return nextLecture;
+}
+
+async function reconcileLecturesWithArtifacts(lectures: LectureRow[]) {
+  const candidates = lectures.filter(
+    (lecture) => lecture.status !== "ready" && lecture.status !== "failed",
+  );
+
+  if (candidates.length === 0) {
+    return lectures;
+  }
+
+  const { data, error } = await createSupabaseServiceRoleClient()
+    .from("lecture_artifacts")
+    .select("lecture_id, structured_notes_md")
+    .in(
+      "lecture_id",
+      candidates.map((lecture) => lecture.id),
+    );
+
+  if (error) {
+    throw error;
+  }
+
+  const artifactByLectureId = new Map(
+    ((data ?? []) as Array<Pick<LectureArtifactRow, "lecture_id" | "structured_notes_md">>)
+      .map((artifact) => [artifact.lecture_id, artifact]),
+  );
+
+  return Promise.all(
+    lectures.map((lecture) =>
+      reconcileLectureWithArtifact(
+        lecture,
+        artifactByLectureId.get(lecture.id) ?? null,
+      ),
+    ),
+  );
+}
+
 function getSchemaErrorText(error: unknown) {
   if (!error || typeof error !== "object") {
     return "";
@@ -610,7 +734,7 @@ export async function listLecturesForUser(userId: string): Promise<AppLectureLis
     throw error;
   }
 
-  return (data ?? []) as LectureRow[];
+  return reconcileLecturesWithArtifacts((data ?? []) as LectureRow[]);
 }
 
 export async function getLectureDetailForUser(params: {
@@ -639,7 +763,7 @@ export async function getLectureDetailForUser(params: {
     return null;
   }
 
-  const lectureRow = lecture as LectureRow;
+  let lectureRow = lecture as LectureRow;
   const detailClient = service;
 
   const studySectionsPromise = detailClient
@@ -735,6 +859,11 @@ export async function getLectureDetailForUser(params: {
   if (artifactError) {
     throw artifactError;
   }
+
+  lectureRow = await reconcileLectureWithArtifact(
+    lectureRow,
+    artifact as LectureArtifactRow | null,
+  );
 
   if (transcriptError) {
     throw transcriptError;

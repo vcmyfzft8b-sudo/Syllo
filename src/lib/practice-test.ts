@@ -18,6 +18,7 @@ import { TRANSCRIPT_SEGMENT_CONTENT_SELECT } from "@/lib/database-selects";
 import { buildGeneratedContentLanguageInstruction } from "@/lib/languages";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { createCoveragePlan } from "@/lib/study-coverage";
+import { dependsOnMissingStudyContext, isHighQualityStudyPrompt } from "@/lib/study-quality";
 import type { CoverageConcept, CoverageUnitPlan, SourceUnit } from "@/lib/study-models";
 import { buildSourceUnits } from "@/lib/study-source-units";
 import type {
@@ -61,7 +62,7 @@ const practiceQuestionSchema = z.object({
 });
 
 const practiceQuestionBatchSchema = z.object({
-  questions: z.array(practiceQuestionSchema).min(1).max(16),
+  questions: z.array(practiceQuestionSchema).min(0).max(16),
 });
 
 const gradingSchema = z.object({
@@ -125,53 +126,6 @@ function normalizeDifficulty(value: string): FlashcardDifficulty {
 function normalizeText(value: string, maxLength: number) {
   const normalized = value.replace(/\s+/g, " ").trim();
   return normalized.length <= maxLength ? normalized : normalized.slice(0, maxLength).trim();
-}
-
-const EXTERNAL_CONTEXT_PATTERNS = [
-  /\bthe lecture\b/i,
-  /\bthe notes\b/i,
-  /\bthe source material\b/i,
-  /\bthe source\b/i,
-  /\bthe text above\b/i,
-  /\bthe text below\b/i,
-  /\bthe table above\b/i,
-  /\bthe table below\b/i,
-  /\bthe figure above\b/i,
-  /\bthe figure below\b/i,
-  /\bthe diagram above\b/i,
-  /\bthe diagram below\b/i,
-  /\bthe illustration above\b/i,
-  /\bthe illustration below\b/i,
-  /\bas shown\b/i,
-  /\bas illustrated\b/i,
-  /\bas depicted\b/i,
-  /\bshown in the\b/i,
-  /\bdepicted in the\b/i,
-  /\baccording to the source\b/i,
-  /\bbased on the source\b/i,
-  /\baccording to the material\b/i,
-  /\bbased on the material\b/i,
-  /\bpredavanj[aeuom]?\b/i,
-  /\bzapisk(?:i|ih|e|om|a)?\b/i,
-  /\bgradiv[aoeuim]?\b/i,
-  /\bvir[auoem]?\b/i,
-  /\bslik[aeiou]?\b/i,
-  /\btabel[aeiou]?\b/i,
-  /\bdiagram[aeiou]?\b/i,
-  /\bgraf[aeiou]?\b/i,
-  /\bilustracij[aeiou]?\b/i,
-  /\bprikazan[oaie]?\b/i,
-  /\bponazorjen[oaie]?\b/i,
-  /\bzgoraj\b/i,
-  /\bspodaj\b/i,
-  /\bkot je prikazano\b/i,
-  /\bkot je ponazorjeno\b/i,
-  /\bv prikazu\b/i,
-  /\bv ilustraciji\b/i,
-];
-
-function dependsOnExternalContext(prompt: string) {
-  return EXTERNAL_CONTEXT_PATTERNS.some((pattern) => pattern.test(prompt));
 }
 
 function dedupeQuestions(questions: PracticeTestQuestionDraft[]) {
@@ -321,12 +275,13 @@ async function generateQuestionsForUnit(params: {
     8,
   );
   const languageInstruction = buildGeneratedContentLanguageInstruction(params.outputLanguage);
-  const targetMinimum = Math.min(targetCount, Math.max(params.concepts.length, 1));
+  const requestedConceptKeys = new Set(params.concepts.map((concept) => concept.conceptKey));
   let generatedQuestions: PracticeTestQuestionDraft[] = [];
 
   for (
     let attemptIndex = 0;
-    attemptIndex < PRACTICE_TEST_GENERATION_ATTEMPTS && generatedQuestions.length < targetMinimum;
+    attemptIndex < PRACTICE_TEST_GENERATION_ATTEMPTS &&
+    (attemptIndex === 0 || (targetCount > 0 && generatedQuestions.length === 0));
     attemptIndex += 1
   ) {
     const retryInstruction =
@@ -339,20 +294,23 @@ async function generateQuestionsForUnit(params: {
       instructions: `${languageInstruction}
 ${params.repairOnly ? "Repair missing practice-test coverage." : "Generate source-grounded open-ended practice-test questions."}
 Use only the supplied source material.
-Return ${targetCount} questions for this unit.
+Return at most ${targetCount} questions for this unit. The requested count is a maximum, not a quota.
 Each question must be free-response and must feel like a realistic written school test prompt.
 Do not use multiple-choice options.
-Spread questions across the requested concepts and avoid duplicates.
+Spread questions across the requested concepts when high-quality prompts are supported, and avoid duplicates.
 Prefer prompts that require recall, explanation, listing, comparison, process description, or short synthesis grounded in the source.
 Keep prompts specific and answerable from the source material.
+Each question must test exactly one fact, definition, mechanism, comparison, sequence, formula, category, or cause-effect relationship.
 Every question must be fully self-contained so a student can solve it without seeing the original lecture, notes, table, diagram, or example.
 Do not refer to "the lecture", "the notes", "the table above", "the example shown", or any missing context outside the prompt itself.
 If a question depends on source-specific data, definitions, categories, scenarios, or examples, include that context directly in the prompt.
 Do not mention the source, material, lecture, notes, illustration, figure, table, graph, diagram, or example in the wording of the question.
 Write prompts as direct knowledge questions that can be answered from memory after studying the topic.${retryInstruction}
-Provide a concise but complete answerGuide that a grader can use for partial credit. Keep each answerGuide under 900 characters.
+Provide a concise but complete answerGuide that a grader can use for partial credit. Include the exact expected answer and 2-4 key points when the answer has multiple parts. Keep each answerGuide under 900 characters.
+Skip a requested concept if the only possible prompt would be vague, source-dependent, visual-only, caption-like, or created only to fill the count.
 Use the provided conceptKey exactly.
-Do not invent facts beyond the source.`,
+Do not invent facts beyond the source.
+Return fewer than ${targetCount} questions, or zero questions, when fewer high-quality questions are supported.`,
       input: JSON.stringify(
         {
           title: params.title,
@@ -384,6 +342,7 @@ Do not invent facts beyond the source.`,
     generatedQuestions = dedupeQuestions([
       ...generatedQuestions,
       ...batch.questions
+        .filter((question) => requestedConceptKeys.has(question.conceptKey))
         .map((question) => ({
           prompt: normalizeText(question.prompt, PRACTICE_PROMPT_MAX_LENGTH),
           answerGuide: normalizeText(
@@ -395,7 +354,7 @@ Do not invent facts beyond the source.`,
           sourceUnitIdx: params.unit.unitIndex,
           sourceLocator: params.unit.locatorLabel,
         }))
-        .filter((question) => !dependsOnExternalContext(question.prompt)),
+        .filter((question) => isHighQualityStudyPrompt(question.prompt)),
     ]);
   }
 
@@ -859,7 +818,7 @@ export async function createPracticeTestAttempt(params: {
     await loadAttemptInputs();
 
   const hasInvalidStoredQuestions = questionRows.some((question) =>
-    dependsOnExternalContext(question.prompt),
+    dependsOnMissingStudyContext(question.prompt) || !isHighQualityStudyPrompt(question.prompt),
   );
   const assetMetadata = toMetadataRecord(assetRow?.model_metadata);
   const needsInitialBank =

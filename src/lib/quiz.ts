@@ -12,6 +12,7 @@ import type {
 import { generateStructuredObject } from "@/lib/ai/json";
 import { TRANSCRIPT_SEGMENT_CONTENT_SELECT } from "@/lib/database-selects";
 import { buildGeneratedContentLanguageInstruction } from "@/lib/languages";
+import { areHighQualityQuizOptions, isHighQualityStudyPrompt } from "@/lib/study-quality";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { createCoveragePlan, MAX_STUDY_ITEMS } from "@/lib/study-coverage";
 import type { CoverageConcept, CoverageUnitPlan, SourceUnit } from "@/lib/study-models";
@@ -53,7 +54,7 @@ const quizQuestionSchema = z.object({
 });
 
 const quizQuestionBatchSchema = z.object({
-  questions: z.array(quizQuestionSchema).min(1).max(32),
+  questions: z.array(quizQuestionSchema).min(0).max(32),
 });
 
 function toErrorMessage(error: unknown) {
@@ -410,6 +411,7 @@ async function generateQuestionsForUnit(params: {
 }) {
   const targetCount = countTargetQuestions(params.concepts);
   const languageInstruction = buildGeneratedContentLanguageInstruction(params.outputLanguage);
+  const requestedConceptKeys = new Set(params.concepts.map((concept) => concept.conceptKey));
 
   const batch = await generateStructuredObject({
     schema: quizQuestionBatchSchema,
@@ -417,14 +419,21 @@ async function generateQuestionsForUnit(params: {
     instructions: `${languageInstruction}
 ${params.repairOnly ? "Repair missing quiz coverage." : "Generate source-grounded multiple-choice quiz questions."}
 Use only the supplied source material.
-Cover every requested concept explicitly.
-Return ${targetCount} total questions for this unit.
-For each concept, create as many questions as its recommendedCardCount, capped at 3.
+Create questions only for requested concepts that can produce high-quality standalone multiple-choice questions.
+Return at most ${targetCount} total questions for this unit. The requested count is a maximum, not a quota.
+For each concept, create at most as many questions as its recommendedCardCount, capped at 3.
 When a concept requests multiple questions, make them materially different and test different angles of understanding.
 Every question must have exactly 4 answer options and exactly 1 correct answer.
 Avoid "all of the above", "none of the above", trick phrasing, and ambiguous distractors.
 Keep questions concise, testable, and grounded in the source.
 Make the quiz feel parallel to a strong flashcard deck: short, specific, important, and easy to review at scale.
+Each question must test exactly one fact, definition, mechanism, comparison, sequence, formula, category, or cause-effect relationship.
+Each question must be fully self-contained so it can be answered without seeing the original lecture, notes, source, material, image, table, diagram, figure, or example.
+Do not mention the lecture, notes, source, material, image, table, diagram, figure, or example in the question.
+Follow the cover-the-options rule: the stem should be answerable before the student reads the options.
+All options must be homogeneous: same category, same grammatical shape, and similar length.
+Skip a question if you cannot create three plausible distractors from the same topic area.
+Avoid generic "which statement is true" or "which is correct" stems unless every option tests the same precise dimension.
 Prefer stems in patterns like:
 - "Kaj je ...?"
 - "Kaj pomeni ...?"
@@ -437,7 +446,8 @@ Distractors should be plausible alternatives from the same topic area, not rando
 Do not create repetitive questions that test the same fact with superficial wording changes.
 If a concept is simple, prefer one strong question over multiple weaker ones.
 Use the provided conceptKey exactly.
-Do not invent facts, terms, or examples that are not supported by the source.`,
+Do not invent facts, terms, or examples that are not supported by the source.
+Return fewer than ${targetCount} questions, or zero questions, when fewer high-quality questions are supported.`,
     input: JSON.stringify(
       {
         title: params.title,
@@ -467,16 +477,23 @@ Do not invent facts, terms, or examples that are not supported by the source.`,
   });
 
   return dedupeQuizQuestions(
-    batch.questions.map((question) => ({
-      prompt: normalizeQuizText(question.prompt, 220),
-      options: question.options.map((option) => normalizeQuizText(option, 180)),
-      correctOptionIndex: question.correctOptionIndex,
-      explanation: normalizeQuizText(question.explanation, 260),
-      difficulty: normalizeQuizDifficulty(question.difficulty),
-      conceptKey: question.conceptKey,
-      sourceUnitIdx: params.unit.unitIndex,
-      sourceLocator: params.unit.locatorLabel,
-    })),
+    batch.questions
+      .filter((question) => requestedConceptKeys.has(question.conceptKey))
+      .map((question) => ({
+        prompt: normalizeQuizText(question.prompt, 220),
+        options: question.options.map((option) => normalizeQuizText(option, 180)),
+        correctOptionIndex: question.correctOptionIndex,
+        explanation: normalizeQuizText(question.explanation, 260),
+        difficulty: normalizeQuizDifficulty(question.difficulty),
+        conceptKey: question.conceptKey,
+        sourceUnitIdx: params.unit.unitIndex,
+        sourceLocator: params.unit.locatorLabel,
+      }))
+      .filter(
+        (question) =>
+          isHighQualityStudyPrompt(question.prompt) &&
+          areHighQualityQuizOptions(question.options),
+      ),
   );
 }
 

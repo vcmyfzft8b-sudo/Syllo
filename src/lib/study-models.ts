@@ -56,6 +56,7 @@ export interface CoverageConcept {
   conceptLabel: string;
   conceptType: CoverageConceptType;
   studyValue: SourceImportance;
+  qualityScore: number;
   recommendedCardCount: number;
   preferredCardStyle: CoverageCardKind;
   supportingExcerpt: string;
