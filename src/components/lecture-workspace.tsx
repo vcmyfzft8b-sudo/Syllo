@@ -1980,22 +1980,22 @@ export function LectureWorkspace({
             {activeStudyView === "flashcards" ? (
               totalFlashcards === 0 ? (
                 <div className="empty-state lecture-empty-card lecture-study-empty">
-                  <p className="ios-row-title">
-                    {detail.lecture.status !== "ready"
-                      ? "Učna orodja se odklenejo, ko je obdelava zapiska končana."
-                      : isStudyGenerating
-                        ? "Ustvarjam kartice."
-                        : detail.studyAsset?.status === "failed"
-                          ? "Ustvarjanje kartic ni uspelo."
-                          : "Ustvari kartice, ko si pripravljen."}
-                  </p>
-                  <p className="ios-row-subtitle">
-                    {detail.lecture.status !== "ready"
-                      ? "Najprej nastanejo zapiski. Nato lahko kartice ustvariš ročno."
-                      : isStudyGenerating
-                        ? "Ta pogled se samodejno osvežuje, medtem ko se pripravlja komplet kartic."
-                        : "Ustvari učni komplet v istem jeziku in iz iste vsebine kot tvoji zapiski."}
-                  </p>
+                  {!isStudyGenerating ? (
+                    <>
+                      <p className="ios-row-title">
+                        {detail.lecture.status !== "ready"
+                          ? "Učna orodja se odklenejo, ko je obdelava zapiska končana."
+                          : detail.studyAsset?.status === "failed"
+                            ? "Ustvarjanje kartic ni uspelo."
+                            : "Ustvari kartice, ko si pripravljen."}
+                      </p>
+                      <p className="ios-row-subtitle">
+                        {detail.lecture.status !== "ready"
+                          ? "Najprej nastanejo zapiski. Nato lahko kartice ustvariš ročno."
+                          : "Ustvari učni komplet v istem jeziku in iz iste vsebine kot tvoji zapiski."}
+                      </p>
+                    </>
+                  ) : null}
                   {detail.lecture.status === "ready" && !isStudyGenerating ? (
                     <button
                       type="button"
@@ -2006,16 +2006,6 @@ export function LectureWorkspace({
                       {isRegeneratingStudy ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : null}
-                      Ustvari kartice
-                    </button>
-                  ) : null}
-                  {detail.lecture.status === "ready" && isAwaitingStudyGeneration ? (
-                    <button
-                      type="button"
-                      disabled
-                      className="lecture-study-refresh lecture-study-create-button"
-                    >
-                      <Loader2 className="h-4 w-4 animate-spin" />
                       Ustvari kartice
                     </button>
                   ) : null}
@@ -2176,22 +2166,22 @@ export function LectureWorkspace({
             ) : activeStudyView === "quiz" ? (
               totalQuizQuestions === 0 ? (
                 <div className="empty-state lecture-empty-card lecture-study-empty">
-                  <p className="ios-row-title">
-                    {detail.lecture.status !== "ready"
-                      ? "Učna orodja se odklenejo, ko je obdelava zapiska končana."
-                      : isQuizGenerating
-                        ? "Ustvarjam kviz."
-                        : detail.quizAsset?.status === "failed"
-                          ? "Ustvarjanje kviza ni uspelo."
-                          : "Ustvari kviz, ko si pripravljen."}
-                  </p>
-                  <p className="ios-row-subtitle">
-                    {detail.lecture.status !== "ready"
-                      ? "Najprej nastanejo zapiski. Nato lahko kvize ustvariš ročno."
-                      : isQuizGenerating
-                        ? "Ta pogled se samodejno osvežuje, medtem ko se pripravlja kviz."
-                        : "Ustvari vprašanja z več izbirami v istem jeziku kot tvoji zapiski."}
-                  </p>
+                  {!isQuizGenerating ? (
+                    <>
+                      <p className="ios-row-title">
+                        {detail.lecture.status !== "ready"
+                          ? "Učna orodja se odklenejo, ko je obdelava zapiska končana."
+                          : detail.quizAsset?.status === "failed"
+                            ? "Ustvarjanje kviza ni uspelo."
+                            : "Ustvari kviz, ko si pripravljen."}
+                      </p>
+                      <p className="ios-row-subtitle">
+                        {detail.lecture.status !== "ready"
+                          ? "Najprej nastanejo zapiski. Nato lahko kvize ustvariš ročno."
+                          : "Ustvari vprašanja z več izbirami v istem jeziku kot tvoji zapiski."}
+                      </p>
+                    </>
+                  ) : null}
                   {detail.lecture.status === "ready" && !isQuizGenerating ? (
                     <button
                       type="button"
@@ -2202,16 +2192,6 @@ export function LectureWorkspace({
                       {isRegeneratingQuiz ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : null}
-                      Ustvari kviz
-                    </button>
-                  ) : null}
-                  {detail.lecture.status === "ready" && isAwaitingQuizGeneration ? (
-                    <button
-                      type="button"
-                      disabled
-                      className="lecture-study-refresh lecture-study-create-button"
-                    >
-                      <Loader2 className="h-4 w-4 animate-spin" />
                       Ustvari kviz
                     </button>
                   ) : null}
@@ -2363,26 +2343,26 @@ export function LectureWorkspace({
               )
             ) : detail.practiceTestQuestions.length === 0 ? (
               <div className="empty-state lecture-empty-card lecture-study-empty">
-                <p className="ios-row-title">
-                  {detail.lecture.status !== "ready"
-                    ? "Učna orodja se odklenejo, ko je obdelava zapiska končana."
-                    : isPracticeTestGenerating
-                      ? "Ustvarjam preizkus."
-                      : detail.practiceTestAsset?.status === "failed"
-                        ? "Ustvarjanje preizkusa ni uspelo."
+                {!isPracticeTestGenerating ? (
+                  <>
+                    <p className="ios-row-title">
+                      {detail.lecture.status !== "ready"
+                        ? "Učna orodja se odklenejo, ko je obdelava zapiska končana."
+                        : detail.practiceTestAsset?.status === "failed"
+                          ? "Ustvarjanje preizkusa ni uspelo."
+                          : hasCompletedPracticeTest
+                            ? "Začni nov preizkus, ko si pripravljen."
+                            : "Ustvari svoj prvi preizkus."}
+                    </p>
+                    <p className="ios-row-subtitle">
+                      {detail.lecture.status !== "ready"
+                        ? "Najprej nastanejo zapiski. Nato lahko začneš preizkus."
                         : hasCompletedPracticeTest
-                          ? "Začni nov preizkus, ko si pripravljen."
-                          : "Ustvari svoj prvi preizkus."}
-                </p>
-                <p className="ios-row-subtitle">
-                  {detail.lecture.status !== "ready"
-                    ? "Najprej nastanejo zapiski. Nato lahko začneš preizkus."
-                    : isPracticeTestGenerating
-                      ? "Ta pogled se samodejno osvežuje, medtem ko se pripravlja naslednji preizkus."
-                      : hasCompletedPracticeTest
-                        ? "Vsak nov preizkus prinese nov naključen nabor odprtih vprašanj."
-                        : "Najprej ustvari prvi nabor samostojnih odprtih vprašanj, nato preglej rezultate in po koncu začni nove preizkuse."}
-                </p>
+                          ? "Vsak nov preizkus prinese nov naključen nabor odprtih vprašanj."
+                          : "Najprej ustvari prvi nabor samostojnih odprtih vprašanj, nato preglej rezultate in po koncu začni nove preizkuse."}
+                    </p>
+                  </>
+                ) : null}
                 {detail.lecture.status === "ready" && !isPracticeTestGenerating ? (
                   <button
                     type="button"
@@ -2393,16 +2373,6 @@ export function LectureWorkspace({
                     {isStartingPracticeTest ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : null}
-                    {hasCompletedPracticeTest ? "Začni nov preizkus" : "Ustvari preizkus"}
-                  </button>
-                ) : null}
-                {detail.lecture.status === "ready" && isAwaitingPracticeTestGeneration ? (
-                  <button
-                    type="button"
-                    disabled
-                    className="lecture-study-refresh lecture-study-create-button"
-                  >
-                    <Loader2 className="h-4 w-4 animate-spin" />
                     {hasCompletedPracticeTest ? "Začni nov preizkus" : "Ustvari preizkus"}
                   </button>
                 ) : null}
