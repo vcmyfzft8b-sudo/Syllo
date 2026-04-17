@@ -5589,6 +5589,13 @@ select:disabled {
   text-align: center;
 }
 
+.lecture-notes-processing {
+  display: grid;
+  place-items: center;
+  min-height: 9rem;
+  padding: 0.75rem 1rem;
+}
+
 .lecture-study-generation-notice {
   display: grid;
   justify-items: center;

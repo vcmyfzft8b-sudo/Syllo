@@ -448,6 +448,26 @@ function practiceTestStageLabel(stage: unknown) {
   return "Pripravljam preizkus";
 }
 
+function lectureProcessingStageLabel(status: LectureDetail["lecture"]["status"]) {
+  if (status === "uploading") {
+    return "Nalagam gradivo";
+  }
+
+  if (status === "queued") {
+    return "Pripravljam obdelavo";
+  }
+
+  if (status === "transcribing") {
+    return "Prepisujem predavanje";
+  }
+
+  if (status === "generating_notes") {
+    return "Ustvarjam zapiske";
+  }
+
+  return "Pripravljam zapiske";
+}
+
 function studyAssetStatusLabel(status: StudyAssetStatus | null | undefined) {
   if (status === "queued") {
     return "Priprava";
@@ -468,7 +488,13 @@ function studyAssetStatusLabel(status: StudyAssetStatus | null | undefined) {
   return null;
 }
 
-function StudyGenerationNotice({ stageCopy }: { stageCopy: string }) {
+function StudyGenerationNotice({
+  stageCopy,
+  bodyCopy = "Ustvarjanje teče v ozadju. Lahko zapreš ta pogled in se vrneš čez nekaj minut.",
+}: {
+  stageCopy: string;
+  bodyCopy?: string;
+}) {
   return (
     <div className="lecture-study-generation-notice" role="status" aria-live="polite">
       <div className="lecture-study-generation-loader" aria-hidden="true">
@@ -478,10 +504,7 @@ function StudyGenerationNotice({ stageCopy }: { stageCopy: string }) {
       </div>
       <div className="lecture-study-generation-copy">
         <p className="lecture-study-generation-stage">{stageCopy}</p>
-        <p>
-          Ustvarjanje teče v ozadju. Lahko zapreš ta pogled in se vrneš čez nekaj
-          minut.
-        </p>
+        <p>{bodyCopy}</p>
       </div>
     </div>
   );
@@ -1262,6 +1285,7 @@ export function LectureWorkspace({
       ? detail.practiceTestAsset.model_metadata.stage
       : null;
   const practiceTestStageCopy = practiceTestStageLabel(practiceTestStage);
+  const lectureProcessingStageCopy = lectureProcessingStageLabel(detail.lecture.status);
   const totalFlashcards = studyDeck.length;
   const flashcardFirstPassKnownCount = studyDeck.reduce((total, flashcard) => {
     return flashcardSessionResults[flashcard.id]?.firstConfidence !== "again" &&
@@ -1908,13 +1932,20 @@ export function LectureWorkspace({
       return (
         <div className="workspace-panel-stack lecture-panel-stack">
           <div className="ios-card lecture-notes-card">
-            <div className="markdown lecture-markdown">
-              {cleanedStructuredNotes ? (
+            {cleanedStructuredNotes ? (
+              <div className="markdown lecture-markdown">
                 <MarkdownRenderer content={cleanedStructuredNotes} />
-              ) : (
-                <p className="ios-info">Zapiski še niso pripravljeni.</p>
-              )}
-            </div>
+              </div>
+            ) : shouldPollLecture(detail.lecture.status) ? (
+              <div className="lecture-notes-processing">
+                <StudyGenerationNotice
+                  stageCopy={lectureProcessingStageCopy}
+                  bodyCopy="Obdelava teče v ozadju. Lahko zapreš ta pogled in se vrneš čez nekaj minut."
+                />
+              </div>
+            ) : (
+              <p className="ios-info">Zapiski še niso pripravljeni.</p>
+            )}
           </div>
         </div>
       );
