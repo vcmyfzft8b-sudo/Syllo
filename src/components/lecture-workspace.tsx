@@ -2636,7 +2636,11 @@ export function LectureWorkspace({
       const isScanTranscript = isScanImport(detail);
 
       return transcriptSegments.length > 0 ? (
-        <div className="ios-card lecture-transcript-card">
+        <div
+          className={`ios-card lecture-transcript-card ${
+            isScanTranscript ? "lecture-transcript-card-scan" : ""
+          }`}
+        >
           {transcriptSegments.map((segment) => (
             <div key={segment.id} className="timeline-row">
               <p className="timeline-time">
@@ -2652,7 +2656,7 @@ export function LectureWorkspace({
                   </>
                 )}
               </p>
-              <p className="m-0 whitespace-pre-wrap text-[0.98rem] leading-8 text-[var(--label)]">
+              <p className="lecture-transcript-text m-0 whitespace-pre-wrap text-[0.98rem] leading-8 text-[var(--label)]">
                 {segment.text}
               </p>
             </div>
