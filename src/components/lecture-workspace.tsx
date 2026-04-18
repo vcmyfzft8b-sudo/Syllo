@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { StudyCompletionCard } from "@/components/study-completion-card";
 import { parseApiResponse, redirectToBillingIfNeeded } from "@/lib/billing-client";
 import type { FlashcardConfidenceBucket, StudyAssetStatus } from "@/lib/database.types";
+import { isRecord, lectureShowsTranscript } from "@/lib/lecture-source-metadata";
 import {
   POLL_INTERVAL_MS,
 } from "@/lib/constants";
@@ -288,26 +289,11 @@ function sourceLabel(sourceType: string) {
   return "Zvočni posnetek";
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function isScanImport(detail: LectureDetail) {
-  const metadata = detail.lecture.processing_metadata;
-
-  if (!isRecord(metadata)) {
-    return false;
-  }
-
-  const manualImport = metadata.manualImport;
-
-  if (!isRecord(manualImport)) {
-    return false;
-  }
-
-  const modelMetadata = manualImport.modelMetadata;
-
-  return isRecord(modelMetadata) && modelMetadata.importMode === "scan";
+  return lectureShowsTranscript({
+    lecture: detail.lecture,
+    artifact: detail.artifact,
+  }) && detail.lecture.source_type !== "audio";
 }
 
 function getScanTranscriptFallback(detail: LectureDetail) {
@@ -928,7 +914,10 @@ export function LectureWorkspace({
     [detail.practiceTestAttempts],
   );
   const currentReviewFlashcardId = reviewQueue[0] ?? null;
-  const showsTranscript = detail.lecture.source_type === "audio" || isScanImport(detail);
+  const showsTranscript = lectureShowsTranscript({
+    lecture: detail.lecture,
+    artifact: detail.artifact,
+  });
   const shouldPollCurrentDetail = shouldPollDetail(detail);
   const detailPollIntervalMs =
     shouldPollAsset(detail.studyAsset?.status) || shouldPollAsset(detail.quizAsset?.status)
