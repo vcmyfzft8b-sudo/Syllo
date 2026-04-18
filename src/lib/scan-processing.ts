@@ -1,7 +1,6 @@
 import "server-only";
 
 import { MAX_SCAN_IMAGE_BYTES, STORAGE_BUCKET } from "@/lib/constants";
-import { generateLectureNotesFromStoredTranscript } from "@/lib/pipeline";
 import { extractTextFromImage, prepareLectureFromTextSource } from "@/lib/manual-lectures";
 import {
   isCanonicalLectureScanImageStoragePath,
@@ -18,6 +17,10 @@ type StoredScanImage = {
   mimeType: string;
   fileName?: string | null;
   size: number;
+};
+
+export type StoredScanProcessingResult = {
+  needsNotesGeneration: boolean;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -93,7 +96,9 @@ async function downloadStoredScanImage(image: StoredScanImage) {
   });
 }
 
-export async function processStoredScanLecture(params: { lectureId: string }) {
+export async function processStoredScanLecture(
+  params: { lectureId: string },
+): Promise<StoredScanProcessingResult> {
   const supabase = createSupabaseServiceRoleClient();
   const { data: lecture, error: lectureError } = await supabase
     .from("lectures")
@@ -166,13 +171,10 @@ export async function processStoredScanLecture(params: { lectureId: string }) {
           throw new Error(updateError.message);
         }
 
-        return;
+        return { needsNotesGeneration: false };
       }
 
-      await generateLectureNotesFromStoredTranscript({
-        lectureId: lectureRow.id,
-      });
-      return;
+      return { needsNotesGeneration: true };
     }
 
     throw new Error("Ni fotografij za obdelavo.");
@@ -277,7 +279,5 @@ export async function processStoredScanLecture(params: { lectureId: string }) {
     },
   });
 
-  await generateLectureNotesFromStoredTranscript({
-    lectureId: lectureRow.id,
-  });
+  return { needsNotesGeneration: true };
 }

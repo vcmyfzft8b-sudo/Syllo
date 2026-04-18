@@ -35,6 +35,10 @@ import type {
   StudySession,
 } from "@/lib/types";
 import { TRANSCRIPT_SEGMENT_CONTENT_SELECT } from "@/lib/database-selects";
+import {
+  isRecord,
+  lectureShowsTranscript,
+} from "@/lib/lecture-source-metadata";
 import { buildPracticeTestHistorySummary, mapAttemptWithAnswers } from "@/lib/practice-test";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { uuidSchema } from "@/lib/validation";
@@ -47,28 +51,6 @@ type PostgrestLikeError = {
 };
 
 const BATCHED_IN_QUERY_SIZE = 100;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isScanImportLecture(lecture: LectureRow) {
-  const metadata = lecture.processing_metadata;
-
-  if (!isRecord(metadata)) {
-    return false;
-  }
-
-  const manualImport = metadata.manualImport;
-
-  if (!isRecord(manualImport)) {
-    return false;
-  }
-
-  const modelMetadata = manualImport.modelMetadata;
-
-  return isRecord(modelMetadata) && modelMetadata.importMode === "scan";
-}
 
 function parseMarkdownTitle(markdown: string) {
   const heading = markdown.match(/^#{1,6}\s+(.+)$/m)?.[1]?.trim();
@@ -114,6 +96,25 @@ function buildReadyProcessingMetadata(metadata: unknown) {
   };
 }
 
+async function getProcessingMetadataForUpdate(lecture: LectureRow) {
+  if (isRecord(lecture.processing_metadata)) {
+    return lecture.processing_metadata;
+  }
+
+  const { data, error } = await createSupabaseServiceRoleClient()
+    .from("lectures")
+    .select("processing_metadata")
+    .eq("id", lecture.id)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  const row = data as Pick<LectureRow, "processing_metadata"> | null;
+  return row?.processing_metadata ?? {};
+}
+
 async function reconcileLectureWithArtifact(
   lecture: LectureRow,
   artifact: Pick<LectureArtifactRow, "structured_notes_md"> | null,
@@ -126,6 +127,7 @@ async function reconcileLectureWithArtifact(
     return lecture;
   }
 
+  const processingMetadata = await getProcessingMetadataForUpdate(lecture);
   const titleFromNotes = parseMarkdownTitle(artifact.structured_notes_md);
   const nextTitle =
     isPlaceholderLectureTitle(lecture.title) && titleFromNotes
@@ -136,7 +138,7 @@ async function reconcileLectureWithArtifact(
     title: nextTitle,
     status: "ready" as const,
     error_message: null,
-    processing_metadata: buildReadyProcessingMetadata(lecture.processing_metadata),
+    processing_metadata: buildReadyProcessingMetadata(processingMetadata),
   };
 
   const { error } = await createSupabaseServiceRoleClient()
@@ -803,20 +805,11 @@ export async function getLectureDetailForUser(params: {
     .eq("lecture_id", lectureRow.id)
     .eq("user_id", params.userId)
     .order("created_at", { ascending: true });
-  const transcriptPromise =
-    lectureRow.source_type === "audio" || isScanImportLecture(lectureRow)
-      ? detailClient
-          .from("transcript_segments")
-          .select(TRANSCRIPT_SEGMENT_CONTENT_SELECT)
-          .eq("lecture_id", lectureRow.id)
-          .order("idx", { ascending: true })
-      : Promise.resolve({ data: [], error: null });
 
   const [
     { data: artifact, error: artifactError },
     { data: studyAsset, error: studyAssetError },
     { data: flashcards, error: flashcardsError },
-    { data: transcript, error: transcriptError },
     { data: chatMessages, error: chatError },
     studySectionsResult,
     quizAssetResult,
@@ -841,7 +834,6 @@ export async function getLectureDetailForUser(params: {
       .select("*")
       .eq("lecture_id", lectureRow.id)
       .order("idx", { ascending: true }),
-    transcriptPromise,
     detailClient
       .from("chat_messages")
       .select("*")
@@ -864,6 +856,19 @@ export async function getLectureDetailForUser(params: {
     lectureRow,
     artifact as LectureArtifactRow | null,
   );
+
+  const transcriptResult = lectureShowsTranscript({
+    lecture: lectureRow,
+    artifact: artifact as LectureArtifactRow | null,
+  })
+    ? await detailClient
+        .from("transcript_segments")
+        .select(TRANSCRIPT_SEGMENT_CONTENT_SELECT)
+        .eq("lecture_id", lectureRow.id)
+        .order("idx", { ascending: true })
+    : { data: [], error: null };
+
+  const { data: transcript, error: transcriptError } = transcriptResult;
 
   if (transcriptError) {
     throw transcriptError;

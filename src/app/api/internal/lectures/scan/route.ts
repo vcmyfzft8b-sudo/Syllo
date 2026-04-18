@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { markLecturePipelineFailed } from "@/lib/pipeline";
+import { enqueueLectureNotesGeneration } from "@/lib/jobs";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { processStoredScanLecture } from "@/lib/scan-processing";
@@ -57,9 +58,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    await processStoredScanLecture({
+    const result = await processStoredScanLecture({
       lectureId: parsed.data.lectureId,
     });
+
+    if (result.needsNotesGeneration) {
+      await enqueueLectureNotesGeneration(parsed.data.lectureId);
+    }
   } catch (error) {
     await markLecturePipelineFailed({
       lectureId: parsed.data.lectureId,

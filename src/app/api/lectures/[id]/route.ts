@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { parseAudioChunkManifest } from "@/lib/audio-processing";
 import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
+import { enqueueLectureNotesGeneration } from "@/lib/jobs";
+import { isRecord } from "@/lib/lecture-source-metadata";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { extractScanImageStoragePaths } from "@/lib/scan-image-uploads";
@@ -10,10 +12,26 @@ import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/l
 import { lectureTitleSchema, routeIdParamSchema } from "@/lib/validation";
 
 const UPDATE_LECTURE_MAX_BYTES = 8 * 1024;
+const STALE_NOTES_GENERATION_MS = 6 * 60 * 1000;
 
 const updateLectureSchema = z.object({
   title: lectureTitleSchema,
 });
+
+function getLectureProcessingUpdatedAt(processingMetadata: unknown) {
+  if (!isRecord(processingMetadata) || !isRecord(processingMetadata.processing)) {
+    return 0;
+  }
+
+  const updatedAt = processingMetadata.processing.updatedAt;
+
+  if (typeof updatedAt !== "string") {
+    return 0;
+  }
+
+  const timestamp = Date.parse(updatedAt);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
 
 export async function GET(
   request: Request,
@@ -53,6 +71,21 @@ export async function GET(
 
   if (!detail) {
     return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
+  }
+
+  const processingUpdatedAt =
+    getLectureProcessingUpdatedAt(detail.lecture.processing_metadata) ||
+    Date.parse(detail.lecture.updated_at);
+
+  if (
+    detail.lecture.status === "generating_notes" &&
+    !detail.artifact &&
+    detail.transcript.length > 0 &&
+    Date.now() - processingUpdatedAt > STALE_NOTES_GENERATION_MS
+  ) {
+    after(async () => {
+      await enqueueLectureNotesGeneration(detail.lecture.id);
+    });
   }
 
   return NextResponse.json(detail);
