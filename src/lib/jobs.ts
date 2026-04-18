@@ -181,9 +181,15 @@ export async function enqueueLectureScanProcessing(lectureId: string) {
     return;
   }
 
-  await processStoredScanLecture({ lectureId }).catch(async (error) => {
+  try {
+    const result = await processStoredScanLecture({ lectureId });
+
+    if (result.needsNotesGeneration) {
+      await enqueueLectureNotesGeneration(lectureId);
+    }
+  } catch (error) {
     await markLecturePipelineFailed({ lectureId, error });
-  });
+  }
 }
 
 export async function enqueueLectureStudyGeneration(lectureId: string) {
