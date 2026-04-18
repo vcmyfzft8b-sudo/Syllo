@@ -4,6 +4,10 @@ import { z } from "zod";
 import { createBillingRequiredResponse, getUserEntitlementState } from "@/lib/billing";
 import { enqueueLectureNotesGeneration } from "@/lib/jobs";
 import { fetchReadableWebpage, prepareLectureFromTextSource } from "@/lib/manual-lectures";
+import {
+  isUnsupportedVideoUrl,
+  UNSUPPORTED_VIDEO_LINK_MESSAGE,
+} from "@/lib/link-source-validation";
 import { markLecturePipelineFailed } from "@/lib/pipeline";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
@@ -53,6 +57,13 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return parsed.response;
+  }
+
+  if (isUnsupportedVideoUrl(parsed.data.url)) {
+    return NextResponse.json(
+      { error: UNSUPPORTED_VIDEO_LINK_MESSAGE, code: "unsupported_video_link" },
+      { status: 400 },
+    );
   }
 
   if (!entitlement.hasPaidAccess && parsed.data.lectureId !== entitlement.trialLectureId) {
@@ -107,6 +118,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ lectureId });
   } catch (error) {
+    if (error instanceof Error && error.message === UNSUPPORTED_VIDEO_LINK_MESSAGE) {
+      return NextResponse.json(
+        { error: UNSUPPORTED_VIDEO_LINK_MESSAGE, code: "unsupported_video_link" },
+        { status: 400 },
+      );
+    }
+
     return NextResponse.json(
       {
         error:
