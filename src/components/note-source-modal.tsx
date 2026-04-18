@@ -36,7 +36,7 @@ import {
 } from "@/lib/storage";
 import { getUnsupportedVideoUrlMessage } from "@/lib/link-source-validation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { formatTimestamp } from "@/lib/utils";
+import { cn, formatTimestamp } from "@/lib/utils";
 
 export type NoteSourceMode = "record" | "link" | "text" | "upload";
 
@@ -1587,7 +1587,10 @@ export function NoteSourceModal({
                             }
                             setTextValue(nextValue);
                           }}
-                          className="ios-textarea note-source-inline-textarea"
+                          className={cn(
+                            "ios-textarea note-source-inline-textarea",
+                            pdfSource && "note-source-inline-textarea-compact",
+                          )}
                           placeholder="Sem prilepi zapiske ali besedilo..."
                         />
                       </div>
