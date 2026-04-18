@@ -27,6 +27,10 @@ import {
   type StructuredSourceBlock,
 } from "@/lib/text-source-processing";
 import { createEmbeddings as createAiEmbeddings } from "@/lib/ai/embeddings";
+import {
+  isUnsupportedVideoContentType,
+  UNSUPPORTED_VIDEO_LINK_MESSAGE,
+} from "@/lib/link-source-validation";
 import { serializeVector } from "@/lib/utils";
 
 const pdfExtractionSchema = z.object({
@@ -400,6 +404,10 @@ export async function fetchReadableWebpage(params: { url: string }) {
   }
 
   const contentType = response.headers.get("content-type") ?? "";
+
+  if (isUnsupportedVideoContentType(contentType)) {
+    throw new Error(UNSUPPORTED_VIDEO_LINK_MESSAGE);
+  }
 
   if (!contentType.includes("text/html") && !contentType.includes("text/plain")) {
     throw new Error("Only standard web pages are supported for link summaries.");

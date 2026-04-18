@@ -34,6 +34,7 @@ import {
   normalizeMimeType,
   normalizeUploadScanImageMimeType,
 } from "@/lib/storage";
+import { getUnsupportedVideoUrlMessage } from "@/lib/link-source-validation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { formatTimestamp } from "@/lib/utils";
 
@@ -274,9 +275,13 @@ export function NoteSourceModal({
   const trimmedTextValue = textValue.trim();
   const combinedTextSource = trimmedTextValue;
   const trimmedLinkValue = linkValue.trim();
+  const linkVideoError = useMemo(
+    () => getUnsupportedVideoUrlMessage(trimmedLinkValue),
+    [trimmedLinkValue],
+  );
   const canGenerateText =
     Boolean(pdfSource) || photoSources.length > 0 || combinedTextSource.length >= 120;
-  const canGenerateLink = trimmedLinkValue.length > 0;
+  const canGenerateLink = trimmedLinkValue.length > 0 && !linkVideoError;
 
   function redirectToPaywall() {
     onClose();
@@ -887,6 +892,11 @@ export function NoteSourceModal({
   async function createLinkLecture() {
     if (!trimmedLinkValue) {
       setError("Najprej prilepi povezavo.");
+      return;
+    }
+
+    if (linkVideoError) {
+      setError(linkVideoError);
       return;
     }
 
@@ -1534,10 +1544,16 @@ export function NoteSourceModal({
                           <EmojiIcon symbol="🔎" size="0.95rem" />
                           <input
                             value={linkValue}
-                            onChange={(event) => setLinkValue(event.target.value)}
+                            onChange={(event) => {
+                              setLinkValue(event.target.value);
+                              setError(null);
+                            }}
                             placeholder="https://example.com"
                           />
                         </div>
+                        {linkVideoError ? (
+                          <p className="ios-info ios-danger mt-2">{linkVideoError}</p>
+                        ) : null}
                       </div>
 
                       {renderBusyOrGenerateButton({
