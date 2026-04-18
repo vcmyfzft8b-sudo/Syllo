@@ -2067,6 +2067,10 @@ select:disabled {
   resize: vertical;
 }
 
+.note-source-inline-textarea-compact {
+  min-height: 4.5rem;
+}
+
 .note-source-docs-file-card {
   display: grid;
   gap: 0.35rem;
