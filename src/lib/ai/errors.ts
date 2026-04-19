@@ -17,6 +17,13 @@ function getErrorText(error: unknown) {
 export function isRetryableAiError(error: unknown) {
   const message = getErrorText(error).toLowerCase();
 
+  if (
+    message.includes("statement timeout") ||
+    message.includes("canceling statement due to statement timeout")
+  ) {
+    return false;
+  }
+
   return (
     message.includes("503") ||
     message.includes("429") ||
@@ -34,6 +41,15 @@ export function isRetryableAiError(error: unknown) {
 }
 
 export function toUserFacingAiErrorMessage(error: unknown) {
+  const message = getErrorText(error).toLowerCase();
+
+  if (
+    message.includes("statement timeout") ||
+    message.includes("canceling statement due to statement timeout")
+  ) {
+    return "The note took too long to save. Please retry this note in a minute.";
+  }
+
   if (isRetryableAiError(error)) {
     return "The AI provider is temporarily overloaded. Please retry this note in a minute.";
   }

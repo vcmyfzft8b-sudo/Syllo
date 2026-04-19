@@ -46,6 +46,17 @@ const imageExtractionSchema = z.object({
 const MAX_LINK_FETCH_REDIRECTS = 3;
 const MAX_LINK_FETCH_BYTES = 1_000_000;
 const LINK_FETCH_TIMEOUT_MS = 10_000;
+const TRANSCRIPT_SEGMENT_INSERT_BATCH_SIZE = 25;
+
+type TranscriptSegmentInsertRow = {
+  lecture_id: string;
+  idx: number;
+  start_ms: number;
+  end_ms: number;
+  speaker_label: string | null;
+  text: string;
+  embedding: string | null;
+};
 
 let pdfJsPromise: Promise<typeof import("pdfjs-dist/legacy/build/pdf.mjs")> | null =
   null;
@@ -80,6 +91,24 @@ function normalizeWhitespace(value: string) {
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
+}
+
+async function insertTranscriptSegmentsInBatches(
+  supabase: ReturnType<typeof createSupabaseServiceRoleClient>,
+  transcriptRows: TranscriptSegmentInsertRow[],
+) {
+  for (
+    let start = 0;
+    start < transcriptRows.length;
+    start += TRANSCRIPT_SEGMENT_INSERT_BATCH_SIZE
+  ) {
+    const batch = transcriptRows.slice(start, start + TRANSCRIPT_SEGMENT_INSERT_BATCH_SIZE);
+    const { error } = await supabase.from("transcript_segments").insert(batch as never);
+
+    if (error) {
+      throw error;
+    }
+  }
 }
 
 function rtfToText(rtf: string) {
@@ -733,14 +762,19 @@ export async function createLectureFromTextSource(params: {
       throw new Error("The source did not contain enough text to process.");
     }
 
+    if (!lectureId) {
+      throw new Error("Zapiska ni bilo mogoče ustvariti.");
+    }
+
+    const activeLectureId = lectureId;
     const embeddings = await createEmbeddings(transcript.map((segment) => segment.text));
 
-    await requireActiveLecture(lectureId);
+    await requireActiveLecture(activeLectureId);
 
-    await supabase.from("transcript_segments").delete().eq("lecture_id", lectureId);
+    await supabase.from("transcript_segments").delete().eq("lecture_id", activeLectureId);
 
     const transcriptRows = transcript.map((segment, index) => ({
-      lecture_id: lectureId,
+      lecture_id: activeLectureId,
       idx: segment.idx,
       start_ms: segment.startMs,
       end_ms: segment.endMs,
@@ -749,13 +783,7 @@ export async function createLectureFromTextSource(params: {
       embedding: embeddings[index] ? serializeVector(embeddings[index]) : null,
     }));
 
-    const { error: transcriptError } = await supabase
-      .from("transcript_segments")
-      .insert(transcriptRows as never);
-
-    if (transcriptError) {
-      throw new Error(transcriptError.message);
-    }
+    await insertTranscriptSegmentsInBatches(supabase, transcriptRows);
 
     const notes = await generateNotesFromTranscript(transcript, {
       sourceLabel: "uploaded documents and text sources",

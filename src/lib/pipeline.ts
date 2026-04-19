@@ -24,6 +24,7 @@ import { getTranscriptionProvider } from "@/lib/transcription/provider";
 
 const transcriptionProvider = getTranscriptionProvider();
 const EMBEDDING_BATCH_SIZE = 100;
+const TRANSCRIPT_SEGMENT_INSERT_BATCH_SIZE = 25;
 
 type LecturePipelineRow = {
   id: string;
@@ -33,6 +34,16 @@ type LecturePipelineRow = {
   source_type: string | null;
   title: string | null;
   processing_metadata: unknown;
+};
+
+type TranscriptSegmentInsertRow = {
+  lecture_id: string;
+  idx: number;
+  start_ms: number;
+  end_ms: number;
+  speaker_label: string | null;
+  text: string;
+  embedding: string | null;
 };
 
 function parseProcessingMetadata(value: unknown) {
@@ -81,6 +92,24 @@ async function updateLectureProcessingState(params: {
 
 function toErrorMessage(error: unknown) {
   return toUserFacingAiErrorMessage(error);
+}
+
+async function insertTranscriptSegmentsInBatches(
+  supabase: ReturnType<typeof createSupabaseServiceRoleClient>,
+  transcriptRows: TranscriptSegmentInsertRow[],
+) {
+  for (
+    let start = 0;
+    start < transcriptRows.length;
+    start += TRANSCRIPT_SEGMENT_INSERT_BATCH_SIZE
+  ) {
+    const batch = transcriptRows.slice(start, start + TRANSCRIPT_SEGMENT_INSERT_BATCH_SIZE);
+    const { error } = await supabase.from("transcript_segments").insert(batch as never);
+
+    if (error) {
+      throw error;
+    }
+  }
 }
 
 function assertTranscriptCoverage(params: {
@@ -242,13 +271,7 @@ export async function transcribeLectureContent(params: { lectureId: string }) {
   }));
 
   if (transcriptRows.length > 0) {
-    const { error: insertTranscriptError } = await supabase
-      .from("transcript_segments")
-      .insert(transcriptRows as never);
-
-    if (insertTranscriptError) {
-      throw insertTranscriptError;
-    }
+    await insertTranscriptSegmentsInBatches(supabase, transcriptRows);
   }
 
   await updateLectureProcessingState({
@@ -340,13 +363,7 @@ export async function generateLectureNotesFromStoredTranscript(params: { lecture
       embedding: embeddings[index] ? serializeVector(embeddings[index]) : null,
     }));
 
-    const { error: insertTranscriptError } = await supabase
-      .from("transcript_segments")
-      .insert(transcriptRows as never);
-
-    if (insertTranscriptError) {
-      throw insertTranscriptError;
-    }
+    await insertTranscriptSegmentsInBatches(supabase, transcriptRows);
 
     if (manualText.length > 0) {
       await updateLectureProcessingState({
