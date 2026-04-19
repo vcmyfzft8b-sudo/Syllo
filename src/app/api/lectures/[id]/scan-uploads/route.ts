@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { MAX_SCAN_IMAGE_BYTES, MAX_SCAN_IMAGE_COUNT, STORAGE_BUCKET } from "@/lib/constants";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
+import { captureRouteError } from "@/lib/monitoring";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import {
@@ -121,6 +122,24 @@ export async function POST(
       .createSignedUploadUrl(manifest.path);
 
     if (error || !signedUpload?.token) {
+      captureRouteError(
+        error ?? new Error("Supabase did not return a signed upload token."),
+        {
+          route: "/api/lectures/[id]/scan-uploads",
+          operation: "createSignedUploadUrl",
+          request,
+          userId: user.id,
+          lectureId: id,
+          extra: {
+            bucket: STORAGE_BUCKET,
+            fileIndex: manifest.index,
+            fileSize: manifest.size,
+            mimeType: manifest.mimeType,
+            hasSignedUpload: Boolean(signedUpload),
+          },
+        },
+      );
+
       return NextResponse.json(
         { error: error?.message ?? "Ni bilo mogoče pripraviti nalaganja fotografij." },
         { status: 500 },
@@ -152,6 +171,17 @@ export async function POST(
     .eq("user_id", user.id);
 
   if (updateError) {
+    captureRouteError(updateError, {
+      route: "/api/lectures/[id]/scan-uploads",
+      operation: "updateProcessingMetadata",
+      request,
+      userId: user.id,
+      lectureId: id,
+      extra: {
+        pendingScanImageCount: manifests.length,
+      },
+    });
+
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 

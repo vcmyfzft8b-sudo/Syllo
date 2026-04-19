@@ -48,6 +48,14 @@ Add these in the Vercel project settings:
 - `GEMINI_EMBEDDING_MODEL=gemini-embedding-001`
 - `SONIOX_API_KEY=...`
 - `SONIOX_MODEL=stt-async-v4`
+- `NEXT_PUBLIC_SENTRY_DSN=...`
+- `SENTRY_DSN=...`
+- `SENTRY_ORG=...`
+- `SENTRY_PROJECT=...`
+- `SENTRY_AUTH_TOKEN=...`
+- `SENTRY_URL=https://de.sentry.io`
+- `SENTRY_ENVIRONMENT=production`
+- `NEXT_PUBLIC_SENTRY_ENVIRONMENT=production`
 
 Strongly recommended on Vercel:
 

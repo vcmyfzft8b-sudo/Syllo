@@ -9,7 +9,7 @@
     "prestart": "node scripts/prepare-next-runtime.mjs",
     "dev": "NODE_PATH=./node_modules next dev --webpack",
     "dev:turbopack": "NODE_PATH=./node_modules next dev",
-    "build": "NODE_PATH=./node_modules next build",
+    "build": "NODE_PATH=./node_modules next build --webpack",
     "start": "NODE_PATH=./node_modules next start",
     "lint": "eslint",
     "stripe:setup": "node scripts/setup-stripe-billing.mjs"
@@ -19,6 +19,7 @@
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@google/genai": "^1.46.0",
+    "@sentry/nextjs": "^10.49.0",
     "@soniox/node": "^1.1.2",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.99.1",
