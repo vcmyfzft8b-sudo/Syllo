@@ -6,6 +6,8 @@ import { buildTranscriptWindows } from "@/lib/chunking";
 import { buildGeneratedContentLanguageInstruction, resolveNoteLanguageLabel } from "@/lib/languages";
 import type { NoteGenerationResult, TranscriptSegmentInput } from "@/lib/types";
 
+const NOTE_CHUNK_SUMMARY_CONCURRENCY = 2;
+
 export function countWords(value: string) {
   return value.trim().split(/\s+/).filter(Boolean).length;
 }
@@ -76,6 +78,28 @@ function buildAudioNoteTargets(sourceWordCount: number, chunkCount: number) {
   };
 }
 
+async function mapWithConcurrency<TInput, TOutput>(
+  items: TInput[],
+  concurrency: number,
+  mapper: (item: TInput, index: number) => Promise<TOutput>,
+) {
+  const results = new Array<TOutput>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+
+  const workerCount = Math.min(Math.max(concurrency, 1), items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+  return results;
+}
+
 export async function generateNotesFromTranscript(
   segments: TranscriptSegmentInput[],
   params: {
@@ -104,15 +128,16 @@ export async function generateNotesFromTranscript(
       ? `${languageInstruction} You are preparing final study notes in ${languageLabel} from ${params.sourceLabel}. Produce a title, summary, key topics, and detailed student-ready notes that cover nearly all meaningful material in the source. This is a spoken lecture transcript, so reconstruct the material into clean, structured notes without dropping substance. Include important definitions, steps, relationships, examples, clarifications, and lecturer-added context when supported by the transcript. Do not compress the lecture into a short outline. Organize the markdown with headings, subheadings, bullet lists, and short explanatory paragraphs. Explain the logic behind processes and relationships, preserve technical terms, and include examples only when supported by the source material. Every chunk summary should contribute substantive content to the final notes. Aim for about ${targets.targetNoteWordCount} words when the source supports it. Build at least ${targets.minSectionCount} substantial sections when the material supports it.`
       : `${languageInstruction} You are preparing final study notes in ${languageLabel} from ${params.sourceLabel}. Produce a title, summary, key topics, and detailed student-ready notes that cover nearly all meaningful material in the source. Do not compress the lecture into a short outline. Organize the markdown with headings, subheadings, bullet lists, and short explanatory paragraphs. Explain the logic behind processes and relationships, preserve technical terms, and include examples only when supported by the source material. Every chunk summary should contribute substantive content to the final notes. Aim for about ${targets.targetNoteWordCount} words when the source supports it. Build at least ${targets.minSectionCount} substantial sections when the material supports it. Return markdown only, never HTML tags like <h1>, <p>, <ul>, or <li>.`;
 
-  const chunkOutputs = await Promise.all(
-    windows.map((window, index) =>
+  const chunkOutputs = await mapWithConcurrency(
+    windows,
+    NOTE_CHUNK_SUMMARY_CONCURRENCY,
+    (window, index) =>
       generateStructuredObject({
         schema: chunkSummarySchema,
         maxOutputTokens: sourceType === "audio" ? 1900 : 1400,
         instructions: chunkInstructions,
         input: `Source chunk ${index + 1} of ${windows.length}.\nTime range: ${window.startMs}-${window.endMs} ms.\nText:\n${window.text}`,
       }),
-    ),
   );
 
   const result = await generateStructuredObject({

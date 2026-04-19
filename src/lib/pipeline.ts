@@ -9,6 +9,7 @@ import { createEmbeddings } from "@/lib/ai/embeddings";
 import { parseAudioChunkManifest } from "@/lib/audio-processing";
 import { CHAT_MATCH_COUNT } from "@/lib/constants";
 import { buildGeneratedContentLanguageInstruction } from "@/lib/languages";
+import { captureRouteError } from "@/lib/monitoring";
 import {
   buildSyntheticTranscriptFromTextSource,
   estimateTextSourceDurationSeconds,
@@ -23,6 +24,7 @@ import { getTranscriptionProvider } from "@/lib/transcription/provider";
 
 const transcriptionProvider = getTranscriptionProvider();
 const EMBEDDING_BATCH_SIZE = 100;
+const TRANSCRIPT_SEGMENT_INSERT_BATCH_SIZE = 25;
 
 type LecturePipelineRow = {
   id: string;
@@ -32,6 +34,16 @@ type LecturePipelineRow = {
   source_type: string | null;
   title: string | null;
   processing_metadata: unknown;
+};
+
+type TranscriptSegmentInsertRow = {
+  lecture_id: string;
+  idx: number;
+  start_ms: number;
+  end_ms: number;
+  speaker_label: string | null;
+  text: string;
+  embedding: string | null;
 };
 
 function parseProcessingMetadata(value: unknown) {
@@ -80,6 +92,24 @@ async function updateLectureProcessingState(params: {
 
 function toErrorMessage(error: unknown) {
   return toUserFacingAiErrorMessage(error);
+}
+
+async function insertTranscriptSegmentsInBatches(
+  supabase: ReturnType<typeof createSupabaseServiceRoleClient>,
+  transcriptRows: TranscriptSegmentInsertRow[],
+) {
+  for (
+    let start = 0;
+    start < transcriptRows.length;
+    start += TRANSCRIPT_SEGMENT_INSERT_BATCH_SIZE
+  ) {
+    const batch = transcriptRows.slice(start, start + TRANSCRIPT_SEGMENT_INSERT_BATCH_SIZE);
+    const { error } = await supabase.from("transcript_segments").insert(batch as never);
+
+    if (error) {
+      throw error;
+    }
+  }
 }
 
 function assertTranscriptCoverage(params: {
@@ -241,13 +271,7 @@ export async function transcribeLectureContent(params: { lectureId: string }) {
   }));
 
   if (transcriptRows.length > 0) {
-    const { error: insertTranscriptError } = await supabase
-      .from("transcript_segments")
-      .insert(transcriptRows as never);
-
-    if (insertTranscriptError) {
-      throw insertTranscriptError;
-    }
+    await insertTranscriptSegmentsInBatches(supabase, transcriptRows);
   }
 
   await updateLectureProcessingState({
@@ -339,13 +363,7 @@ export async function generateLectureNotesFromStoredTranscript(params: { lecture
       embedding: embeddings[index] ? serializeVector(embeddings[index]) : null,
     }));
 
-    const { error: insertTranscriptError } = await supabase
-      .from("transcript_segments")
-      .insert(transcriptRows as never);
-
-    if (insertTranscriptError) {
-      throw insertTranscriptError;
-    }
+    await insertTranscriptSegmentsInBatches(supabase, transcriptRows);
 
     if (manualText.length > 0) {
       await updateLectureProcessingState({
@@ -443,15 +461,56 @@ export async function markLecturePipelineFailed(params: {
 }) {
   const { data: lecture } = await createSupabaseServiceRoleClient()
     .from("lectures")
-    .select("processing_metadata")
+    .select("processing_metadata, source_type, user_id")
     .eq("id", params.lectureId)
     .maybeSingle();
 
-  const lectureMetadata = lecture as { processing_metadata?: unknown } | null;
+  const lectureMetadata = lecture as {
+    processing_metadata?: unknown;
+    source_type?: string | null;
+    user_id?: string | null;
+  } | null;
+  const metadata = parseProcessingMetadata(lectureMetadata?.processing_metadata);
+  const manualImport =
+    metadata.manualImport && typeof metadata.manualImport === "object" && !Array.isArray(metadata.manualImport)
+      ? (metadata.manualImport as Record<string, unknown>)
+      : null;
+  const modelMetadata =
+    manualImport?.modelMetadata &&
+    typeof manualImport.modelMetadata === "object" &&
+    !Array.isArray(manualImport.modelMetadata)
+      ? (manualImport.modelMetadata as Record<string, unknown>)
+      : null;
+  const sourceUrl = typeof modelMetadata?.sourceUrl === "string" ? modelMetadata.sourceUrl : null;
+  let sourceHost: string | undefined;
+
+  if (sourceUrl) {
+    try {
+      sourceHost = new URL(sourceUrl).hostname;
+    } catch {
+      sourceHost = undefined;
+    }
+  }
+
+  captureRouteError(params.error, {
+    route: "lecture-pipeline",
+    operation: "markLecturePipelineFailed",
+    lectureId: params.lectureId,
+    userId: lectureMetadata?.user_id ?? undefined,
+    tags: {
+      sourceType: lectureMetadata?.source_type ?? "unknown",
+      ...(sourceHost ? { sourceHost } : {}),
+    },
+    extra: {
+      manualSourceType: typeof manualImport?.sourceType === "string" ? manualImport.sourceType : null,
+      sourceTextLength: typeof manualImport?.text === "string" ? manualImport.text.length : null,
+      processing: metadata.processing ?? null,
+    },
+  });
 
   await updateLectureProcessingState({
     lectureId: params.lectureId,
-    processingMetadata: lectureMetadata?.processing_metadata ?? {},
+    processingMetadata: metadata,
     stage: "failed",
     errorMessage: toErrorMessage(params.error),
   });
