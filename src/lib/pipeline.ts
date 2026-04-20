@@ -21,6 +21,7 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { normalizeMimeType } from "@/lib/storage";
 import { serializeVector } from "@/lib/utils";
 import { getTranscriptionProvider } from "@/lib/transcription/provider";
+import { NoClearSpeechDetectedError } from "@/lib/transcription/types";
 
 const transcriptionProvider = getTranscriptionProvider();
 const EMBEDDING_BATCH_SIZE = 100;
@@ -92,6 +93,10 @@ async function updateLectureProcessingState(params: {
 
 function toErrorMessage(error: unknown) {
   return toUserFacingAiErrorMessage(error);
+}
+
+function getTranscriptionDiagnostics(error: unknown) {
+  return error instanceof NoClearSpeechDetectedError ? error.diagnostics : null;
 }
 
 async function insertTranscriptSegmentsInBatches(
@@ -471,6 +476,13 @@ export async function markLecturePipelineFailed(params: {
     user_id?: string | null;
   } | null;
   const metadata = parseProcessingMetadata(lectureMetadata?.processing_metadata);
+  const transcriptionDiagnostics = getTranscriptionDiagnostics(params.error);
+  const nextMetadata = transcriptionDiagnostics
+    ? {
+        ...metadata,
+        transcription: transcriptionDiagnostics,
+      }
+    : metadata;
   const manualImport =
     metadata.manualImport && typeof metadata.manualImport === "object" && !Array.isArray(metadata.manualImport)
       ? (metadata.manualImport as Record<string, unknown>)
@@ -492,25 +504,28 @@ export async function markLecturePipelineFailed(params: {
     }
   }
 
-  captureRouteError(params.error, {
-    route: "lecture-pipeline",
-    operation: "markLecturePipelineFailed",
-    lectureId: params.lectureId,
-    userId: lectureMetadata?.user_id ?? undefined,
-    tags: {
-      sourceType: lectureMetadata?.source_type ?? "unknown",
-      ...(sourceHost ? { sourceHost } : {}),
-    },
-    extra: {
-      manualSourceType: typeof manualImport?.sourceType === "string" ? manualImport.sourceType : null,
-      sourceTextLength: typeof manualImport?.text === "string" ? manualImport.text.length : null,
-      processing: metadata.processing ?? null,
-    },
-  });
+  if (!(params.error instanceof NoClearSpeechDetectedError)) {
+    captureRouteError(params.error, {
+      route: "lecture-pipeline",
+      operation: "markLecturePipelineFailed",
+      lectureId: params.lectureId,
+      userId: lectureMetadata?.user_id ?? undefined,
+      tags: {
+        sourceType: lectureMetadata?.source_type ?? "unknown",
+        ...(sourceHost ? { sourceHost } : {}),
+      },
+      extra: {
+        manualSourceType: typeof manualImport?.sourceType === "string" ? manualImport.sourceType : null,
+        sourceTextLength: typeof manualImport?.text === "string" ? manualImport.text.length : null,
+        processing: metadata.processing ?? null,
+        transcription: transcriptionDiagnostics,
+      },
+    });
+  }
 
   await updateLectureProcessingState({
     lectureId: params.lectureId,
-    processingMetadata: metadata,
+    processingMetadata: nextMetadata,
     stage: "failed",
     errorMessage: toErrorMessage(params.error),
   });
