@@ -259,7 +259,7 @@ export function AppShell({
       {renderPullToRefreshIndicator()}
       <div className="desktop-brandline">
         <InstantLink href="/app" className="desktop-brandline-brand">
-          <BrandLogo compact />
+          <BrandLogo subtitle="" />
         </InstantLink>
 
         <div className="desktop-brandline-actions">
