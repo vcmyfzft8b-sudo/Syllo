@@ -33,6 +33,63 @@ export interface Citation {
 export type Database = {
   public: {
     Tables: {
+      ai_usage_events: {
+        Row: {
+          id: string;
+          created_at: string;
+          user_id: string | null;
+          lecture_id: string | null;
+          provider: string;
+          model: string;
+          stage: string;
+          attempt_index: number;
+          success: boolean;
+          prompt_token_count: number | null;
+          candidates_token_count: number | null;
+          thoughts_token_count: number | null;
+          total_token_count: number | null;
+          estimated_cost_usd: number | null;
+          error_code: string | null;
+          error_message: string | null;
+          metadata: Json;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          user_id?: string | null;
+          lecture_id?: string | null;
+          provider: string;
+          model: string;
+          stage: string;
+          attempt_index?: number;
+          success?: boolean;
+          prompt_token_count?: number | null;
+          candidates_token_count?: number | null;
+          thoughts_token_count?: number | null;
+          total_token_count?: number | null;
+          estimated_cost_usd?: number | null;
+          error_code?: string | null;
+          error_message?: string | null;
+          metadata?: Json;
+        };
+        Update: {
+          user_id?: string | null;
+          lecture_id?: string | null;
+          provider?: string;
+          model?: string;
+          stage?: string;
+          attempt_index?: number;
+          success?: boolean;
+          prompt_token_count?: number | null;
+          candidates_token_count?: number | null;
+          thoughts_token_count?: number | null;
+          total_token_count?: number | null;
+          estimated_cost_usd?: number | null;
+          error_code?: string | null;
+          error_message?: string | null;
+          metadata?: Json;
+        };
+      };
       email_auth_requests: {
         Row: {
           id: number;
@@ -722,6 +779,8 @@ export type Database = {
 };
 
 export type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+export type AiUsageEventRow =
+  Database["public"]["Tables"]["ai_usage_events"]["Row"];
 export type BillingSubscriptionRow =
   Database["public"]["Tables"]["billing_subscriptions"]["Row"];
 export type LectureRow = Database["public"]["Tables"]["lectures"]["Row"];
