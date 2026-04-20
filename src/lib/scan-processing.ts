@@ -7,6 +7,10 @@ import {
   isSupportedScanImageMimeType,
   normalizeUploadScanImageMimeType,
 } from "@/lib/storage";
+import {
+  NoReadableScanTextError,
+  type ScanOcrImageDiagnostics,
+} from "@/lib/scan-ocr-errors";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 
 const SCAN_OCR_CONCURRENCY = 3;
@@ -23,8 +27,32 @@ export type StoredScanProcessingResult = {
   needsNotesGeneration: boolean;
 };
 
+type ExtractedScanBlock = {
+  label: string;
+  pageNumber: number;
+  text: string;
+};
+
+type ScanImageProcessingResult = {
+  block: ExtractedScanBlock | null;
+  skippedImages: ScanOcrImageDiagnostics[];
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function buildScanOcrDiagnostics(params: {
+  imageCount: number;
+  readableImageCount: number;
+  skippedImages: ScanOcrImageDiagnostics[];
+}) {
+  return {
+    imageCount: params.imageCount,
+    images: params.skippedImages,
+    readableImageCount: params.readableImageCount,
+    skippedImageCount: params.skippedImages.length,
+  };
 }
 
 function parsePendingScanImages(value: unknown): StoredScanImage[] {
@@ -223,33 +251,70 @@ export async function processStoredScanLecture(
     throw new Error(statusError.message);
   }
 
-  const extractedBlocks = await mapWithConcurrency(
+  const processedImages = await mapWithConcurrency(
     images,
     SCAN_OCR_CONCURRENCY,
-    async (image) => {
+    async (image): Promise<ScanImageProcessingResult> => {
       const file = await downloadStoredScanImage(image);
-      const extracted = await extractTextFromImage(file, {
-        userId: lectureRow.user_id,
-        lectureId: lectureRow.id,
-        imageIndex: image.index,
-      });
-      const text = extracted.text.trim();
+      let extracted: Awaited<ReturnType<typeof extractTextFromImage>>;
 
+      try {
+        extracted = await extractTextFromImage(file, {
+          userId: lectureRow.user_id,
+          lectureId: lectureRow.id,
+          imageIndex: image.index,
+        });
+      } catch (error) {
+        if (error instanceof NoReadableScanTextError) {
+          return {
+            block: null,
+            skippedImages: error.diagnostics.images,
+          };
+        }
+
+        throw error;
+      }
+
+      const text = extracted.text.trim();
       if (!text) {
-        throw new Error(
-          images.length === 1
-            ? "Na fotografiji ni bilo mogoče najti berljivega besedila."
-            : `Na fotografiji "${image.fileName || `photo-${image.index + 1}`}" ni bilo mogoče najti berljivega besedila.`,
-        );
+        return {
+          block: null,
+          skippedImages: [
+            {
+              attempts: [],
+              fileName: image.fileName || `photo-${image.index + 1}`,
+              imageIndex: image.index,
+              mimeType: image.mimeType,
+              sizeBytes: image.size,
+            },
+          ],
+        };
       }
 
       return {
-        label: image.fileName || `photo-${image.index + 1}`,
-        pageNumber: image.index + 1,
-        text,
+        block: {
+          label: image.fileName || `photo-${image.index + 1}`,
+          pageNumber: image.index + 1,
+          text,
+        },
+        skippedImages: [],
       };
     },
   );
+  const extractedBlocks = processedImages.flatMap((result) =>
+    result.block ? [result.block] : [],
+  );
+  const skippedImages = processedImages.flatMap((result) => result.skippedImages);
+
+  if (extractedBlocks.length === 0 && !pastedText) {
+    throw new NoReadableScanTextError(
+      buildScanOcrDiagnostics({
+        imageCount: images.length,
+        readableImageCount: 0,
+        skippedImages,
+      }),
+    );
+  }
 
   const blocks = pastedText
     ? [
@@ -257,9 +322,9 @@ export async function processStoredScanLecture(
         {
           label: "Prilepljeno besedilo",
           pageNumber: extractedBlocks.length + 1,
-        text: pastedText,
-      },
-    ]
+          text: pastedText,
+        },
+      ]
     : extractedBlocks;
 
   await prepareLectureFromTextSource({
@@ -280,6 +345,11 @@ export async function processStoredScanLecture(
         mimeType: image.mimeType,
         size: image.size,
       })),
+      ocr: buildScanOcrDiagnostics({
+        imageCount: images.length,
+        readableImageCount: extractedBlocks.length,
+        skippedImages,
+      }),
     },
   });
 

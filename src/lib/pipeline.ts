@@ -17,6 +17,7 @@ import {
 } from "@/lib/text-source-processing";
 import type { ChatMessageWithCitations } from "@/lib/types";
 import { generateNotesFromTranscript } from "@/lib/note-generation";
+import { NoReadableScanTextError } from "@/lib/scan-ocr-errors";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { normalizeMimeType } from "@/lib/storage";
 import { serializeVector } from "@/lib/utils";
@@ -97,6 +98,10 @@ function toErrorMessage(error: unknown) {
 
 function getTranscriptionDiagnostics(error: unknown) {
   return error instanceof NoClearSpeechDetectedError ? error.diagnostics : null;
+}
+
+function getScanOcrDiagnostics(error: unknown) {
+  return error instanceof NoReadableScanTextError ? error.diagnostics : null;
 }
 
 async function insertTranscriptSegmentsInBatches(
@@ -477,10 +482,12 @@ export async function markLecturePipelineFailed(params: {
   } | null;
   const metadata = parseProcessingMetadata(lectureMetadata?.processing_metadata);
   const transcriptionDiagnostics = getTranscriptionDiagnostics(params.error);
-  const nextMetadata = transcriptionDiagnostics
+  const scanOcrDiagnostics = getScanOcrDiagnostics(params.error);
+  const nextMetadata = transcriptionDiagnostics || scanOcrDiagnostics
     ? {
         ...metadata,
-        transcription: transcriptionDiagnostics,
+        ...(transcriptionDiagnostics ? { transcription: transcriptionDiagnostics } : {}),
+        ...(scanOcrDiagnostics ? { scanOcr: scanOcrDiagnostics } : {}),
       }
     : metadata;
   const manualImport =
@@ -504,7 +511,10 @@ export async function markLecturePipelineFailed(params: {
     }
   }
 
-  if (!(params.error instanceof NoClearSpeechDetectedError)) {
+  if (
+    !(params.error instanceof NoClearSpeechDetectedError) &&
+    !(params.error instanceof NoReadableScanTextError)
+  ) {
     captureRouteError(params.error, {
       route: "lecture-pipeline",
       operation: "markLecturePipelineFailed",
@@ -518,6 +528,7 @@ export async function markLecturePipelineFailed(params: {
         manualSourceType: typeof manualImport?.sourceType === "string" ? manualImport.sourceType : null,
         sourceTextLength: typeof manualImport?.text === "string" ? manualImport.text.length : null,
         processing: metadata.processing ?? null,
+        scanOcr: scanOcrDiagnostics,
         transcription: transcriptionDiagnostics,
       },
     });
