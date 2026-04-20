@@ -20,6 +20,10 @@ import {
   isRtfDocument,
 } from "@/lib/document-files";
 import { generateNotesFromTranscript } from "@/lib/note-generation";
+import {
+  NoReadableScanTextError,
+  type ScanOcrAttemptDiagnostics,
+} from "@/lib/scan-ocr-errors";
 import { getServerEnv } from "@/lib/server-env";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import {
@@ -68,6 +72,18 @@ type TranscriptSegmentInsertRow = {
   text: string;
   embedding: string | null;
 };
+
+function toSafeErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message.trim().slice(0, 240);
+  }
+
+  if (typeof error === "string" && error.trim().length > 0) {
+    return error.trim().slice(0, 240);
+  }
+
+  return "Unknown OCR error.";
+}
 
 export type ImageOcrContext = {
   userId?: string | null;
@@ -691,6 +707,7 @@ export async function extractTextFromImage(file: File, context?: ImageOcrContext
   const env = getServerEnv();
   const instructions =
     "Extract all readable text from this photo of notes or printed material. The source is likely Slovenian, so preserve Slovenian characters such as č, š, and ž. Do not translate and do not summarize. Preserve the original language, headings, bullet points, equations, labels, line breaks, and important details. Ignore decorative background elements. If handwriting is uncertain, make the best faithful reading instead of inventing content. Return only the extracted text. Do not include JSON, markdown fences, commentary, or confidence notes.";
+  const attempts: ScanOcrAttemptDiagnostics[] = [];
 
   let primaryError: unknown = null;
 
@@ -710,8 +727,18 @@ export async function extractTextFromImage(file: File, context?: ImageOcrContext
       }),
     });
     const text = normalizeOcrPlainText(primaryText);
+    const acceptable = isAcceptableImageOcrText(text);
+    attempts.push({
+      acceptable,
+      errorMessage: null,
+      maxOutputTokens: OCR_PRIMARY_MAX_OUTPUT_TOKENS,
+      mediaResolution: "medium",
+      model: env.GEMINI_OCR_MODEL,
+      outputLength: text.length,
+      stage: "ocr_primary",
+    });
 
-    if (isAcceptableImageOcrText(text)) {
+    if (acceptable) {
       return {
         title: deriveImageTitle(file, text),
         text,
@@ -719,6 +746,15 @@ export async function extractTextFromImage(file: File, context?: ImageOcrContext
     }
   } catch (error) {
     primaryError = error;
+    attempts.push({
+      acceptable: null,
+      errorMessage: toSafeErrorMessage(error),
+      maxOutputTokens: OCR_PRIMARY_MAX_OUTPUT_TOKENS,
+      mediaResolution: "medium",
+      model: env.GEMINI_OCR_MODEL,
+      outputLength: null,
+      stage: "ocr_primary",
+    });
   }
 
   try {
@@ -737,9 +773,36 @@ export async function extractTextFromImage(file: File, context?: ImageOcrContext
       }),
     });
     const text = normalizeOcrPlainText(rescueText);
+    const acceptable = isAcceptableImageOcrText(text);
+    attempts.push({
+      acceptable,
+      errorMessage: null,
+      maxOutputTokens: OCR_RESCUE_MAX_OUTPUT_TOKENS,
+      mediaResolution: "high",
+      model: env.GEMINI_OCR_RESCUE_MODEL,
+      outputLength: text.length,
+      stage: "ocr_rescue",
+    });
 
-    if (!isAcceptableImageOcrText(text)) {
-      throw new Error("Na fotografiji ni bilo mogoče najti dovolj berljivega besedila.");
+    if (!acceptable) {
+      if (primaryError) {
+        throw new Error(toUserFacingAiErrorMessage(primaryError));
+      }
+
+      throw new NoReadableScanTextError({
+        imageCount: 1,
+        images: [
+          {
+            attempts,
+            fileName: file.name,
+            imageIndex: context?.imageIndex ?? null,
+            mimeType: file.type || "application/octet-stream",
+            sizeBytes: file.size,
+          },
+        ],
+        readableImageCount: 0,
+        skippedImageCount: 1,
+      });
     }
 
     return {
@@ -747,6 +810,10 @@ export async function extractTextFromImage(file: File, context?: ImageOcrContext
       text,
     };
   } catch (error) {
+    if (error instanceof NoReadableScanTextError) {
+      throw error;
+    }
+
     throw new Error(toUserFacingAiErrorMessage(primaryError ?? error));
   }
 }
