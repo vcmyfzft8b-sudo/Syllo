@@ -1,9 +1,16 @@
 import "server-only";
 
-import { GoogleGenAI, createPartFromUri } from "@google/genai";
+import {
+  GoogleGenAI,
+  PartMediaResolutionLevel,
+  createPartFromUri,
+  type GenerateContentResponseUsageMetadata,
+  type ThinkingConfig,
+} from "@google/genai";
 import { z } from "zod";
 
 import { isRetryableAiError } from "@/lib/ai/errors";
+import { logGeminiUsageEvent, type GeminiUsageContext } from "@/lib/ai/usage-logging";
 import { requireGeminiEnv } from "@/lib/server-env";
 
 const GEMINI_GENERATION_MAX_ATTEMPTS = 4;
@@ -91,6 +98,36 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function resolveMaxAttempts(maxAttempts: number | undefined) {
+  if (maxAttempts == null) {
+    return GEMINI_GENERATION_MAX_ATTEMPTS;
+  }
+
+  return Math.max(1, Math.min(GEMINI_GENERATION_MAX_ATTEMPTS, Math.floor(maxAttempts)));
+}
+
+async function logGenerationAttempt(params: {
+  model: string;
+  stage: string;
+  attemptIndex: number;
+  success: boolean;
+  usageContext?: GeminiUsageContext;
+  usageMetadata?: GenerateContentResponseUsageMetadata | null;
+  metadata?: Record<string, unknown>;
+  error?: unknown;
+}) {
+  await logGeminiUsageEvent({
+    model: params.model,
+    stage: params.usageContext?.stage ?? params.stage,
+    attemptIndex: params.attemptIndex,
+    success: params.success,
+    usageMetadata: params.usageMetadata ?? null,
+    context: params.usageContext,
+    metadata: params.metadata,
+    error: params.error,
+  });
+}
+
 export function getGeminiClient() {
   if (!geminiClient) {
     const env = requireGeminiEnv();
@@ -108,13 +145,17 @@ export async function generateStructuredObjectWithGemini<TSchema extends z.ZodTy
   input: string;
   model: string;
   maxOutputTokens?: number;
+  maxAttempts?: number;
+  thinkingConfig?: ThinkingConfig;
+  usageContext?: GeminiUsageContext;
 }) {
   const ai = getGeminiClient();
   let lastError: unknown = null;
   let useResponseSchema = true;
   const responseSchema = z.toJSONSchema(params.schema);
+  const maxAttempts = resolveMaxAttempts(params.maxAttempts);
 
-  for (let attempt = 0; attempt < GEMINI_GENERATION_MAX_ATTEMPTS; attempt += 1) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const retryInstruction =
       attempt === 0 || !lastError
         ? ""
@@ -126,33 +167,72 @@ export async function generateStructuredObjectWithGemini<TSchema extends z.ZodTy
       const maxOutputTokens = params.maxOutputTokens
         ? Math.round(params.maxOutputTokens * (attempt === 0 ? 1 : 1 + attempt * 0.4))
         : undefined;
-      const response = await withTimeout(
-        ai.models.generateContent({
-          model: params.model,
-          contents: `${params.instructions}${retryInstruction}
+      let response:
+        | Awaited<ReturnType<typeof ai.models.generateContent>>
+        | undefined;
+
+      try {
+        response = await withTimeout(
+          ai.models.generateContent({
+            model: params.model,
+            contents: `${params.instructions}${retryInstruction}
 
 Return exactly one JSON object that matches this JSON schema:
 ${JSON.stringify(responseSchema)}
 
 Source input:
 ${params.input}`,
-          config: {
-            responseMimeType: "application/json",
-            ...(useResponseSchema ? { responseSchema } : {}),
+            config: {
+              responseMimeType: "application/json",
+              ...(useResponseSchema ? { responseSchema } : {}),
+              maxOutputTokens,
+              ...(params.thinkingConfig ? { thinkingConfig: params.thinkingConfig } : {}),
+            },
+          }),
+          GEMINI_GENERATION_TIMEOUT_MS,
+          "Gemini structured generation",
+        );
+
+        const outputText = stripCodeFences(response.text ?? "");
+
+        if (!outputText) {
+          throw new Error("Model returned empty structured output.");
+        }
+
+        const parsed = parseStructuredText(params.schema, outputText);
+        await logGenerationAttempt({
+          model: params.model,
+          stage: "gemini_structured_text",
+          attemptIndex: attempt,
+          success: true,
+          usageContext: params.usageContext,
+          usageMetadata: response.usageMetadata,
+          metadata: {
             maxOutputTokens,
+            responseMimeType: "application/json",
+            responseSchema: useResponseSchema,
           },
-        }),
-        GEMINI_GENERATION_TIMEOUT_MS,
-        "Gemini structured generation",
-      );
+        });
 
-      const outputText = stripCodeFences(response.text ?? "");
+        return parsed;
+      } catch (error) {
+        await logGenerationAttempt({
+          model: params.model,
+          stage: "gemini_structured_text",
+          attemptIndex: attempt,
+          success: false,
+          usageContext: params.usageContext,
+          usageMetadata: response?.usageMetadata,
+          metadata: {
+            maxOutputTokens,
+            responseMimeType: "application/json",
+            responseSchema: useResponseSchema,
+          },
+          error,
+        });
 
-      if (!outputText) {
-        throw new Error("Model returned empty structured output.");
+        throw error;
       }
-
-      return parseStructuredText(params.schema, outputText);
     } catch (error) {
       if (useResponseSchema && isGeminiSchemaTooComplexError(error)) {
         useResponseSchema = false;
@@ -160,7 +240,7 @@ ${params.input}`,
 
       lastError = error;
 
-      if (attempt < GEMINI_GENERATION_MAX_ATTEMPTS - 1 && isRetryableAiError(error)) {
+      if (attempt < maxAttempts - 1 && isRetryableAiError(error)) {
         await sleep(GEMINI_RETRY_BASE_DELAY_MS * (attempt + 1));
       }
     }
@@ -175,6 +255,10 @@ export async function generateStructuredObjectWithGeminiFile<TSchema extends z.Z
   file: File;
   model: string;
   maxOutputTokens?: number;
+  maxAttempts?: number;
+  thinkingConfig?: ThinkingConfig;
+  mediaResolution?: PartMediaResolutionLevel;
+  usageContext?: GeminiUsageContext;
 }) {
   const ai = getGeminiClient();
   const tempPath = `/tmp/${crypto.randomUUID()}-${params.file.name || "document.bin"}`;
@@ -184,6 +268,7 @@ export async function generateStructuredObjectWithGeminiFile<TSchema extends z.Z
   let lastError: unknown = null;
   let useResponseSchema = true;
   const responseSchema = z.toJSONSchema(params.schema);
+  const maxAttempts = resolveMaxAttempts(params.maxAttempts);
 
   await fs.writeFile(tempPath, bytes);
 
@@ -197,7 +282,7 @@ export async function generateStructuredObjectWithGeminiFile<TSchema extends z.Z
 
     uploadedFileName = uploaded.name ?? null;
 
-    for (let attempt = 0; attempt < GEMINI_GENERATION_MAX_ATTEMPTS; attempt += 1) {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const retryInstruction =
         attempt === 0 || !lastError
           ? ""
@@ -209,36 +294,80 @@ export async function generateStructuredObjectWithGeminiFile<TSchema extends z.Z
         const maxOutputTokens = params.maxOutputTokens
           ? Math.round(params.maxOutputTokens * (attempt === 0 ? 1 : 1 + attempt * 0.4))
           : undefined;
-        const response = await withTimeout(
-          ai.models.generateContent({
-            model: params.model,
-            contents: [
-              `${params.instructions}${retryInstruction}
+        let response:
+          | Awaited<ReturnType<typeof ai.models.generateContent>>
+          | undefined;
+
+        try {
+          response = await withTimeout(
+            ai.models.generateContent({
+              model: params.model,
+              contents: [
+                `${params.instructions}${retryInstruction}
 
 Return exactly one JSON object that matches this JSON schema:
 ${JSON.stringify(responseSchema)}`,
-              createPartFromUri(
-                uploaded.uri ?? "",
-                uploaded.mimeType ?? params.file.type ?? "application/octet-stream",
-              ),
-            ],
-            config: {
-              responseMimeType: "application/json",
-              ...(useResponseSchema ? { responseSchema } : {}),
+                createPartFromUri(
+                  uploaded.uri ?? "",
+                  uploaded.mimeType ?? params.file.type ?? "application/octet-stream",
+                  params.mediaResolution,
+                ),
+              ],
+              config: {
+                responseMimeType: "application/json",
+                ...(useResponseSchema ? { responseSchema } : {}),
+                maxOutputTokens,
+                ...(params.thinkingConfig ? { thinkingConfig: params.thinkingConfig } : {}),
+              },
+            }),
+            GEMINI_GENERATION_TIMEOUT_MS,
+            "Gemini document extraction",
+          );
+
+          const outputText = stripCodeFences(response.text ?? "");
+
+          if (!outputText) {
+            throw new Error("Model returned empty structured output.");
+          }
+
+          const parsed = parseStructuredText(params.schema, outputText);
+          await logGenerationAttempt({
+            model: params.model,
+            stage: "gemini_structured_file",
+            attemptIndex: attempt,
+            success: true,
+            usageContext: params.usageContext,
+            usageMetadata: response.usageMetadata,
+            metadata: {
+              fileMimeType: uploaded.mimeType ?? params.file.type ?? "application/octet-stream",
               maxOutputTokens,
+              mediaResolution: params.mediaResolution,
+              responseMimeType: "application/json",
+              responseSchema: useResponseSchema,
             },
-          }),
-          GEMINI_GENERATION_TIMEOUT_MS,
-          "Gemini document extraction",
-        );
+          });
 
-        const outputText = stripCodeFences(response.text ?? "");
+          return parsed;
+        } catch (error) {
+          await logGenerationAttempt({
+            model: params.model,
+            stage: "gemini_structured_file",
+            attemptIndex: attempt,
+            success: false,
+            usageContext: params.usageContext,
+            usageMetadata: response?.usageMetadata,
+            metadata: {
+              fileMimeType: uploaded.mimeType ?? params.file.type ?? "application/octet-stream",
+              maxOutputTokens,
+              mediaResolution: params.mediaResolution,
+              responseMimeType: "application/json",
+              responseSchema: useResponseSchema,
+            },
+            error,
+          });
 
-        if (!outputText) {
-          throw new Error("Model returned empty structured output.");
+          throw error;
         }
-
-        return parseStructuredText(params.schema, outputText);
       } catch (error) {
         if (useResponseSchema && isGeminiSchemaTooComplexError(error)) {
           useResponseSchema = false;
@@ -246,7 +375,7 @@ ${JSON.stringify(responseSchema)}`,
 
         lastError = error;
 
-        if (attempt < GEMINI_GENERATION_MAX_ATTEMPTS - 1 && isRetryableAiError(error)) {
+        if (attempt < maxAttempts - 1 && isRetryableAiError(error)) {
           await sleep(GEMINI_RETRY_BASE_DELAY_MS * (attempt + 1));
         }
       }
@@ -267,6 +396,10 @@ export async function generateTextWithGeminiFile(params: {
   file: File;
   model: string;
   maxOutputTokens?: number;
+  maxAttempts?: number;
+  thinkingConfig?: ThinkingConfig;
+  mediaResolution?: PartMediaResolutionLevel;
+  usageContext?: GeminiUsageContext;
 }) {
   const ai = getGeminiClient();
   const tempPath = `/tmp/${crypto.randomUUID()}-${params.file.name || "document.bin"}`;
@@ -274,6 +407,7 @@ export async function generateTextWithGeminiFile(params: {
   const fs = await import("node:fs/promises");
   let uploadedFileName: string | null = null;
   let lastError: unknown = null;
+  const maxAttempts = resolveMaxAttempts(params.maxAttempts);
 
   await fs.writeFile(tempPath, bytes);
 
@@ -287,7 +421,7 @@ export async function generateTextWithGeminiFile(params: {
 
     uploadedFileName = uploaded.name ?? null;
 
-    for (let attempt = 0; attempt < GEMINI_GENERATION_MAX_ATTEMPTS; attempt += 1) {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const retryInstruction =
         attempt === 0 || !lastError
           ? ""
@@ -299,36 +433,77 @@ export async function generateTextWithGeminiFile(params: {
         const maxOutputTokens = params.maxOutputTokens
           ? Math.round(params.maxOutputTokens * (attempt === 0 ? 1 : 1 + attempt * 0.4))
           : undefined;
-        const response = await withTimeout(
-          ai.models.generateContent({
+        let response:
+          | Awaited<ReturnType<typeof ai.models.generateContent>>
+          | undefined;
+
+        try {
+          response = await withTimeout(
+            ai.models.generateContent({
+              model: params.model,
+              contents: [
+                `${params.instructions}${retryInstruction}`,
+                createPartFromUri(
+                  uploaded.uri ?? "",
+                  uploaded.mimeType ?? params.file.type ?? "application/octet-stream",
+                  params.mediaResolution,
+                ),
+              ],
+              config: {
+                responseMimeType: "text/plain",
+                maxOutputTokens,
+                ...(params.thinkingConfig ? { thinkingConfig: params.thinkingConfig } : {}),
+              },
+            }),
+            GEMINI_GENERATION_TIMEOUT_MS,
+            "Gemini text extraction",
+          );
+
+          const outputText = stripCodeFences(response.text ?? "");
+
+          if (!outputText) {
+            throw new Error("Model returned empty text output.");
+          }
+
+          await logGenerationAttempt({
             model: params.model,
-            contents: [
-              `${params.instructions}${retryInstruction}`,
-              createPartFromUri(
-                uploaded.uri ?? "",
-                uploaded.mimeType ?? params.file.type ?? "application/octet-stream",
-              ),
-            ],
-            config: {
-              responseMimeType: "text/plain",
+            stage: "gemini_text_file",
+            attemptIndex: attempt,
+            success: true,
+            usageContext: params.usageContext,
+            usageMetadata: response.usageMetadata,
+            metadata: {
+              fileMimeType: uploaded.mimeType ?? params.file.type ?? "application/octet-stream",
               maxOutputTokens,
+              mediaResolution: params.mediaResolution,
+              responseMimeType: "text/plain",
             },
-          }),
-          GEMINI_GENERATION_TIMEOUT_MS,
-          "Gemini text extraction",
-        );
+          });
 
-        const outputText = stripCodeFences(response.text ?? "");
+          return outputText;
+        } catch (error) {
+          await logGenerationAttempt({
+            model: params.model,
+            stage: "gemini_text_file",
+            attemptIndex: attempt,
+            success: false,
+            usageContext: params.usageContext,
+            usageMetadata: response?.usageMetadata,
+            metadata: {
+              fileMimeType: uploaded.mimeType ?? params.file.type ?? "application/octet-stream",
+              maxOutputTokens,
+              mediaResolution: params.mediaResolution,
+              responseMimeType: "text/plain",
+            },
+            error,
+          });
 
-        if (!outputText) {
-          throw new Error("Model returned empty text output.");
+          throw error;
         }
-
-        return outputText;
       } catch (error) {
         lastError = error;
 
-        if (attempt < GEMINI_GENERATION_MAX_ATTEMPTS - 1 && isRetryableAiError(error)) {
+        if (attempt < maxAttempts - 1 && isRetryableAiError(error)) {
           await sleep(GEMINI_RETRY_BASE_DELAY_MS * (attempt + 1));
         }
       }

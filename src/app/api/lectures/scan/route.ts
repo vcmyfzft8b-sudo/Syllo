@@ -272,7 +272,11 @@ export async function POST(request: Request) {
           }> = [];
 
           for (const [index, file] of filesForProcessing.entries()) {
-            const extracted = await extractTextFromImage(file);
+            const extracted = await extractTextFromImage(file, {
+              userId: user.id,
+              lectureId,
+              imageIndex: index,
+            });
             const text = extracted.text.trim();
 
             if (!text) {
@@ -346,7 +350,10 @@ export async function POST(request: Request) {
         );
       }
 
-      const extracted = await extractTextFromImage(file);
+      const extracted = await extractTextFromImage(file, {
+        userId: user.id,
+        imageIndex: extractedTexts.length,
+      });
 
       if (!extracted.text.trim()) {
         return NextResponse.json(

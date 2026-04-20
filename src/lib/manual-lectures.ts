@@ -3,6 +3,7 @@ import "server-only";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
+import { PartMediaResolutionLevel, type ThinkingConfig } from "@google/genai";
 import mammoth from "mammoth";
 import { z } from "zod";
 
@@ -38,15 +39,25 @@ const pdfExtractionSchema = z.object({
   text: z.string().min(120),
 });
 
-const imageExtractionSchema = z.object({
-  title: z.string().min(1),
-  text: z.string().min(1),
-});
-
 const MAX_LINK_FETCH_REDIRECTS = 3;
 const MAX_LINK_FETCH_BYTES = 1_000_000;
 const LINK_FETCH_TIMEOUT_MS = 10_000;
 const TRANSCRIPT_SEGMENT_INSERT_BATCH_SIZE = 25;
+const OCR_PRIMARY_MAX_OUTPUT_TOKENS = 3500;
+const OCR_RESCUE_MAX_OUTPUT_TOKENS = 6000;
+const OCR_MIN_ACCEPTED_TEXT_CHARS = 120;
+const OCR_THINKING_CONFIG: ThinkingConfig = {
+  includeThoughts: false,
+  thinkingBudget: 0,
+};
+const OCR_FAILURE_PATTERNS = [
+  /\b(can(?:not|'t)\s+(?:read|extract|see)|unable\s+to\s+(?:read|extract|see))\b/i,
+  /\b(no|without)\s+(?:readable\s+)?text\b/i,
+  /\bimage\s+(?:is\s+)?(?:blank|too\s+blurry|illegible)\b/i,
+  /\bnot\s+enough\s+readable\s+text\b/i,
+  /\bni\s+(?:berljivega\s+)?besedila\b/i,
+  /\bne\s+morem\s+(?:prebrati|razbrati)\b/i,
+];
 
 type TranscriptSegmentInsertRow = {
   lecture_id: string;
@@ -56,6 +67,12 @@ type TranscriptSegmentInsertRow = {
   speaker_label: string | null;
   text: string;
   embedding: string | null;
+};
+
+export type ImageOcrContext = {
+  userId?: string | null;
+  lectureId?: string | null;
+  imageIndex?: number | null;
 };
 
 let pdfJsPromise: Promise<typeof import("pdfjs-dist/legacy/build/pdf.mjs")> | null =
@@ -91,6 +108,70 @@ function normalizeWhitespace(value: string) {
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
+}
+
+function normalizeOcrPlainText(value: string) {
+  const normalized = value.replace(/\r\n/g, "\n").trim();
+  const textMatch = normalized.match(/(?:^|\n)TEXT:\s*\n([\s\S]*)$/i);
+
+  return normalizeWhitespace(textMatch?.[1] ?? normalized.replace(/^TITLE:\s*.+$/im, ""));
+}
+
+function hasFailurePhrase(text: string) {
+  return OCR_FAILURE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+export function isAcceptableImageOcrText(text: string) {
+  const normalized = normalizeWhitespace(text);
+
+  if (normalized.length < OCR_MIN_ACCEPTED_TEXT_CHARS || hasFailurePhrase(normalized)) {
+    return false;
+  }
+
+  const compact = normalized.replace(/\s/g, "");
+
+  if (!compact) {
+    return false;
+  }
+
+  const readableCharacters = Array.from(compact).filter((character) =>
+    /[\p{L}\p{N}=+\-*/^.,;:()[\]{}<>%$#@]/u.test(character),
+  ).length;
+
+  return readableCharacters / compact.length >= 0.45;
+}
+
+function deriveImageTitle(file: File, text: string) {
+  const filenameTitle = file.name.replace(/\.[^.]+$/i, "").trim();
+  const firstHeading = normalizeWhitespace(text)
+    .split("\n")
+    .map((line) => line.replace(/^[-*#\d.)\s]+/, "").trim())
+    .find(
+      (line) =>
+        line.length >= 4 &&
+        line.length <= 80 &&
+        /\p{L}/u.test(line) &&
+        !hasFailurePhrase(line),
+    );
+
+  return firstHeading || filenameTitle || "Image";
+}
+
+function buildImageOcrUsageContext(params: {
+  context?: ImageOcrContext;
+  stage: string;
+  file: File;
+}) {
+  return {
+    stage: params.stage,
+    userId: params.context?.userId ?? null,
+    lectureId: params.context?.lectureId ?? null,
+    metadata: {
+      imageIndex: params.context?.imageIndex ?? null,
+      fileMimeType: params.file.type || "application/octet-stream",
+      fileSize: params.file.size,
+    },
+  };
 }
 
 async function insertTranscriptSegmentsInBatches(
@@ -606,51 +687,67 @@ export async function extractTextFromDocument(file: File) {
   throw new Error("Nepodprta vrsta dokumenta. Uporabi PDF, TXT, Markdown, HTML, RTF ali DOCX.");
 }
 
-export async function extractTextFromImage(file: File) {
+export async function extractTextFromImage(file: File, context?: ImageOcrContext) {
   const env = getServerEnv();
   const instructions =
-    "Extract all readable text from this photo of notes or printed material. The source is likely Slovenian, so preserve Slovenian characters such as č, š, and ž. Do not translate and do not summarize. Preserve the original language, headings, bullet points, equations, labels, line breaks, and important details. Ignore decorative background elements. If handwriting is uncertain, make the best faithful reading instead of inventing content.";
+    "Extract all readable text from this photo of notes or printed material. The source is likely Slovenian, so preserve Slovenian characters such as č, š, and ž. Do not translate and do not summarize. Preserve the original language, headings, bullet points, equations, labels, line breaks, and important details. Ignore decorative background elements. If handwriting is uncertain, make the best faithful reading instead of inventing content. Return only the extracted text. Do not include JSON, markdown fences, commentary, or confidence notes.";
+
+  let primaryError: unknown = null;
 
   try {
-    const extracted = await generateStructuredObjectWithGeminiFile({
-      schema: imageExtractionSchema,
-      instructions: `${instructions} Return a short title and the extracted text.`,
+    const primaryText = await generateTextWithGeminiFile({
+      instructions,
       file,
       model: env.GEMINI_OCR_MODEL,
-      maxOutputTokens: 6000,
+      maxOutputTokens: OCR_PRIMARY_MAX_OUTPUT_TOKENS,
+      maxAttempts: 1,
+      thinkingConfig: OCR_THINKING_CONFIG,
+      mediaResolution: PartMediaResolutionLevel.MEDIA_RESOLUTION_MEDIUM,
+      usageContext: buildImageOcrUsageContext({
+        context,
+        stage: "ocr_primary",
+        file,
+      }),
     });
+    const text = normalizeOcrPlainText(primaryText);
 
-    return {
-      title: extracted.title,
-      text: normalizeWhitespace(extracted.text),
-    };
+    if (isAcceptableImageOcrText(text)) {
+      return {
+        title: deriveImageTitle(file, text),
+        text,
+      };
+    }
   } catch (error) {
-    const fallbackText = await generateTextWithGeminiFile({
-      instructions: `${instructions}
+    primaryError = error;
+  }
 
-Return plain text only in exactly this format:
-TITLE: <short title>
-TEXT:
-<full extracted text>`,
+  try {
+    const rescueText = await generateTextWithGeminiFile({
+      instructions,
       file,
-      model: env.GEMINI_OCR_MODEL,
-      maxOutputTokens: 12000,
+      model: env.GEMINI_OCR_RESCUE_MODEL,
+      maxOutputTokens: OCR_RESCUE_MAX_OUTPUT_TOKENS,
+      maxAttempts: 1,
+      thinkingConfig: OCR_THINKING_CONFIG,
+      mediaResolution: PartMediaResolutionLevel.MEDIA_RESOLUTION_HIGH,
+      usageContext: buildImageOcrUsageContext({
+        context,
+        stage: "ocr_rescue",
+        file,
+      }),
     });
+    const text = normalizeOcrPlainText(rescueText);
 
-    const normalizedFallback = fallbackText.replace(/\r\n/g, "\n").trim();
-    const titleMatch = normalizedFallback.match(/^TITLE:\s*(.+)$/im);
-    const textMatch = normalizedFallback.match(/TEXT:\s*\n([\s\S]*)$/i);
-    const text = normalizeWhitespace(textMatch?.[1] ?? normalizedFallback);
-    const extractedTitle = titleMatch?.[1]?.trim() || file.name.replace(/\.[^.]+$/i, "") || "Image";
-
-    if (!text) {
-      throw new Error(toUserFacingAiErrorMessage(error));
+    if (!isAcceptableImageOcrText(text)) {
+      throw new Error("Na fotografiji ni bilo mogoče najti dovolj berljivega besedila.");
     }
 
     return {
-      title: extractedTitle,
+      title: deriveImageTitle(file, text),
       text,
     };
+  } catch (error) {
+    throw new Error(toUserFacingAiErrorMessage(primaryError ?? error));
   }
 }
 

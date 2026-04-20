@@ -228,7 +228,11 @@ export async function processStoredScanLecture(
     SCAN_OCR_CONCURRENCY,
     async (image) => {
       const file = await downloadStoredScanImage(image);
-      const extracted = await extractTextFromImage(file);
+      const extracted = await extractTextFromImage(file, {
+        userId: lectureRow.user_id,
+        lectureId: lectureRow.id,
+        imageIndex: image.index,
+      });
       const text = extracted.text.trim();
 
       if (!text) {
