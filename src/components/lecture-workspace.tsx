@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable react-hooks/set-state-in-effect, react-hooks/preserve-manual-memoization */
-
 import {
   ArrowUp,
   Loader2,
@@ -62,6 +60,17 @@ type QuizRoundSummary = {
   missedQuestionIds: string[];
 };
 
+type FlashcardProgressResponse = {
+  error?: string;
+  progress?: LectureDetail["flashcards"][number]["progress"];
+};
+
+type ChatResponse = {
+  answer?: ChatMessageWithCitations;
+  code?: string;
+  error?: string;
+};
+
 type StudySessionSnapshot = {
   savedAt: string;
   activeStudyView: StudyMaterialView;
@@ -71,6 +80,27 @@ type StudySessionSnapshot = {
 };
 
 const STUDY_SESSION_STORAGE_KEY_PREFIX = "lecture-study-session:";
+const NETWORK_REQUEST_ERROR_MESSAGE = "Povezava je bila prekinjena. Poskusi znova.";
+
+function ignoreBackgroundRequestError() {
+  return null;
+}
+
+function isInterruptedFetchError(error: unknown) {
+  if (typeof DOMException !== "undefined" && error instanceof DOMException) {
+    return error.name === "AbortError" || error.name === "NetworkError";
+  }
+
+  return error instanceof TypeError && /failed to fetch|load failed|network/i.test(error.message);
+}
+
+function getRequestErrorMessage(error: unknown, fallback: string) {
+  if (isInterruptedFetchError(error)) {
+    return NETWORK_REQUEST_ERROR_MESSAGE;
+  }
+
+  return error instanceof Error ? error.message : fallback;
+}
 
 function getTabItems({
   hasAudio,
@@ -978,8 +1008,10 @@ export function LectureWorkspace({
     let cancelled = false;
 
     const refresh = async () => {
-      const response = await fetch(`/api/lectures/${detail.lecture.id}`);
-      if (!response.ok || cancelled) {
+      const response = await fetch(`/api/lectures/${detail.lecture.id}`).catch(
+        ignoreBackgroundRequestError,
+      );
+      if (!response || !response.ok || cancelled) {
         return;
       }
 
@@ -1158,7 +1190,7 @@ export function LectureWorkspace({
         },
         body: payload,
         keepalive: true,
-      });
+      }).catch(ignoreBackgroundRequestError);
     }, 300);
 
     return () => {
@@ -1218,7 +1250,7 @@ export function LectureWorkspace({
         },
         body: studySessionPayloadRef.current,
         keepalive: true,
-      });
+      }).catch(ignoreBackgroundRequestError);
     };
 
     const handleVisibilityChange = () => {
@@ -1384,15 +1416,17 @@ export function LectureWorkspace({
     setIsRetrying(true);
     const response = await fetch(`/api/lectures/${detail.lecture.id}/retry`, {
       method: "POST",
-    });
+    }).catch(ignoreBackgroundRequestError);
     setIsRetrying(false);
 
-    if (!response.ok) {
+    if (!response?.ok) {
       return;
     }
 
-    const refresh = await fetch(`/api/lectures/${detail.lecture.id}`);
-    if (refresh.ok) {
+    const refresh = await fetch(`/api/lectures/${detail.lecture.id}`).catch(
+      ignoreBackgroundRequestError,
+    );
+    if (refresh?.ok) {
       setDetail(mergeLectureDetailWithStoredStudySession((await refresh.json()) as LectureDetail));
     }
   }
@@ -1400,8 +1434,8 @@ export function LectureWorkspace({
   const refreshLectureDetail = useCallback(async () => {
     const refresh = await fetch(`/api/lectures/${detail.lecture.id}`, {
       cache: "no-store",
-    });
-    if (refresh.ok) {
+    }).catch(ignoreBackgroundRequestError);
+    if (refresh?.ok) {
       setDetail(mergeLectureDetailWithStoredStudySession((await refresh.json()) as LectureDetail));
     }
   }, [detail.lecture.id]);
@@ -1414,12 +1448,11 @@ export function LectureWorkspace({
     setStudyError(null);
     setIsAwaitingStudyGeneration(true);
     setIsRegeneratingStudy(true);
-    const response = await fetch(`/api/lectures/${detail.lecture.id}/study`, {
-      method: "POST",
-    });
-    setIsRegeneratingStudy(false);
 
     try {
+      const response = await fetch(`/api/lectures/${detail.lecture.id}/study`, {
+        method: "POST",
+      });
       await parseApiResponse<{ ok: true }>(response);
     } catch (error) {
       if (redirectToBillingIfNeeded({ error, router })) {
@@ -1427,8 +1460,10 @@ export function LectureWorkspace({
       }
 
       setIsAwaitingStudyGeneration(false);
-      setStudyError(error instanceof Error ? error.message : "Učnih orodij ni bilo mogoče ponovno ustvariti.");
+      setStudyError(getRequestErrorMessage(error, "Učnih orodij ni bilo mogoče ponovno ustvariti."));
       return;
+    } finally {
+      setIsRegeneratingStudy(false);
     }
 
     await refreshLectureDetail();
@@ -1438,12 +1473,11 @@ export function LectureWorkspace({
     setStudyError(null);
     setIsAwaitingQuizGeneration(true);
     setIsRegeneratingQuiz(true);
-    const response = await fetch(`/api/lectures/${detail.lecture.id}/quiz`, {
-      method: "POST",
-    });
-    setIsRegeneratingQuiz(false);
 
     try {
+      const response = await fetch(`/api/lectures/${detail.lecture.id}/quiz`, {
+        method: "POST",
+      });
       await parseApiResponse<{ ok: true }>(response);
     } catch (error) {
       if (redirectToBillingIfNeeded({ error, router })) {
@@ -1451,8 +1485,10 @@ export function LectureWorkspace({
       }
 
       setIsAwaitingQuizGeneration(false);
-      setStudyError(error instanceof Error ? error.message : "Kviza ni bilo mogoče ustvariti.");
+      setStudyError(getRequestErrorMessage(error, "Kviza ni bilo mogoče ustvariti."));
       return;
+    } finally {
+      setIsRegeneratingQuiz(false);
     }
 
     await refreshLectureDetail();
@@ -1462,10 +1498,6 @@ export function LectureWorkspace({
     setStudyError(null);
     setIsAwaitingPracticeTestGeneration(true);
     setIsStartingPracticeTest(true);
-    const response = await fetch(`/api/lectures/${detail.lecture.id}/practice-test/attempt`, {
-      method: "POST",
-    });
-    setIsStartingPracticeTest(false);
 
     let payload: {
       id?: string;
@@ -1473,6 +1505,9 @@ export function LectureWorkspace({
     };
 
     try {
+      const response = await fetch(`/api/lectures/${detail.lecture.id}/practice-test/attempt`, {
+        method: "POST",
+      });
       payload = await parseApiResponse(response);
     } catch (error) {
       if (redirectToBillingIfNeeded({ error, router })) {
@@ -1481,9 +1516,11 @@ export function LectureWorkspace({
 
       setIsAwaitingPracticeTestGeneration(false);
       setStudyError(
-        error instanceof Error ? error.message : "Novega preizkusa ni bilo mogoče začeti.",
+        getRequestErrorMessage(error, "Novega preizkusa ni bilo mogoče začeti."),
       );
       return;
+    } finally {
+      setIsStartingPracticeTest(false);
     }
 
     setCurrentPracticeAttemptId(payload?.id ?? null);
@@ -1538,18 +1575,26 @@ export function LectureWorkspace({
 
     setStudyError(null);
     setIsSubmittingPracticeTest(true);
-    const response = await fetch(
-      `/api/lectures/${detail.lecture.id}/practice-test/attempt/${currentPracticeAttempt.id}/submit`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+    let response: Response;
+    let payload: { error?: string } | null = null;
+    try {
+      response = await fetch(
+        `/api/lectures/${detail.lecture.id}/practice-test/attempt/${currentPracticeAttempt.id}/submit`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ answers }),
         },
-        body: JSON.stringify({ answers }),
-      },
-    );
-    const payload = await response.json().catch(() => null);
-    setIsSubmittingPracticeTest(false);
+      );
+      payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    } catch (error) {
+      setStudyError(getRequestErrorMessage(error, "Preizkusa ni bilo mogoče oddati."));
+      return;
+    } finally {
+      setIsSubmittingPracticeTest(false);
+    }
 
     if (!response.ok) {
       setStudyError(payload?.error ?? "Preizkusa ni bilo mogoče oddati.");
@@ -1672,16 +1717,38 @@ export function LectureWorkspace({
       });
     }
 
-    const response = await fetch(`/api/flashcards/${flashcard.id}/progress`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ confidenceBucket }),
-    });
+    let response: Response;
+    let payload: FlashcardProgressResponse | null = null;
+    try {
+      response = await fetch(`/api/flashcards/${flashcard.id}/progress`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ confidenceBucket }),
+      });
+      payload = (await response.json().catch(() => null)) as FlashcardProgressResponse | null;
+    } catch (error) {
+      setDetail(previousDetail);
+      setFlashcardSessionResults((current) => {
+        const next = { ...current };
 
-    const payload = await response.json().catch(() => null);
-    setActiveProgressFlashcardId(null);
+        if (previousResults) {
+          next[flashcard.id] = previousResults;
+        } else {
+          delete next[flashcard.id];
+        }
+
+        return next;
+      });
+      setReviewQueue(previousReviewQueue);
+      setRepeatQueue(previousRepeatQueue);
+      setFlashcardRoundSummary(previousRoundSummary);
+      setStudyError(getRequestErrorMessage(error, "Napredka pri karticah ni bilo mogoče shraniti."));
+      return;
+    } finally {
+      setActiveProgressFlashcardId(null);
+    }
 
     if (!response.ok) {
       setDetail(previousDetail);
@@ -1703,14 +1770,15 @@ export function LectureWorkspace({
       return;
     }
 
-    if (payload?.progress) {
+    const savedProgress = payload?.progress;
+    if (savedProgress) {
       setDetail((current) => ({
         ...current,
         flashcards: current.flashcards.map((currentFlashcard) =>
           currentFlashcard.id === flashcard.id
             ? {
                 ...currentFlashcard,
-                progress: payload.progress,
+                progress: savedProgress,
               }
             : currentFlashcard,
         ),
@@ -1855,25 +1923,50 @@ export function LectureWorkspace({
     const currentQuestion = question.trim();
     setQuestion("");
 
-    const response = await fetch(`/api/lectures/${detail.lecture.id}/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        question: currentQuestion,
-      }),
-    });
-
-    const payload = await response.json();
-    setIsSending(false);
+    let response: Response;
+    let payload: ChatResponse | null = null;
+    try {
+      response = await fetch(`/api/lectures/${detail.lecture.id}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          question: currentQuestion,
+        }),
+      });
+      payload = (await response.json().catch(() => null)) as ChatResponse | null;
+    } catch (error) {
+      setChatError(getRequestErrorMessage(error, "Odgovora ni bilo mogoče ustvariti."));
+      setDetail((current) => ({
+        ...current,
+        chatMessages: current.chatMessages.filter(
+          (message) => message.id !== tempUserMessage.id,
+        ),
+      }));
+      return;
+    } finally {
+      setIsSending(false);
+    }
 
     if (!response.ok) {
       if (payload?.code === "trial_chat_limit_reached") {
         setTrialChatMessagesRemaining(0);
       }
 
-      setChatError(payload.error ?? "Odgovora ni bilo mogoče ustvariti.");
+      setChatError(payload?.error ?? "Odgovora ni bilo mogoče ustvariti.");
+      setDetail((current) => ({
+        ...current,
+        chatMessages: current.chatMessages.filter(
+          (message) => message.id !== tempUserMessage.id,
+        ),
+      }));
+      return;
+    }
+
+    const chatAnswer = payload?.answer;
+    if (!chatAnswer) {
+      setChatError("Odgovora ni bilo mogoče ustvariti.");
       setDetail((current) => ({
         ...current,
         chatMessages: current.chatMessages.filter(
@@ -1888,7 +1981,7 @@ export function LectureWorkspace({
       chatMessages: [
         ...current.chatMessages.filter((message) => message.id !== tempUserMessage.id),
         tempUserMessage,
-        payload.answer as ChatMessageWithCitations,
+        chatAnswer,
       ],
     }));
 
