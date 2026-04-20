@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
+import { BRAND_TAGLINE, SEO_BRAND_NAME } from "@/lib/brand";
 
 export function BrandLogo({
   subtitle = BRAND_TAGLINE,
@@ -27,7 +27,7 @@ export function BrandLogo({
         />
       </span>
       <span className="brand-logo-copy">
-        <strong>{BRAND_NAME}</strong>
+        <strong>{SEO_BRAND_NAME}</strong>
         {!compact ? <small>{subtitle}</small> : null}
       </span>
     </span>
