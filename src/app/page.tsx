@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -5,7 +6,12 @@ import { BrandLogo } from "@/components/brand-logo";
 import { LandingLoadingLink } from "@/components/landing-loading-link";
 import { LandingStoryPreview } from "@/components/landing-story-preview";
 import { getOptionalUser } from "@/lib/auth";
-import { BRAND_NAME } from "@/lib/brand";
+import {
+  BRAND_NAME,
+  SEO_BRAND_NAME,
+  SEO_SITE_DESCRIPTION,
+  SEO_SITE_URL,
+} from "@/lib/brand";
 import { hasPublicSupabaseEnv } from "@/lib/public-env";
 
 const WORKFLOW_STEPS = [
@@ -88,6 +94,37 @@ const FEATURE_CARDS = [
 
 const HERO_PROOF_ITEMS = ["Prepisi", "Flashcardi", "Kvizi", "Testi", "AI chat"] as const;
 
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/",
+  },
+};
+
+const HOMEPAGE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: SEO_BRAND_NAME,
+  alternateName: BRAND_NAME,
+  url: `${SEO_SITE_URL}/`,
+  applicationCategory: "EducationalApplication",
+  operatingSystem: "Web",
+  inLanguage: "sl",
+  description: SEO_SITE_DESCRIPTION,
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "EUR",
+  },
+  featureList: [
+    "AI zapiski predavanj",
+    "Prepisi audio posnetkov",
+    "Povzetki iz PDF-jev in dokumentov",
+    "Flashcardi iz zapiskov",
+    "Kvizi in testi za učenje",
+    "AI klepet z gradivom",
+  ],
+};
+
 export default async function HomePage() {
   if (hasPublicSupabaseEnv) {
     const user = await getOptionalUser();
@@ -98,6 +135,12 @@ export default async function HomePage() {
 
   return (
     <main className="landing-shell landing-public-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(HOMEPAGE_JSON_LD).replace(/</g, "\\u003c"),
+        }}
+      />
       <header className="landing-public-nav">
         <Link href="/" className="landing-public-brand" aria-label={`Domov ${BRAND_NAME}`}>
           <BrandLogo subtitle="" priority />
@@ -128,7 +171,7 @@ export default async function HomePage() {
             </div>
             <h1 id="landing-public-title">Nikoli več ne piši zapiskov!</h1>
             <p>
-              Memo je tvoj AI notetaker za predavanja. Iz audio posnetkov,
+              Memo AI je tvoj AI notetaker za predavanja. Iz audio posnetkov,
               PDF-jev, dokumentov in povezav pripravi zapiske, prepise,
               flashcarde, kvize, teste in AI chat.
             </p>

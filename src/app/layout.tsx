@@ -2,19 +2,42 @@ import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 
 import { ThemeController } from "@/components/theme-controller";
-import { BRAND_NAME } from "@/lib/brand";
+import {
+  BRAND_SHORTLINE,
+  SEO_BRAND_NAME,
+  SEO_SITE_DESCRIPTION,
+  SEO_SITE_URL,
+} from "@/lib/brand";
 
 import "./globals.css";
 
+const siteTitle = `${SEO_BRAND_NAME} | ${BRAND_SHORTLINE}`;
+
 export const metadata: Metadata = {
-  title: BRAND_NAME,
-  description:
-    "AI zapiski predavanj s snemanjem, prepisom, povzetki in klepetom.",
-  applicationName: BRAND_NAME,
+  metadataBase: new URL(SEO_SITE_URL),
+  title: {
+    default: siteTitle,
+    template: `%s | ${SEO_BRAND_NAME}`,
+  },
+  description: SEO_SITE_DESCRIPTION,
+  applicationName: SEO_BRAND_NAME,
+  openGraph: {
+    title: siteTitle,
+    description: SEO_SITE_DESCRIPTION,
+    url: "/",
+    siteName: SEO_BRAND_NAME,
+    locale: "sl_SI",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: siteTitle,
+    description: SEO_SITE_DESCRIPTION,
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: BRAND_NAME,
+    title: SEO_BRAND_NAME,
   },
   icons: {
     icon: [
