@@ -8663,23 +8663,26 @@ select:disabled {
   .desktop-brandline-brand {
     display: inline-flex;
     align-items: center;
-    gap: 0.95rem;
+    gap: 0.85rem;
     color: var(--label);
   }
 
-  .desktop-brandline-brand .brand-logo.compact {
-    gap: 0.9rem;
+  .desktop-brandline-brand .brand-logo {
+    gap: 0.85rem;
   }
 
-  .desktop-brandline-brand .brand-logo.compact .brand-logo-mark {
-    width: 3rem;
-    height: 2.55rem;
+  .desktop-brandline-brand .brand-logo-mark {
+    width: clamp(2.9rem, 4.2vw, 3.8rem);
+    height: clamp(2.55rem, 3.7vw, 3.35rem);
   }
 
   .desktop-brandline-brand .brand-logo-copy strong {
-    font-size: clamp(1.55rem, 2.55vw, 2.25rem);
-    font-weight: 760;
-    letter-spacing: -0.07em;
+    font-size: clamp(1.3rem, 2vw, 1.75rem);
+    line-height: 1;
+  }
+
+  .desktop-brandline-brand .brand-logo-copy small {
+    display: none;
   }
 
   .desktop-brandline-actions {
