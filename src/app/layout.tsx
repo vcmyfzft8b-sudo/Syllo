@@ -42,6 +42,11 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
+        url: "/memo-favicon-96x96.png?v=4",
+        sizes: "96x96",
+        type: "image/png",
+      },
+      {
         url: "/memo-favicon-32x32.png?v=3",
         sizes: "32x32",
         type: "image/png",
