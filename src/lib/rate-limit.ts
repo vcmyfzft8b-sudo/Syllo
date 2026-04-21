@@ -20,6 +20,41 @@ type RateLimitResult = {
   window_seconds: number;
 };
 
+type AbortableQuery<T> = PromiseLike<T> & {
+  abortSignal?: (signal: AbortSignal) => unknown;
+};
+
+const RATE_LIMIT_TIMEOUT_MS = 1_200;
+
+function buildTimeoutError(timeoutMs: number) {
+  const error = new Error(`Rate limit check timed out after ${timeoutMs}ms`);
+  error.name = "TimeoutError";
+  return error;
+}
+
+async function runRateLimitQuery<T>(query: AbortableQuery<T>) {
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    query.abortSignal?.(controller.signal);
+
+    return await Promise.race([
+      Promise.resolve(query),
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          controller.abort();
+          reject(buildTimeoutError(RATE_LIMIT_TIMEOUT_MS));
+        }, RATE_LIMIT_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 export const rateLimitPresets = {
   authEmail: [{ windowSeconds: 600, maxRequests: 12, scope: "ip" }] satisfies RateLimitRule[],
   authVerify: [{ windowSeconds: 600, maxRequests: 30, scope: "ip" }] satisfies RateLimitRule[],
@@ -132,12 +167,33 @@ export async function enforceRateLimit(params: {
       scope,
     });
 
-    const { data, error } = await supabase.rpc("consume_rate_limit" as never, {
-      p_rate_key: rateKey,
-      p_route: params.route,
-      p_window_seconds: rule.windowSeconds,
-      p_max_requests: rule.maxRequests,
-    } as never);
+    let rateLimitResponse: Awaited<
+      ReturnType<typeof runRateLimitQuery<{
+        data: unknown;
+        error: unknown;
+      }>>
+    >;
+
+    try {
+      rateLimitResponse = await runRateLimitQuery(
+        supabase.rpc("consume_rate_limit" as never, {
+          p_rate_key: rateKey,
+          p_route: params.route,
+          p_window_seconds: rule.windowSeconds,
+          p_max_requests: rule.maxRequests,
+        } as never),
+      );
+    } catch (error) {
+      console.error("Rate limit check failed; allowing request", {
+        route: params.route,
+        rateKey,
+        rule,
+        error,
+      });
+      return null;
+    }
+
+    const { data, error } = rateLimitResponse;
 
     if (error) {
       console.error("Rate limit check failed; allowing request", {
