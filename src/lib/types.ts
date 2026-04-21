@@ -39,6 +39,10 @@ export interface LectureDetail {
   transcript: TranscriptSegmentRow[];
   chatMessages: ChatMessageWithCitations[];
   audioUrl: string | null;
+  degraded?: {
+    reason: string;
+    failedSections: string[];
+  };
 }
 
 export interface ChatMessageWithCitations extends Omit<ChatMessageRow, "citations_json"> {

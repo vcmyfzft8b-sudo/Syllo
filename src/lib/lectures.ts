@@ -12,6 +12,7 @@ import type {
   LectureArtifactRow,
   LectureRow,
   LectureStudyAssetRow,
+  LectureStudySessionRow,
   LectureStudySectionRow,
   PracticeTestAttemptAnswerRow,
   PracticeTestAttemptRow,
@@ -50,7 +51,19 @@ type PostgrestLikeError = {
   hint?: string | null;
 };
 
+type PostgrestResponse<T> = {
+  data: T | null;
+  error: PostgrestLikeError | null;
+};
+
+type AbortablePostgrestQuery<T> = PromiseLike<T> & {
+  abortSignal?: (signal: AbortSignal) => unknown;
+};
+
 const BATCHED_IN_QUERY_SIZE = 100;
+const LECTURE_DETAIL_CORE_TIMEOUT_MS = 8_000;
+const LECTURE_DETAIL_OPTIONAL_TIMEOUT_MS = 4_500;
+const LECTURE_DETAIL_HEAVY_TIMEOUT_MS = 6_000;
 
 function parseMarkdownTitle(markdown: string) {
   const heading = markdown.match(/^#{1,6}\s+(.+)$/m)?.[1]?.trim();
@@ -208,55 +221,105 @@ function getSchemaErrorText(error: unknown) {
     .toLowerCase();
 }
 
-function isMissingStudySectionsSchemaError(error: unknown) {
-  const text = getSchemaErrorText(error);
-
-  if (!text) {
-    return false;
-  }
-
-  return (
-    text.includes("lecture_study_sections") &&
-    (text.includes("does not exist") ||
-      text.includes("could not find") ||
-      text.includes("schema cache") ||
-      text.includes("42p01") ||
-      text.includes("pgrst"))
-  );
+function buildTimeoutError(label: string, timeoutMs: number) {
+  const error = new Error(`${label} timed out after ${timeoutMs}ms`);
+  error.name = "TimeoutError";
+  return error;
 }
 
-function isMissingQuizSchemaError(error: unknown) {
-  const text = getSchemaErrorText(error);
+async function runWithTimeout<T>(
+  promise: PromiseLike<T>,
+  timeoutMs: number,
+  label: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  if (!text) {
-    return false;
+  try {
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(buildTimeoutError(label, timeoutMs)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
-
-  return (
-    (text.includes("lecture_quiz_assets") || text.includes("quiz_questions")) &&
-    (text.includes("does not exist") ||
-      text.includes("could not find") ||
-      text.includes("schema cache") ||
-      text.includes("42p01") ||
-      text.includes("pgrst"))
-  );
 }
 
-function isMissingStudySessionSchemaError(error: unknown) {
-  const text = getSchemaErrorText(error);
+async function runPostgrestWithTimeout<T>(
+  query: AbortablePostgrestQuery<T>,
+  timeoutMs: number,
+  label: string,
+): Promise<T> {
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  if (!text) {
-    return false;
+  try {
+    query.abortSignal?.(controller.signal);
+
+    return await Promise.race([
+      Promise.resolve(query),
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          controller.abort();
+          reject(buildTimeoutError(label, timeoutMs));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+function noteLectureDetailFailure(
+  failedSections: string[],
+  section: string,
+  error: unknown,
+) {
+  if (!failedSections.includes(section)) {
+    failedSections.push(section);
   }
 
-  return (
-    text.includes("lecture_study_sessions") &&
-    (text.includes("does not exist") ||
-      text.includes("could not find") ||
-      text.includes("schema cache") ||
-      text.includes("42p01") ||
-      text.includes("pgrst"))
-  );
+  const schemaText = getSchemaErrorText(error);
+  const reason =
+    error instanceof Error
+      ? { name: error.name, message: error.message }
+      : schemaText || String(error);
+
+  console.warn("Lecture detail section unavailable", {
+    section,
+    reason,
+  });
+}
+
+async function safeLectureDetailQuery<T>(params: {
+  section: string;
+  failedSections: string[];
+  query: AbortablePostgrestQuery<PostgrestResponse<T>>;
+  fallbackData: T;
+  timeoutMs?: number;
+}) {
+  try {
+    const result = await runPostgrestWithTimeout(
+      params.query,
+      params.timeoutMs ?? LECTURE_DETAIL_OPTIONAL_TIMEOUT_MS,
+      `lecture detail ${params.section}`,
+    );
+
+    if (result.error) {
+      noteLectureDetailFailure(params.failedSections, params.section, result.error);
+      return { data: params.fallbackData, error: null } satisfies PostgrestResponse<T>;
+    }
+
+    return result;
+  } catch (error) {
+    noteLectureDetailFailure(params.failedSections, params.section, error);
+    return { data: params.fallbackData, error: null } satisfies PostgrestResponse<T>;
+  }
 }
 
 function isMissingPracticeTestSchemaError(error: unknown) {
@@ -511,6 +574,7 @@ async function fetchFlashcardProgressRows(params: {
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
   userId: string;
   flashcardIds: string[];
+  timeoutMs?: number;
 }) {
   if (params.flashcardIds.length === 0) {
     return [] as FlashcardProgressRow[];
@@ -525,11 +589,15 @@ async function fetchFlashcardProgressRows(params: {
   const progressRows: FlashcardProgressRow[] = [];
 
   for (const batch of batches) {
-    const { data, error } = await params.supabase
-      .from("flashcard_progress")
-      .select("*")
-      .eq("user_id", params.userId)
-      .in("flashcard_id", batch);
+    const { data, error } = await runPostgrestWithTimeout(
+      params.supabase
+        .from("flashcard_progress")
+        .select("*")
+        .eq("user_id", params.userId)
+        .in("flashcard_id", batch),
+      params.timeoutMs ?? LECTURE_DETAIL_HEAVY_TIMEOUT_MS,
+      "flashcard progress",
+    );
 
     if (error) {
       throw error;
@@ -544,6 +612,7 @@ async function fetchFlashcardProgressRows(params: {
 async function fetchPracticeTestAttemptAnswers(params: {
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>;
   attemptIds: string[];
+  timeoutMs?: number;
 }) {
   if (params.attemptIds.length === 0) {
     return [] as Array<
@@ -557,11 +626,15 @@ async function fetchPracticeTestAttemptAnswers(params: {
 
   for (let index = 0; index < params.attemptIds.length; index += BATCHED_IN_QUERY_SIZE) {
     const attemptIdBatch = params.attemptIds.slice(index, index + BATCHED_IN_QUERY_SIZE);
-    const { data, error } = await params.supabase
-      .from("practice_test_attempt_answers")
-      .select("*, practice_test_questions(*)")
-      .in("attempt_id", attemptIdBatch)
-      .order("idx", { ascending: true });
+    const { data, error } = await runPostgrestWithTimeout(
+      params.supabase
+        .from("practice_test_attempt_answers")
+        .select("*, practice_test_questions(*)")
+        .in("attempt_id", attemptIdBatch)
+        .order("idx", { ascending: true }),
+      params.timeoutMs ?? LECTURE_DETAIL_HEAVY_TIMEOUT_MS,
+      "practice test attempt answers",
+    );
 
     if (error) {
       throw error;
@@ -750,12 +823,16 @@ export async function getLectureDetailForUser(params: {
   const supabase = await createSupabaseServerClient();
   const service = createSupabaseServiceRoleClient();
 
-  const { data: lecture, error: lectureError } = await supabase
-    .from("lectures")
-    .select("*")
-    .eq("id", params.lectureId)
-    .eq("user_id", params.userId)
-    .maybeSingle();
+  const { data: lecture, error: lectureError } = await runPostgrestWithTimeout(
+    supabase
+      .from("lectures")
+      .select("*")
+      .eq("id", params.lectureId)
+      .eq("user_id", params.userId)
+      .maybeSingle(),
+    LECTURE_DETAIL_CORE_TIMEOUT_MS,
+    "lecture detail ownership lookup",
+  );
 
   if (lectureError) {
     throw lectureError;
@@ -767,50 +844,13 @@ export async function getLectureDetailForUser(params: {
 
   let lectureRow = lecture as LectureRow;
   const detailClient = service;
-
-  const studySectionsPromise = detailClient
-    .from("lecture_study_sections")
-    .select("*")
-    .eq("lecture_id", lectureRow.id)
-    .order("idx", { ascending: true });
-  const quizAssetPromise = detailClient
-    .from("lecture_quiz_assets")
-    .select("*")
-    .eq("lecture_id", lectureRow.id)
-    .maybeSingle();
-  const studySessionPromise = detailClient
-    .from("lecture_study_sessions")
-    .select("*")
-    .eq("lecture_id", lectureRow.id)
-    .eq("user_id", params.userId)
-    .maybeSingle();
-  const quizQuestionsPromise = detailClient
-    .from("quiz_questions")
-    .select("*")
-    .eq("lecture_id", lectureRow.id)
-    .order("idx", { ascending: true });
-  const practiceTestAssetPromise = detailClient
-    .from("lecture_practice_test_assets")
-    .select("*")
-    .eq("lecture_id", lectureRow.id)
-    .maybeSingle();
-  const practiceTestQuestionsPromise = detailClient
-    .from("practice_test_questions")
-    .select("*")
-    .eq("lecture_id", lectureRow.id)
-    .order("idx", { ascending: true });
-  const practiceTestAttemptsPromise = detailClient
-    .from("practice_test_attempts")
-    .select("*")
-    .eq("lecture_id", lectureRow.id)
-    .eq("user_id", params.userId)
-    .order("created_at", { ascending: true });
+  const failedSections: string[] = [];
 
   const [
-    { data: artifact, error: artifactError },
-    { data: studyAsset, error: studyAssetError },
-    { data: flashcards, error: flashcardsError },
-    { data: chatMessages, error: chatError },
+    artifactResult,
+    studyAssetResult,
+    flashcardsResult,
+    chatMessagesResult,
     studySectionsResult,
     quizAssetResult,
     studySessionResult,
@@ -819,153 +859,178 @@ export async function getLectureDetailForUser(params: {
     practiceTestQuestionsResult,
     practiceTestAttemptsResult,
   ] = await Promise.all([
-    detailClient
-      .from("lecture_artifacts")
-      .select("*")
-      .eq("lecture_id", lectureRow.id)
-      .maybeSingle(),
-    detailClient
-      .from("lecture_study_assets")
-      .select("*")
-      .eq("lecture_id", lectureRow.id)
-      .maybeSingle(),
-    detailClient
-      .from("flashcards")
-      .select("*")
-      .eq("lecture_id", lectureRow.id)
-      .order("idx", { ascending: true }),
-    detailClient
-      .from("chat_messages")
-      .select("*")
-      .eq("lecture_id", lectureRow.id)
-      .order("created_at", { ascending: true }),
-    studySectionsPromise,
-    quizAssetPromise,
-    studySessionPromise,
-    quizQuestionsPromise,
-    practiceTestAssetPromise,
-    practiceTestQuestionsPromise,
-    practiceTestAttemptsPromise,
+    safeLectureDetailQuery<LectureArtifactRow | null>({
+      section: "artifact",
+      failedSections,
+      fallbackData: null,
+      query: detailClient
+        .from("lecture_artifacts")
+        .select("*")
+        .eq("lecture_id", lectureRow.id)
+        .maybeSingle(),
+    }),
+    safeLectureDetailQuery<LectureStudyAssetRow | null>({
+      section: "studyAsset",
+      failedSections,
+      fallbackData: null,
+      query: detailClient
+        .from("lecture_study_assets")
+        .select("*")
+        .eq("lecture_id", lectureRow.id)
+        .maybeSingle(),
+    }),
+    safeLectureDetailQuery<FlashcardRow[]>({
+      section: "flashcards",
+      failedSections,
+      fallbackData: [],
+      timeoutMs: LECTURE_DETAIL_HEAVY_TIMEOUT_MS,
+      query: detailClient
+        .from("flashcards")
+        .select("*")
+        .eq("lecture_id", lectureRow.id)
+        .order("idx", { ascending: true }),
+    }),
+    safeLectureDetailQuery<ChatMessageRow[]>({
+      section: "chatMessages",
+      failedSections,
+      fallbackData: [],
+      timeoutMs: LECTURE_DETAIL_HEAVY_TIMEOUT_MS,
+      query: detailClient
+        .from("chat_messages")
+        .select("*")
+        .eq("lecture_id", lectureRow.id)
+        .order("created_at", { ascending: true }),
+    }),
+    safeLectureDetailQuery<LectureStudySectionRow[]>({
+      section: "studySections",
+      failedSections,
+      fallbackData: [],
+      query: detailClient
+        .from("lecture_study_sections")
+        .select("*")
+        .eq("lecture_id", lectureRow.id)
+        .order("idx", { ascending: true }),
+    }),
+    safeLectureDetailQuery<LectureQuizAssetRow | null>({
+      section: "quizAsset",
+      failedSections,
+      fallbackData: null,
+      query: detailClient
+        .from("lecture_quiz_assets")
+        .select("*")
+        .eq("lecture_id", lectureRow.id)
+        .maybeSingle(),
+    }),
+    safeLectureDetailQuery<LectureStudySessionRow | null>({
+      section: "studySession",
+      failedSections,
+      fallbackData: null,
+      query: detailClient
+        .from("lecture_study_sessions")
+        .select("*")
+        .eq("lecture_id", lectureRow.id)
+        .eq("user_id", params.userId)
+        .maybeSingle(),
+    }),
+    safeLectureDetailQuery<QuizQuestionRow[]>({
+      section: "quizQuestions",
+      failedSections,
+      fallbackData: [],
+      query: detailClient
+        .from("quiz_questions")
+        .select("*")
+        .eq("lecture_id", lectureRow.id)
+        .order("idx", { ascending: true }),
+    }),
+    safeLectureDetailQuery<LecturePracticeTestAssetRow | null>({
+      section: "practiceTestAsset",
+      failedSections,
+      fallbackData: null,
+      query: detailClient
+        .from("lecture_practice_test_assets")
+        .select("*")
+        .eq("lecture_id", lectureRow.id)
+        .maybeSingle(),
+    }),
+    safeLectureDetailQuery<PracticeTestQuestionRow[]>({
+      section: "practiceTestQuestions",
+      failedSections,
+      fallbackData: [],
+      query: detailClient
+        .from("practice_test_questions")
+        .select("*")
+        .eq("lecture_id", lectureRow.id)
+        .order("idx", { ascending: true }),
+    }),
+    safeLectureDetailQuery<PracticeTestAttemptRow[]>({
+      section: "practiceTestAttempts",
+      failedSections,
+      fallbackData: [],
+      timeoutMs: LECTURE_DETAIL_HEAVY_TIMEOUT_MS,
+      query: detailClient
+        .from("practice_test_attempts")
+        .select("*")
+        .eq("lecture_id", lectureRow.id)
+        .eq("user_id", params.userId)
+        .order("created_at", { ascending: true }),
+    }),
   ]);
 
-  if (artifactError) {
-    throw artifactError;
-  }
+  const artifact = artifactResult.data as LectureArtifactRow | null;
 
-  lectureRow = await reconcileLectureWithArtifact(
-    lectureRow,
-    artifact as LectureArtifactRow | null,
-  );
+  try {
+    lectureRow = await runWithTimeout(
+      reconcileLectureWithArtifact(lectureRow, artifact),
+      LECTURE_DETAIL_OPTIONAL_TIMEOUT_MS,
+      "lecture artifact reconciliation",
+    );
+  } catch (error) {
+    noteLectureDetailFailure(failedSections, "artifactReconciliation", error);
+  }
 
   const transcriptResult = lectureShowsTranscript({
     lecture: lectureRow,
-    artifact: artifact as LectureArtifactRow | null,
+    artifact,
   })
-    ? await detailClient
-        .from("transcript_segments")
-        .select(TRANSCRIPT_SEGMENT_CONTENT_SELECT)
-        .eq("lecture_id", lectureRow.id)
-        .order("idx", { ascending: true })
+    ? await safeLectureDetailQuery<TranscriptSegmentRow[]>({
+        section: "transcript",
+        failedSections,
+        fallbackData: [],
+        timeoutMs: LECTURE_DETAIL_HEAVY_TIMEOUT_MS,
+        query: detailClient
+          .from("transcript_segments")
+          .select(TRANSCRIPT_SEGMENT_CONTENT_SELECT)
+          .eq("lecture_id", lectureRow.id)
+          .order("idx", { ascending: true }),
+      })
     : { data: [], error: null };
 
-  const { data: transcript, error: transcriptError } = transcriptResult;
-
-  if (transcriptError) {
-    throw transcriptError;
-  }
-
-  if (studyAssetError) {
-    throw studyAssetError;
-  }
-
-  if (flashcardsError) {
-    throw flashcardsError;
-  }
-
-  if (chatError) {
-    throw chatError;
-  }
-
-  if (quizAssetResult.error && !isMissingQuizSchemaError(quizAssetResult.error)) {
-    throw quizAssetResult.error;
-  }
-
-  if (quizQuestionsResult.error && !isMissingQuizSchemaError(quizQuestionsResult.error)) {
-    throw quizQuestionsResult.error;
-  }
-
-  if (
-    practiceTestAssetResult.error &&
-    !isMissingPracticeTestSchemaError(practiceTestAssetResult.error)
-  ) {
-    throw practiceTestAssetResult.error;
-  }
-
-  if (
-    practiceTestQuestionsResult.error &&
-    !isMissingPracticeTestSchemaError(practiceTestQuestionsResult.error)
-  ) {
-    throw practiceTestQuestionsResult.error;
-  }
-
-  if (
-    practiceTestAttemptsResult.error &&
-    !isMissingPracticeTestSchemaError(practiceTestAttemptsResult.error)
-  ) {
-    throw practiceTestAttemptsResult.error;
-  }
-
-  if (
-    studySessionResult.error &&
-    !isMissingStudySessionSchemaError(studySessionResult.error)
-  ) {
-    throw studySessionResult.error;
-  }
-
-  const studySections =
-    studySectionsResult.error && isMissingStudySectionsSchemaError(studySectionsResult.error)
-      ? []
-      : ((studySectionsResult.data ?? []) as LectureStudySectionRow[]);
+  const studySections = (studySectionsResult.data ?? []) as LectureStudySectionRow[];
   const fallbackQuizState = parseFallbackQuizState({
     lectureId: lectureRow.id,
-    metadata: (artifact as LectureArtifactRow | null)?.model_metadata,
+    metadata: artifact?.model_metadata,
   });
-  const quizAsset =
-    (quizAssetResult.error && isMissingQuizSchemaError(quizAssetResult.error)
-      ? null
-      : (quizAssetResult.data as LectureQuizAssetRow | null)) ?? fallbackQuizState.quizAsset;
-  const quizQuestions = (
-    quizQuestionsResult.error && isMissingQuizSchemaError(quizQuestionsResult.error)
-      ? []
-      : ((quizQuestionsResult.data ?? []) as QuizQuestionRow[])
-  ).map(mapQuizQuestion);
-  const practiceTestAsset =
-    practiceTestAssetResult.error && isMissingPracticeTestSchemaError(practiceTestAssetResult.error)
-      ? null
-      : (practiceTestAssetResult.data as LecturePracticeTestAssetRow | null);
-  const practiceTestQuestions = (
-    practiceTestQuestionsResult.error &&
-    isMissingPracticeTestSchemaError(practiceTestQuestionsResult.error)
-      ? []
-      : ((practiceTestQuestionsResult.data ?? []) as PracticeTestQuestionRow[])
-  ).map(mapPracticeTestQuestion);
-  const practiceTestAttempts =
-    practiceTestAttemptsResult.error &&
-    isMissingPracticeTestSchemaError(practiceTestAttemptsResult.error)
-      ? []
-      : ((practiceTestAttemptsResult.data ?? []) as PracticeTestAttemptRow[]);
+  const quizAsset = (quizAssetResult.data as LectureQuizAssetRow | null) ?? fallbackQuizState.quizAsset;
+  const quizQuestions = ((quizQuestionsResult.data ?? []) as QuizQuestionRow[]).map(mapQuizQuestion);
+  const practiceTestAsset = practiceTestAssetResult.data as LecturePracticeTestAssetRow | null;
+  const practiceTestQuestions = ((practiceTestQuestionsResult.data ?? []) as PracticeTestQuestionRow[])
+    .map(mapPracticeTestQuestion);
+  const practiceTestAttempts = (practiceTestAttemptsResult.data ?? []) as PracticeTestAttemptRow[];
 
-  if (studySectionsResult.error && !isMissingStudySectionsSchemaError(studySectionsResult.error)) {
-    throw studySectionsResult.error;
-  }
-
-  const flashcardRows = (flashcards ?? []) as FlashcardRow[];
+  const flashcardRows = (flashcardsResult.data ?? []) as FlashcardRow[];
   const flashcardIds = flashcardRows.map((flashcard) => flashcard.id);
-  const flashcardProgress = await fetchFlashcardProgressRows({
-    supabase: detailClient,
-    userId: params.userId,
-    flashcardIds,
-  });
+  let flashcardProgress: FlashcardProgressRow[] = [];
+
+  try {
+    flashcardProgress = await fetchFlashcardProgressRows({
+      supabase: detailClient,
+      userId: params.userId,
+      flashcardIds,
+      timeoutMs: LECTURE_DETAIL_HEAVY_TIMEOUT_MS,
+    });
+  } catch (error) {
+    noteLectureDetailFailure(failedSections, "flashcardProgress", error);
+  }
 
   const progressByFlashcardId = new Map(
     flashcardProgress.map((progress) => [
@@ -982,11 +1047,23 @@ export async function getLectureDetailForUser(params: {
   let mappedPracticeAttempts: PracticeTestAttemptWithAnswers[] = [];
 
   if (lectureRow.storage_path) {
-    const { data: signed } = await service.storage
-      .from("lecture-audio")
-      .createSignedUrl(lectureRow.storage_path, 60 * 60);
+    try {
+      const { data: signed, error } = await runWithTimeout(
+        service.storage
+          .from("lecture-audio")
+          .createSignedUrl(lectureRow.storage_path, 60 * 60),
+        LECTURE_DETAIL_OPTIONAL_TIMEOUT_MS,
+        "lecture audio signed URL",
+      );
 
-    audioUrl = signed?.signedUrl ?? null;
+      if (error) {
+        noteLectureDetailFailure(failedSections, "audioUrl", error);
+      } else {
+        audioUrl = signed?.signedUrl ?? null;
+      }
+    } catch (error) {
+      noteLectureDetailFailure(failedSections, "audioUrl", error);
+    }
   }
 
   if (practiceTestAttempts.length > 0) {
@@ -999,10 +1076,11 @@ export async function getLectureDetailForUser(params: {
       attemptAnswers = await fetchPracticeTestAttemptAnswers({
         supabase,
         attemptIds,
+        timeoutMs: LECTURE_DETAIL_HEAVY_TIMEOUT_MS,
       });
     } catch (error) {
       if (!isMissingPracticeTestSchemaError(error)) {
-        throw error;
+        noteLectureDetailFailure(failedSections, "practiceTestAttemptAnswers", error);
       }
     }
 
@@ -1026,14 +1104,11 @@ export async function getLectureDetailForUser(params: {
 
   return {
     lecture: lectureRow,
-    artifact: artifact as LectureArtifactRow | null,
-    studyAsset: studyAsset as LectureStudyAssetRow | null,
+    artifact,
+    studyAsset: studyAssetResult.data as LectureStudyAssetRow | null,
     quizAsset,
     practiceTestAsset,
-    studySession:
-      studySessionResult.error && isMissingStudySessionSchemaError(studySessionResult.error)
-        ? null
-        : parseStudySession(studySessionResult.data),
+    studySession: parseStudySession(studySessionResult.data),
     studySections: buildStudySections({
       lectureId: lectureRow.id,
       flashcards: mappedFlashcards,
@@ -1044,9 +1119,16 @@ export async function getLectureDetailForUser(params: {
     practiceTestQuestions,
     practiceTestAttempts: mappedPracticeAttempts,
     practiceTestHistorySummary: buildPracticeTestHistorySummary(mappedPracticeAttempts),
-    transcript: (transcript ?? []) as TranscriptSegmentRow[],
-    chatMessages: (chatMessages ?? []).map(mapChatMessage),
+    transcript: (transcriptResult.data ?? []) as TranscriptSegmentRow[],
+    chatMessages: (chatMessagesResult.data ?? []).map(mapChatMessage),
     audioUrl,
+    degraded:
+      failedSections.length > 0
+        ? {
+            reason: "Some lecture sections could not be loaded before the timeout.",
+            failedSections,
+          }
+        : undefined,
   };
 }
 

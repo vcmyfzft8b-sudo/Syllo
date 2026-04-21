@@ -927,6 +927,11 @@ export function LectureWorkspace({
   const flashcardFeedbackTimerRef = useRef<number | null>(null);
   const flashcardFeedbackTokenRef = useRef(0);
   const studySessionPayloadRef = useRef<string | null>(null);
+  const detailRefreshInFlightRef = useRef<Promise<void> | null>(null);
+  const lastDetailRefreshAtRef = useRef(0);
+  const studySessionWriteInFlightRef = useRef<Promise<void> | null>(null);
+  const studySessionWritePayloadRef = useRef<string | null>(null);
+  const lastPersistedStudySessionPayloadRef = useRef<string | null>(null);
   const studyDeck = detail.flashcards;
   const flashcardDeckKey = studyDeck.map((flashcard) => flashcard.id).join("|");
   const quizDeckKey = detail.quizQuestions.map((question) => question.id).join("|");
@@ -953,6 +958,103 @@ export function LectureWorkspace({
     shouldPollAsset(detail.studyAsset?.status) || shouldPollAsset(detail.quizAsset?.status)
       ? 2000
       : POLL_INTERVAL_MS;
+
+  const refreshLectureDetail = useCallback(async (options?: { force?: boolean }) => {
+    const now = Date.now();
+
+    if (!options?.force && now - lastDetailRefreshAtRef.current < 1000) {
+      return detailRefreshInFlightRef.current ?? undefined;
+    }
+
+    if (detailRefreshInFlightRef.current) {
+      return detailRefreshInFlightRef.current;
+    }
+
+    lastDetailRefreshAtRef.current = now;
+
+    const refreshRequest = (async () => {
+      try {
+        const refresh = await fetch(`/api/lectures/${detail.lecture.id}`, {
+          cache: "no-store",
+        });
+
+        if (!refresh.ok) {
+          return;
+        }
+
+        setDetail(mergeLectureDetailWithStoredStudySession((await refresh.json()) as LectureDetail));
+      } catch {
+        return;
+      }
+    })().finally(() => {
+      if (detailRefreshInFlightRef.current === refreshRequest) {
+        detailRefreshInFlightRef.current = null;
+      }
+    });
+
+    detailRefreshInFlightRef.current = refreshRequest;
+    return refreshRequest;
+  }, [detail.lecture.id]);
+
+  const persistStudySessionPayload = useCallback((
+    payload: string,
+    options?: { force?: boolean; preferBeacon?: boolean },
+  ) => {
+    if (!options?.force && lastPersistedStudySessionPayloadRef.current === payload) {
+      return;
+    }
+
+    if (
+      studySessionWriteInFlightRef.current &&
+      studySessionWritePayloadRef.current === payload
+    ) {
+      return;
+    }
+
+    if (
+      options?.preferBeacon &&
+      typeof navigator !== "undefined" &&
+      typeof navigator.sendBeacon === "function"
+    ) {
+      const queued = navigator.sendBeacon(
+        `/api/lectures/${detail.lecture.id}/study-session`,
+        new Blob([payload], {
+          type: "application/json",
+        }),
+      );
+
+      if (queued) {
+        lastPersistedStudySessionPayloadRef.current = payload;
+      }
+      return;
+    }
+
+    studySessionWritePayloadRef.current = payload;
+    const writeRequest = fetch(`/api/lectures/${detail.lecture.id}/study-session`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: payload,
+      keepalive: true,
+    })
+      .then((response) => {
+        if (response.ok) {
+          lastPersistedStudySessionPayloadRef.current = payload;
+        }
+      })
+      .catch(() => {
+        ignoreBackgroundRequestError();
+      })
+      .finally(() => {
+        if (studySessionWriteInFlightRef.current === writeRequest) {
+          studySessionWriteInFlightRef.current = null;
+          studySessionWritePayloadRef.current = null;
+        }
+      });
+
+    studySessionWriteInFlightRef.current = writeRequest;
+  }, [detail.lecture.id]);
 
   useEffect(() => {
     const nextDetail = mergeLectureDetailWithStoredStudySession(initialDetail);
@@ -1005,41 +1107,24 @@ export function LectureWorkspace({
       return;
     }
 
-    let cancelled = false;
-
-    const refresh = async () => {
-      const response = await fetch(`/api/lectures/${detail.lecture.id}`).catch(
-        ignoreBackgroundRequestError,
-      );
-      if (!response || !response.ok || cancelled) {
-        return;
-      }
-
-      const nextDetail = mergeLectureDetailWithStoredStudySession(
-        (await response.json()) as LectureDetail,
-      );
-      if (!cancelled) {
-        setDetail(nextDetail);
-      }
-    };
-
-    const interval = window.setInterval(refresh, detailPollIntervalMs);
+    const interval = window.setInterval(() => {
+      void refreshLectureDetail();
+    }, detailPollIntervalMs);
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
-        void refresh();
+        void refreshLectureDetail({ force: true });
       }
     };
 
     const handleFocus = () => {
-      void refresh();
+      void refreshLectureDetail();
     };
 
     document.addEventListener("visibilitychange", handleVisibility);
     window.addEventListener("focus", handleFocus);
 
     return () => {
-      cancelled = true;
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("focus", handleFocus);
@@ -1053,6 +1138,7 @@ export function LectureWorkspace({
     detail.quizAsset?.status,
     detail.quizQuestions.length,
     detailPollIntervalMs,
+    refreshLectureDetail,
     detail.studyAsset?.status,
     shouldPollCurrentDetail,
   ]);
@@ -1183,15 +1269,8 @@ export function LectureWorkspace({
     });
 
     const timeoutId = window.setTimeout(() => {
-      void fetch(`/api/lectures/${detail.lecture.id}/study-session`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: payload,
-        keepalive: true,
-      }).catch(ignoreBackgroundRequestError);
-    }, 300);
+      persistStudySessionPayload(payload);
+    }, 1000);
 
     return () => {
       window.clearTimeout(timeoutId);
@@ -1220,6 +1299,7 @@ export function LectureWorkspace({
     repeatQueue,
     reviewCycle,
     reviewQueue,
+    persistStudySessionPayload,
     studyDeck.length,
   ]);
 
@@ -1229,28 +1309,10 @@ export function LectureWorkspace({
         return;
       }
 
-      if (
-        preferBeacon &&
-        typeof navigator !== "undefined" &&
-        typeof navigator.sendBeacon === "function"
-      ) {
-        navigator.sendBeacon(
-          `/api/lectures/${detail.lecture.id}/study-session`,
-          new Blob([studySessionPayloadRef.current], {
-            type: "application/json",
-          }),
-        );
-        return;
-      }
-
-      void fetch(`/api/lectures/${detail.lecture.id}/study-session`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: studySessionPayloadRef.current,
-        keepalive: true,
-      }).catch(ignoreBackgroundRequestError);
+      persistStudySessionPayload(studySessionPayloadRef.current, {
+        force: true,
+        preferBeacon,
+      });
     };
 
     const handleVisibilityChange = () => {
@@ -1271,7 +1333,7 @@ export function LectureWorkspace({
       window.removeEventListener("pagehide", handlePageHide);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [detail.lecture.id]);
+  }, [persistStudySessionPayload]);
   const cleanedStructuredNotes = useMemo(() => {
     if (!detail.artifact?.structured_notes_md) {
       return null;
@@ -1423,25 +1485,11 @@ export function LectureWorkspace({
       return;
     }
 
-    const refresh = await fetch(`/api/lectures/${detail.lecture.id}`).catch(
-      ignoreBackgroundRequestError,
-    );
-    if (refresh?.ok) {
-      setDetail(mergeLectureDetailWithStoredStudySession((await refresh.json()) as LectureDetail));
-    }
+    await refreshLectureDetail({ force: true });
   }
 
-  const refreshLectureDetail = useCallback(async () => {
-    const refresh = await fetch(`/api/lectures/${detail.lecture.id}`, {
-      cache: "no-store",
-    }).catch(ignoreBackgroundRequestError);
-    if (refresh?.ok) {
-      setDetail(mergeLectureDetailWithStoredStudySession((await refresh.json()) as LectureDetail));
-    }
-  }, [detail.lecture.id]);
-
   useEffect(() => {
-    void refreshLectureDetail();
+    void refreshLectureDetail({ force: true });
   }, [refreshLectureDetail]);
 
   async function handleStudyCreate() {
