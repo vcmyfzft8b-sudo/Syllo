@@ -42,30 +42,30 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/memo-favicon-96x96.png?v=4",
+        url: "/favicon.ico",
+        sizes: "any",
+        type: "image/x-icon",
+      },
+      {
+        url: "/memo-favicon-96x96.png",
         sizes: "96x96",
         type: "image/png",
       },
       {
-        url: "/memo-favicon-32x32.png?v=3",
+        url: "/memo-favicon-32x32.png",
         sizes: "32x32",
         type: "image/png",
       },
       {
-        url: "/memo-favicon-16x16.png?v=3",
+        url: "/memo-favicon-16x16.png",
         sizes: "16x16",
         type: "image/png",
       },
-      {
-        url: "/memo-favicon.ico?v=3",
-        sizes: "any",
-        type: "image/x-icon",
-      },
     ],
-    shortcut: "/memo-favicon.ico?v=3",
+    shortcut: "/favicon.ico",
     apple: [
       {
-        url: "/apple-touch-icon.png?v=3",
+        url: "/apple-touch-icon.png",
         sizes: "180x180",
         type: "image/png",
       },
