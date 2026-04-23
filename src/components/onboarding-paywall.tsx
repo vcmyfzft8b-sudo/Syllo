@@ -76,6 +76,7 @@ export function OnboardingPaywall({
   const [isPersonalizing, setIsPersonalizing] = useState(false);
   const [checkoutPlan, setCheckoutPlan] = useState<BillingPlanCard["id"] | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
   const [form, setForm] = useState({
     ageRange: profile?.age_range ?? AGE_OPTIONS[2].value,
     educationLevel: profile?.education_level ?? EDUCATION_OPTIONS[1].value,
@@ -205,6 +206,7 @@ export function OnboardingPaywall({
   }
 
   async function startCheckout(plan: BillingPlanCard["id"]) {
+    setBillingError(null);
     setCheckoutPlan(plan);
 
     try {
@@ -223,12 +225,17 @@ export function OnboardingPaywall({
       }
 
       window.location.href = payload.url;
+    } catch (error) {
+      setBillingError(
+        error instanceof Error ? error.message : "Plačila ni bilo mogoče začeti.",
+      );
     } finally {
       setCheckoutPlan(null);
     }
   }
 
   async function openPortal() {
+    setBillingError(null);
     setPortalLoading(true);
 
     try {
@@ -242,6 +249,12 @@ export function OnboardingPaywall({
       }
 
       window.location.href = payload.url;
+    } catch (error) {
+      setBillingError(
+        error instanceof Error
+          ? error.message
+          : "Portala za obračun ni bilo mogoče odpreti.",
+      );
     } finally {
       setPortalLoading(false);
     }
@@ -346,6 +359,7 @@ export function OnboardingPaywall({
       ) : null}
 
       <CheckoutBanner state={searchParams.get("checkout")} />
+      {billingError ? <div className="app-start-banner">{billingError}</div> : null}
 
       <div className="app-start-pricing-grid">
         {plans.map((plan) => {
