@@ -2,6 +2,13 @@ import Stripe from "stripe";
 
 const MEMO50_COUPON_ID = "memo50-first-cycle";
 const MEMO50_PROMOTION_CODE = "MEMO50";
+const BILLING_WEBHOOK_DESCRIPTION = "Memo billing sync";
+const BILLING_WEBHOOK_EVENTS = [
+  "checkout.session.completed",
+  "customer.subscription.created",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
+];
 
 function requireEnv(name) {
   const value = process.env[name]?.trim();
@@ -231,19 +238,139 @@ async function ensureBillingPortalConfiguration(stripe, returnUrl) {
   });
 }
 
-async function findWebhookEndpoint(stripe, webhookUrl) {
+function isManagedBillingWebhook(endpoint) {
+  return (
+    endpoint.metadata?.app === "memo" &&
+    endpoint.metadata?.billing_key === "pro" &&
+    endpoint.description === BILLING_WEBHOOK_DESCRIPTION
+  );
+}
+
+function hasExpectedWebhookEvents(endpoint) {
+  const enabledEvents = [...endpoint.enabled_events].sort();
+  const expectedEvents = [...BILLING_WEBHOOK_EVENTS].sort();
+
+  return (
+    enabledEvents.length === expectedEvents.length &&
+    enabledEvents.every((event, index) => event === expectedEvents[index])
+  );
+}
+
+async function resolveFinalWebhookUrl(webhookUrl) {
+  let currentUrl = webhookUrl;
+
+  for (let index = 0; index < 3; index += 1) {
+    try {
+      const response = await fetch(currentUrl, {
+        method: "GET",
+        redirect: "manual",
+      });
+      const location = response.headers.get("location");
+
+      if (!location || response.status < 300 || response.status >= 400) {
+        return currentUrl;
+      }
+
+      currentUrl = new URL(location, currentUrl).toString();
+    } catch {
+      return currentUrl;
+    }
+  }
+
+  return currentUrl;
+}
+
+async function ensureWebhookEndpoint(stripe, webhookUrl) {
   const endpoints = await stripe.webhookEndpoints.list({
     limit: 100,
   });
+  const managedEndpoints = endpoints.data.filter(isManagedBillingWebhook);
+  const exactMatch = endpoints.data.find((endpoint) => endpoint.url === webhookUrl) ?? null;
 
-  return endpoints.data.find((endpoint) => endpoint.url === webhookUrl) ?? null;
+  async function pruneManagedDuplicates(keepEndpointId) {
+    const duplicateEndpoints = managedEndpoints.filter((endpoint) => endpoint.id !== keepEndpointId);
+    const removedIds = [];
+
+    for (const endpoint of duplicateEndpoints) {
+      await stripe.webhookEndpoints.del(endpoint.id);
+      removedIds.push(endpoint.id);
+    }
+
+    return removedIds;
+  }
+
+  if (exactMatch) {
+    if (
+      isManagedBillingWebhook(exactMatch) &&
+      hasExpectedWebhookEvents(exactMatch)
+    ) {
+      return {
+        endpoint: exactMatch,
+        removedIds: await pruneManagedDuplicates(exactMatch.id),
+        status: "existing",
+      };
+    }
+
+    const updated = await stripe.webhookEndpoints.update(exactMatch.id, {
+      enabled_events: BILLING_WEBHOOK_EVENTS,
+      metadata: {
+        app: "memo",
+        billing_key: "pro",
+      },
+      description: BILLING_WEBHOOK_DESCRIPTION,
+    });
+
+    return {
+      endpoint: updated,
+      removedIds: await pruneManagedDuplicates(updated.id),
+      status: "updated",
+    };
+  }
+
+  const managedEndpoint = managedEndpoints[0] ?? null;
+
+  if (managedEndpoint) {
+    const updated = await stripe.webhookEndpoints.update(managedEndpoint.id, {
+      url: webhookUrl,
+      enabled_events: BILLING_WEBHOOK_EVENTS,
+      metadata: {
+        app: "memo",
+        billing_key: "pro",
+      },
+      description: BILLING_WEBHOOK_DESCRIPTION,
+    });
+
+    return {
+      endpoint: updated,
+      removedIds: await pruneManagedDuplicates(updated.id),
+      status: "updated",
+      previousUrl: managedEndpoint.url,
+    };
+  }
+
+  const created = await stripe.webhookEndpoints.create({
+    url: webhookUrl,
+    enabled_events: BILLING_WEBHOOK_EVENTS,
+    metadata: {
+      app: "memo",
+      billing_key: "pro",
+    },
+    description: BILLING_WEBHOOK_DESCRIPTION,
+  });
+
+  return {
+    endpoint: created,
+    removedIds: await pruneManagedDuplicates(created.id),
+    status: "created",
+  };
 }
 
 async function main() {
   const stripe = new Stripe(requireEnv("STRIPE_SECRET_KEY"));
   const siteUrl =
     getOptionalEnv("NEXT_PUBLIC_SITE_URL") ?? getOptionalEnv("SITE_URL") ?? "http://localhost:3000";
-  const webhookUrl = getOptionalEnv("STRIPE_WEBHOOK_URL") ?? `${siteUrl}/api/stripe/webhook`;
+  const configuredWebhookUrl = getOptionalEnv("STRIPE_WEBHOOK_URL") ?? `${siteUrl}/api/stripe/webhook`;
+  const webhookUrl = await resolveFinalWebhookUrl(configuredWebhookUrl);
 
   const product = await findOrCreateProduct(stripe);
 
@@ -278,25 +405,7 @@ async function main() {
   const memo50PromotionCode = await findOrCreateMemo50PromotionCode(stripe, memo50Coupon.id);
 
   const portal = await ensureBillingPortalConfiguration(stripe, `${siteUrl}/app/settings`);
-  const existingWebhook = await findWebhookEndpoint(stripe, webhookUrl);
-  let createdWebhook = null;
-
-  if (!existingWebhook) {
-    createdWebhook = await stripe.webhookEndpoints.create({
-      url: webhookUrl,
-      enabled_events: [
-        "checkout.session.completed",
-        "customer.subscription.created",
-        "customer.subscription.updated",
-        "customer.subscription.deleted",
-      ],
-      metadata: {
-        app: "memo",
-        billing_key: "pro",
-      },
-      description: "Memo billing sync",
-    });
-  }
+  const webhookResult = await ensureWebhookEndpoint(stripe, webhookUrl);
 
   console.log("");
   console.log("Stripe setup complete.");
@@ -313,16 +422,44 @@ async function main() {
   console.log(`STRIPE_PRICE_WEEKLY=${weekly.id}`);
   console.log(`STRIPE_PRICE_MONTHLY=${monthly.id}`);
   console.log(`STRIPE_PRICE_YEARLY=${yearly.id}`);
+  console.log(`STRIPE_WEBHOOK_URL=${webhookUrl}`);
 
-  if (createdWebhook) {
-    console.log(`STRIPE_WEBHOOK_SECRET=${createdWebhook.secret}`);
-    console.log(`Webhook endpoint: ${createdWebhook.id} -> ${createdWebhook.url}`);
-  } else if (existingWebhook) {
+  if (configuredWebhookUrl !== webhookUrl) {
     console.log("");
-    console.log(
-      `Webhook endpoint already exists at ${existingWebhook.url}. Stripe will not show the signing secret again, so keep the existing STRIPE_WEBHOOK_SECRET from your dashboard or previous setup.`,
-    );
+    console.log(`Resolved webhook URL redirect: ${configuredWebhookUrl} -> ${webhookUrl}`);
   }
+
+  console.log("");
+
+  if (webhookResult.removedIds.length > 0) {
+    console.log(`Removed duplicate webhook endpoints: ${webhookResult.removedIds.join(", ")}`);
+    console.log("");
+  }
+
+  if (webhookResult.status === "created") {
+    console.log(`STRIPE_WEBHOOK_SECRET=${webhookResult.endpoint.secret}`);
+    console.log(`Webhook endpoint created: ${webhookResult.endpoint.id} -> ${webhookResult.endpoint.url}`);
+    return;
+  }
+
+  if (webhookResult.status === "updated") {
+    if (webhookResult.previousUrl && webhookResult.previousUrl !== webhookResult.endpoint.url) {
+      console.log(
+        `Webhook endpoint updated: ${webhookResult.endpoint.id} -> ${webhookResult.previousUrl} -> ${webhookResult.endpoint.url}`,
+      );
+    } else {
+      console.log(`Webhook endpoint updated: ${webhookResult.endpoint.id} -> ${webhookResult.endpoint.url}`);
+    }
+
+    console.log(
+      "Keep the existing STRIPE_WEBHOOK_SECRET from Stripe Dashboard or your previous setup. Stripe does not show the signing secret again for an existing endpoint.",
+    );
+    return;
+  }
+
+  console.log(
+    `Webhook endpoint already exists at ${webhookResult.endpoint.url}. Keep the existing STRIPE_WEBHOOK_SECRET from Stripe Dashboard or your previous setup.`,
+  );
 }
 
 main().catch((error) => {
