@@ -9,7 +9,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { EmojiIcon } from "@/components/emoji-icon";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
-import { StatusBadge } from "@/components/status-badge";
 import { StudyCompletionCard } from "@/components/study-completion-card";
 import { parseApiResponse, redirectToBillingIfNeeded } from "@/lib/billing-client";
 import type { FlashcardConfidenceBucket, StudyAssetStatus } from "@/lib/database.types";
@@ -3111,7 +3110,6 @@ export function LectureWorkspace({
                 {detail.lecture.title ?? "Predavanje v obdelavi"}
               </h1>
               <div className="lecture-meta-row">
-                <StatusBadge status={detail.lecture.status} />
                 <span className="lecture-meta-pill">{sourceLabel(detail.lecture.source_type)}</span>
                 <span className="lecture-meta-copy">{formatCalendarDate(detail.lecture.created_at)}</span>
               </div>
