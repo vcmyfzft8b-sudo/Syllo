@@ -996,7 +996,7 @@ select:disabled {
 }
 
 .brand-logo.compact {
-  gap: 0.68rem;
+  gap: clamp(0.58rem, 1.13vw, 0.85rem);
 }
 
 .brand-logo-mark {
@@ -1009,8 +1009,8 @@ select:disabled {
 }
 
 .brand-logo.compact .brand-logo-mark {
-  width: 2.2rem;
-  height: 1.8rem;
+  width: clamp(2.58rem, 5.07vw, 3.8rem);
+  height: clamp(2.28rem, 4.47vw, 3.35rem);
 }
 
 .brand-logo-image {
@@ -1036,8 +1036,8 @@ select:disabled {
 }
 
 .brand-logo.compact .brand-logo-copy strong {
-  font-size: clamp(1.65rem, 4vw, 2.8rem);
-  line-height: 1.08;
+  font-size: clamp(1.19rem, 2.33vw, 1.75rem);
+  line-height: 1;
   padding-bottom: 0.08em;
 }
 
@@ -1109,16 +1109,45 @@ select:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  min-height: 2.85rem;
-  padding: 0 1rem;
+  gap: clamp(0.32rem, 0.63vw, 0.5rem);
+  min-height: clamp(2.25rem, 3.8vw, 2.85rem);
+  padding: 0 clamp(0.72rem, 1.33vw, 1rem);
   border-radius: 999px;
   background: linear-gradient(135deg, #ff7a18, #ffb347);
   color: #2c1400;
-  font-size: 0.95rem;
+  font-size: clamp(0.76rem, 1.27vw, 0.95rem);
   font-weight: 700;
-  box-shadow: 0 16px 30px rgba(255, 122, 24, 0.28);
+  box-shadow: 0 clamp(10px, 2.13vw, 16px) clamp(20px, 4vw, 30px) rgba(255, 122, 24, 0.28);
   white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .ios-nav-inner.app-topbar-inner {
+    gap: 0.45rem;
+    width: 100vw;
+    max-width: 100vw;
+    min-height: 3.35rem;
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
+    box-sizing: border-box;
+  }
+
+  .app-subscribe-cta {
+    gap: 0.24rem;
+    min-height: 2rem;
+    padding: 0 0.52rem;
+    font-size: 0.78rem;
+    box-shadow: 0 8px 16px rgba(255, 122, 24, 0.22);
+  }
+
+  .app-subscribe-cta span {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    white-space: nowrap;
+  }
 }
 
 .desktop-sidebar-brand {
@@ -6502,7 +6531,7 @@ select:disabled {
 
 .landing-auth-brand .brand-logo {
   justify-content: center;
-  gap: 0.68rem;
+  gap: clamp(1.55rem, 3.89vw, 2.53rem);
 }
 
 .landing-auth-brand .brand-logo.compact .brand-logo-copy strong {
@@ -6512,8 +6541,8 @@ select:disabled {
 }
 
 .landing-auth-brand .brand-logo.compact .brand-logo-mark {
-  width: clamp(4.6rem, 11vw, 7rem);
-  height: clamp(3.8rem, 9vw, 5.8rem);
+  width: clamp(6.95rem, 17.37vw, 11.29rem);
+  height: clamp(6.12rem, 15.31vw, 9.95rem);
   filter: saturate(1.15);
   transform: none;
 }
@@ -6670,16 +6699,16 @@ select:disabled {
 }
 
 .landing-public-brand .brand-logo {
-  gap: 0.85rem;
+  gap: clamp(0.58rem, 1.13vw, 0.85rem);
 }
 
 .landing-public-brand .brand-logo-mark {
-  width: clamp(2.9rem, 4.2vw, 3.8rem);
-  height: clamp(2.55rem, 3.7vw, 3.35rem);
+  width: clamp(2.58rem, 5.07vw, 3.8rem);
+  height: clamp(2.28rem, 4.47vw, 3.35rem);
 }
 
 .landing-public-brand .brand-logo-copy strong {
-  font-size: clamp(1.3rem, 2vw, 1.75rem);
+  font-size: clamp(1.19rem, 2.33vw, 1.75rem);
   line-height: 1;
 }
 
@@ -8554,6 +8583,12 @@ select:disabled {
     display: inline-flex;
   }
 
+  .ios-nav-inner.app-topbar-inner {
+    position: relative;
+    max-width: 100vw;
+    box-sizing: border-box;
+  }
+
   .app-topbar-copy {
     display: none;
   }
@@ -8564,7 +8599,11 @@ select:disabled {
 
   .app-topbar-subscribe-actions {
     display: flex;
-    margin-left: auto;
+    position: fixed;
+    top: 0.68rem;
+    right: clamp(0.65rem, 1.33vw, 1rem);
+    z-index: 42;
+    margin-left: 0;
   }
 }
 
@@ -8781,16 +8820,16 @@ select:disabled {
   }
 
   .desktop-brandline-brand .brand-logo {
-    gap: 0.85rem;
+    gap: clamp(0.58rem, 1.13vw, 0.85rem);
   }
 
   .desktop-brandline-brand .brand-logo-mark {
-    width: clamp(2.9rem, 4.2vw, 3.8rem);
-    height: clamp(2.55rem, 3.7vw, 3.35rem);
+    width: clamp(2.58rem, 5.07vw, 3.8rem);
+    height: clamp(2.28rem, 4.47vw, 3.35rem);
   }
 
   .desktop-brandline-brand .brand-logo-copy strong {
-    font-size: clamp(1.3rem, 2vw, 1.75rem);
+    font-size: clamp(1.19rem, 2.33vw, 1.75rem);
     line-height: 1;
   }
 

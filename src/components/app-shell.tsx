@@ -271,8 +271,8 @@ export function AppShell({
           ) : null}
 
           {showSubscribeCta ? (
-            <InstantLink href={subscribeHref} className="app-subscribe-cta">
-              <EmojiIcon symbol="✨" size="1rem" />
+            <InstantLink href={subscribeHref} className="app-subscribe-cta" aria-label={subscribeLabel}>
+              <EmojiIcon symbol="✨" />
               <span>{subscribeLabel}</span>
             </InstantLink>
           ) : null}
@@ -341,8 +341,8 @@ export function AppShell({
 
               {showSubscribeCta ? (
                 <div className="ios-nav-actions app-topbar-subscribe-actions">
-                  <InstantLink href={subscribeHref} className="app-subscribe-cta">
-                    <EmojiIcon symbol="✨" size="1rem" />
+                  <InstantLink href={subscribeHref} className="app-subscribe-cta" aria-label={subscribeLabel}>
+                    <EmojiIcon symbol="✨" />
                     <span>{subscribeLabel}</span>
                   </InstantLink>
                 </div>
