@@ -5522,7 +5522,7 @@ select:disabled {
   will-change: transform, opacity;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  animation: lecture-flashcard-exit-swipe 0.74s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation: lecture-flashcard-exit-swipe 0.37s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
 .lecture-flashcard-exit-card.again {

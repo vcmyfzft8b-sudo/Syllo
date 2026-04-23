@@ -286,7 +286,7 @@ function confidenceIcon(value: FlashcardConfidenceBucket) {
   return value === "again" ? "❌" : "✅";
 }
 
-const FLASHCARD_EXIT_ANIMATION_MS = 770;
+const FLASHCARD_EXIT_ANIMATION_MS = 385;
 const FLASHCARD_DRAG_TRIGGER_RATIO = 0.28;
 const FLASHCARD_DRAG_TRIGGER_MIN_PX = 88;
 const FLASHCARD_DRAG_TRIGGER_MAX_PX = 150;
