@@ -64,8 +64,8 @@ export async function POST(request: Request) {
           quantity: 1,
         },
       ],
-      success_url: getBillingSuccessUrl(),
-      cancel_url: getBillingCancelUrl(),
+      success_url: getBillingSuccessUrl(request),
+      cancel_url: getBillingCancelUrl(request),
       allow_promotion_codes: true,
       billing_address_collection: "auto",
       customer_update: {

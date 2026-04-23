@@ -1,6 +1,11 @@
-import type { NextRequest } from "next/server";
-
 import { getPublicEnv } from "@/lib/public-env";
+
+type RequestLike = {
+  headers: Headers;
+  nextUrl?: {
+    origin?: string | null;
+  };
+};
 
 function normalizeOrigin(value: string | null | undefined) {
   if (!value) {
@@ -14,7 +19,7 @@ function normalizeOrigin(value: string | null | undefined) {
   }
 }
 
-export function resolveSiteOrigin(request?: NextRequest) {
+export function resolveSiteOrigin(request?: RequestLike) {
   const configuredOrigin = normalizeOrigin(getPublicEnv().siteUrl);
   const forwardedProto = request?.headers.get("x-forwarded-proto");
   const forwardedHost = request?.headers.get("x-forwarded-host");
@@ -23,7 +28,7 @@ export function resolveSiteOrigin(request?: NextRequest) {
     return `${forwardedProto}://${forwardedHost}`;
   }
 
-  const requestOrigin = request?.nextUrl.origin ?? null;
+  const requestOrigin = request?.nextUrl?.origin ?? null;
 
   if (requestOrigin && requestOrigin !== "null") {
     return requestOrigin;
@@ -36,6 +41,6 @@ export function resolveSiteOrigin(request?: NextRequest) {
   return "http://localhost:3000";
 }
 
-export function resolveSiteUrl(request?: NextRequest) {
+export function resolveSiteUrl(request?: RequestLike) {
   return new URL("/", resolveSiteOrigin(request));
 }

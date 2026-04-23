@@ -144,7 +144,8 @@ npm run stripe:setup
 
 4. Copy the generated price IDs and webhook secret into your environment.
 5. Set `STRIPE_WEBHOOK_URL` if your public site domain redirects and Stripe should post to a different final host.
-6. Point Stripe webhooks at the final non-redirecting `/api/stripe/webhook` URL.
+6. Re-run `npm run stripe:setup` after changing `STRIPE_WEBHOOK_URL`. The setup script updates the managed Memo billing webhook in place.
+7. Point Stripe webhooks at the final non-redirecting `/api/stripe/webhook` URL.
 
 ## Important routes
 

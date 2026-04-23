@@ -6,8 +6,8 @@ import Stripe from "stripe";
 
 import { getOptionalUser } from "@/lib/auth";
 import type { BillingSubscriptionRow, ProfileRow } from "@/lib/database.types";
-import { getPublicEnv } from "@/lib/public-env";
 import { getServerEnv } from "@/lib/server-env";
+import { resolveSiteOrigin } from "@/lib/site-url";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 
 export type BillingPlan = "weekly" | "monthly" | "yearly";
@@ -509,19 +509,23 @@ export async function syncStripeSubscriptionRecord(subscription: Stripe.Subscrip
     );
 }
 
-export function getBillingSuccessUrl() {
-  const env = getPublicEnv();
-  return `${env.siteUrl}/app/start?checkout=success`;
+type BillingRequestLike = {
+  headers: Headers;
+  nextUrl?: {
+    origin?: string | null;
+  };
+};
+
+export function getBillingSuccessUrl(request?: BillingRequestLike) {
+  return `${resolveSiteOrigin(request)}/app/start?checkout=success`;
 }
 
-export function getBillingCancelUrl() {
-  const env = getPublicEnv();
-  return `${env.siteUrl}/app/start?checkout=cancelled`;
+export function getBillingCancelUrl(request?: BillingRequestLike) {
+  return `${resolveSiteOrigin(request)}/app/start?checkout=cancelled`;
 }
 
-export function getBillingPortalReturnUrl() {
-  const env = getPublicEnv();
-  return `${env.siteUrl}/app/settings`;
+export function getBillingPortalReturnUrl(request?: BillingRequestLike) {
+  return `${resolveSiteOrigin(request)}/app/settings`;
 }
 
 export function getPaywallPath() {
