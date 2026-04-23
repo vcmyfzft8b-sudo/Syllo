@@ -962,6 +962,7 @@ export function LectureWorkspace({
   const flashcardFeedbackTokenRef = useRef(0);
   const flashcardDragSessionRef = useRef<FlashcardDragSession | null>(null);
   const suppressNextFlashcardClickRef = useRef(false);
+  const suppressNextFlashcardClickTimerRef = useRef<number | null>(null);
   const studySessionPayloadRef = useRef<string | null>(null);
   const detailRefreshInFlightRef = useRef<Promise<void> | null>(null);
   const lastDetailRefreshAtRef = useRef(0);
@@ -1182,7 +1183,6 @@ export function LectureWorkspace({
   useEffect(() => {
     setIsFlashcardFlipped(false);
     flashcardDragSessionRef.current = null;
-    suppressNextFlashcardClickRef.current = false;
     setFlashcardDrag({ isDragging: false, deltaX: 0, deltaY: 0, width: 0 });
   }, [activeTab, currentReviewFlashcardId]);
 
@@ -1239,6 +1239,9 @@ export function LectureWorkspace({
     return () => {
       if (flashcardFeedbackTimerRef.current) {
         window.clearTimeout(flashcardFeedbackTimerRef.current);
+      }
+      if (suppressNextFlashcardClickTimerRef.current) {
+        window.clearTimeout(suppressNextFlashcardClickTimerRef.current);
       }
     };
   }, []);
@@ -1678,6 +1681,28 @@ export function LectureWorkspace({
     setFlashcardDrag({ isDragging: false, deltaX: 0, deltaY: 0, width: 0 });
   }
 
+  function suppressNextFlashcardClick(durationMs = 700) {
+    suppressNextFlashcardClickRef.current = true;
+
+    if (suppressNextFlashcardClickTimerRef.current) {
+      window.clearTimeout(suppressNextFlashcardClickTimerRef.current);
+    }
+
+    suppressNextFlashcardClickTimerRef.current = window.setTimeout(() => {
+      suppressNextFlashcardClickRef.current = false;
+      suppressNextFlashcardClickTimerRef.current = null;
+    }, durationMs);
+  }
+
+  function clearNextFlashcardClickSuppression() {
+    suppressNextFlashcardClickRef.current = false;
+
+    if (suppressNextFlashcardClickTimerRef.current) {
+      window.clearTimeout(suppressNextFlashcardClickTimerRef.current);
+      suppressNextFlashcardClickTimerRef.current = null;
+    }
+  }
+
   function handleFlashcardPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
     if (
       !isFlashcardFlipped ||
@@ -1718,7 +1743,7 @@ export function LectureWorkspace({
     }
 
     if (Math.abs(rawDeltaX) > 8) {
-      suppressNextFlashcardClickRef.current = true;
+      suppressNextFlashcardClick();
     }
 
     const maxDrag = session.width * 0.56;
@@ -1749,7 +1774,7 @@ export function LectureWorkspace({
     const bucket: FlashcardConfidenceBucket = deltaX < 0 ? "again" : "easy";
 
     if (Math.abs(rawDeltaX) > 8 || Math.abs(rawDeltaY) > 8) {
-      suppressNextFlashcardClickRef.current = true;
+      suppressNextFlashcardClick();
     }
 
     resetFlashcardDrag();
@@ -1761,19 +1786,16 @@ export function LectureWorkspace({
     }
 
     if (shouldSubmit) {
+      suppressNextFlashcardClick();
       void handleFlashcardProgress(bucket, {
         exitStart: getFlashcardExitStart(deltaX, deltaY, session.width),
       });
-    } else if (suppressNextFlashcardClickRef.current) {
-      window.setTimeout(() => {
-        suppressNextFlashcardClickRef.current = false;
-      }, 250);
     }
   }
 
   function handleFlashcardClick() {
     if (suppressNextFlashcardClickRef.current) {
-      suppressNextFlashcardClickRef.current = false;
+      clearNextFlashcardClickSuppression();
       return;
     }
 
@@ -1848,6 +1870,7 @@ export function LectureWorkspace({
     const previousRoundSummary = flashcardRoundSummary;
     const previousResults = flashcardSessionResults[flashcard.id];
     const previousProgress = flashcard.progress;
+    const wasFlashcardFlipped = isFlashcardFlipped;
     flashcardFeedbackTokenRef.current += 1;
     const feedbackToken = flashcardFeedbackTokenRef.current;
     const nextProgress = {
@@ -1870,12 +1893,13 @@ export function LectureWorkspace({
     setFlashcardExitAnimation({
       flashcard,
       bucket: confidenceBucket,
-      flipped: isFlashcardFlipped,
+      flipped: wasFlashcardFlipped,
       token: feedbackToken,
       startXPercent: options?.exitStart?.xPercent ?? 0,
       startYPercent: options?.exitStart?.yPercent ?? 0,
       startRotationDeg: options?.exitStart?.rotationDeg ?? 0,
     });
+    setIsFlashcardFlipped(false);
     flashcardFeedbackTimerRef.current = window.setTimeout(() => {
       setFlashcardExitAnimation((current) =>
         current?.token === feedbackToken ? null : current,
