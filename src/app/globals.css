@@ -4678,6 +4678,11 @@ select:disabled {
 }
 
 .lecture-flashcard {
+  --lecture-flashcard-drag-x: 0px;
+  --lecture-flashcard-drag-y: 0px;
+  --lecture-flashcard-drag-rotation: 0deg;
+  --lecture-flashcard-drag-progress: 0;
+  --lecture-flashcard-hover-y: 0px;
   position: relative;
   display: block;
   width: 100%;
@@ -4690,6 +4695,14 @@ select:disabled {
   overflow: hidden;
   text-align: left;
   perspective: 1800px;
+  touch-action: pan-y;
+  user-select: none;
+  transform: translate3d(
+      var(--lecture-flashcard-drag-x),
+      calc(var(--lecture-flashcard-drag-y) + var(--lecture-flashcard-hover-y)),
+      0
+    )
+    rotate(var(--lecture-flashcard-drag-rotation));
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease,
@@ -4697,8 +4710,17 @@ select:disabled {
 }
 
 .lecture-flashcard:hover {
-  transform: translateY(-1px);
+  --lecture-flashcard-hover-y: -1px;
   box-shadow: var(--shadow-raised);
+}
+
+.lecture-flashcard.dragging {
+  --lecture-flashcard-hover-y: 0px;
+  z-index: 4;
+  cursor: grabbing;
+  transition:
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .lecture-flashcard-rotator {
@@ -4782,6 +4804,32 @@ select:disabled {
 
 .lecture-flashcard-face-answer .lecture-flashcard-content {
   padding-top: 0;
+}
+
+.lecture-flashcard-drag-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  opacity: var(--lecture-flashcard-drag-progress);
+  pointer-events: none;
+  transform: translateZ(0);
+  transition:
+    opacity 0.12s ease,
+    background-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.lecture-flashcard.drag-easy .lecture-flashcard-drag-overlay {
+  background: rgba(230, 246, 234, 0.9);
+  color: #16a34a;
+}
+
+.lecture-flashcard.drag-again .lecture-flashcard-drag-overlay {
+  background: rgba(253, 233, 230, 0.9);
+  color: #dc2626;
 }
 
 .lecture-flashcard-citations {
@@ -5353,54 +5401,114 @@ select:disabled {
 @keyframes lecture-flashcard-exit-swipe {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    transform: translate3d(
+        var(--lecture-flashcard-exit-start-x, 0%),
+        var(--lecture-flashcard-exit-start-y, 0%),
+        0
+      )
+      rotate(var(--lecture-flashcard-exit-start-rotation, 0deg))
+      scale(1);
   }
 
   22% {
     opacity: 1;
-    transform: translate3d(0, -2px, 0) rotate(-1deg) scale(1.01);
+    transform: translate3d(
+        var(--lecture-flashcard-exit-start-x, 0%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 2%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) - 1deg))
+      scale(1.01);
   }
 
   84% {
     opacity: 1;
-    transform: translate3d(12%, -3%, 0) rotate(4deg) scale(1.02);
+    transform: translate3d(
+        calc(var(--lecture-flashcard-exit-start-x, 0%) + 12%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 3%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) + 4deg))
+      scale(1.02);
   }
 
   96% {
     opacity: 1;
-    transform: translate3d(16%, -4%, 0) rotate(5deg) scale(1.02);
+    transform: translate3d(
+        calc(var(--lecture-flashcard-exit-start-x, 0%) + 16%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 4%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) + 5deg))
+      scale(1.02);
   }
 
   100% {
     opacity: 0;
-    transform: translate3d(18%, -4%, 0) rotate(6deg) scale(1.02);
+    transform: translate3d(
+        calc(var(--lecture-flashcard-exit-start-x, 0%) + 18%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 4%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) + 6deg))
+      scale(1.02);
   }
 }
 
 @keyframes lecture-flashcard-exit-swipe-left {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    transform: translate3d(
+        var(--lecture-flashcard-exit-start-x, 0%),
+        var(--lecture-flashcard-exit-start-y, 0%),
+        0
+      )
+      rotate(var(--lecture-flashcard-exit-start-rotation, 0deg))
+      scale(1);
   }
 
   22% {
     opacity: 1;
-    transform: translate3d(0, -2px, 0) rotate(1deg) scale(1.01);
+    transform: translate3d(
+        var(--lecture-flashcard-exit-start-x, 0%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 2%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) + 1deg))
+      scale(1.01);
   }
 
   84% {
     opacity: 1;
-    transform: translate3d(-12%, -3%, 0) rotate(-4deg) scale(1.02);
+    transform: translate3d(
+        calc(var(--lecture-flashcard-exit-start-x, 0%) - 12%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 3%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) - 4deg))
+      scale(1.02);
   }
 
   96% {
     opacity: 1;
-    transform: translate3d(-16%, -4%, 0) rotate(-5deg) scale(1.02);
+    transform: translate3d(
+        calc(var(--lecture-flashcard-exit-start-x, 0%) - 16%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 4%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) - 5deg))
+      scale(1.02);
   }
 
   100% {
     opacity: 0;
-    transform: translate3d(-18%, -4%, 0) rotate(-6deg) scale(1.02);
+    transform: translate3d(
+        calc(var(--lecture-flashcard-exit-start-x, 0%) - 18%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 4%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) - 6deg))
+      scale(1.02);
   }
 }
 
@@ -8374,6 +8482,11 @@ select:disabled {
   .lecture-flashcard-face {
     min-height: 16rem;
     padding: 1.1rem;
+    border-radius: 20px;
+  }
+
+  .lecture-flashcard-drag-overlay,
+  .lecture-flashcard-exit-overlay {
     border-radius: 20px;
   }
 
