@@ -996,7 +996,7 @@ select:disabled {
 }
 
 .brand-logo.compact {
-  gap: 0.68rem;
+  gap: clamp(0.58rem, 1.13vw, 0.85rem);
 }
 
 .brand-logo-mark {
@@ -1009,8 +1009,8 @@ select:disabled {
 }
 
 .brand-logo.compact .brand-logo-mark {
-  width: 2.2rem;
-  height: 1.8rem;
+  width: clamp(2.58rem, 5.07vw, 3.8rem);
+  height: clamp(2.28rem, 4.47vw, 3.35rem);
 }
 
 .brand-logo-image {
@@ -1036,8 +1036,8 @@ select:disabled {
 }
 
 .brand-logo.compact .brand-logo-copy strong {
-  font-size: clamp(1.65rem, 4vw, 2.8rem);
-  line-height: 1.08;
+  font-size: clamp(1.19rem, 2.33vw, 1.75rem);
+  line-height: 1;
   padding-bottom: 0.08em;
 }
 
@@ -1109,16 +1109,45 @@ select:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  min-height: 2.85rem;
-  padding: 0 1rem;
+  gap: clamp(0.32rem, 0.63vw, 0.5rem);
+  min-height: clamp(2.25rem, 3.8vw, 2.85rem);
+  padding: 0 clamp(0.72rem, 1.33vw, 1rem);
   border-radius: 999px;
   background: linear-gradient(135deg, #ff7a18, #ffb347);
   color: #2c1400;
-  font-size: 0.95rem;
+  font-size: clamp(0.76rem, 1.27vw, 0.95rem);
   font-weight: 700;
-  box-shadow: 0 16px 30px rgba(255, 122, 24, 0.28);
+  box-shadow: 0 clamp(10px, 2.13vw, 16px) clamp(20px, 4vw, 30px) rgba(255, 122, 24, 0.28);
   white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .ios-nav-inner.app-topbar-inner {
+    gap: 0.45rem;
+    width: 100vw;
+    max-width: 100vw;
+    min-height: 3.35rem;
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
+    box-sizing: border-box;
+  }
+
+  .app-subscribe-cta {
+    gap: 0.24rem;
+    min-height: 2rem;
+    padding: 0 0.52rem;
+    font-size: 0.78rem;
+    box-shadow: 0 8px 16px rgba(255, 122, 24, 0.22);
+  }
+
+  .app-subscribe-cta span {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    white-space: nowrap;
+  }
 }
 
 .desktop-sidebar-brand {
@@ -4678,6 +4707,11 @@ select:disabled {
 }
 
 .lecture-flashcard {
+  --lecture-flashcard-drag-x: 0px;
+  --lecture-flashcard-drag-y: 0px;
+  --lecture-flashcard-drag-rotation: 0deg;
+  --lecture-flashcard-drag-progress: 0;
+  --lecture-flashcard-hover-y: 0px;
   position: relative;
   display: block;
   width: 100%;
@@ -4690,6 +4724,14 @@ select:disabled {
   overflow: hidden;
   text-align: left;
   perspective: 1800px;
+  touch-action: pan-y;
+  user-select: none;
+  transform: translate3d(
+      var(--lecture-flashcard-drag-x),
+      calc(var(--lecture-flashcard-drag-y) + var(--lecture-flashcard-hover-y)),
+      0
+    )
+    rotate(var(--lecture-flashcard-drag-rotation));
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease,
@@ -4697,8 +4739,17 @@ select:disabled {
 }
 
 .lecture-flashcard:hover {
-  transform: translateY(-1px);
+  --lecture-flashcard-hover-y: -1px;
   box-shadow: var(--shadow-raised);
+}
+
+.lecture-flashcard.dragging {
+  --lecture-flashcard-hover-y: 0px;
+  z-index: 4;
+  cursor: grabbing;
+  transition:
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .lecture-flashcard-rotator {
@@ -4782,6 +4833,32 @@ select:disabled {
 
 .lecture-flashcard-face-answer .lecture-flashcard-content {
   padding-top: 0;
+}
+
+.lecture-flashcard-drag-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  opacity: var(--lecture-flashcard-drag-progress);
+  pointer-events: none;
+  transform: translateZ(0);
+  transition:
+    opacity 0.12s ease,
+    background-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.lecture-flashcard.drag-easy .lecture-flashcard-drag-overlay {
+  background: rgba(230, 246, 234, 0.9);
+  color: #16a34a;
+}
+
+.lecture-flashcard.drag-again .lecture-flashcard-drag-overlay {
+  background: rgba(253, 233, 230, 0.9);
+  color: #dc2626;
 }
 
 .lecture-flashcard-citations {
@@ -5353,54 +5430,114 @@ select:disabled {
 @keyframes lecture-flashcard-exit-swipe {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    transform: translate3d(
+        var(--lecture-flashcard-exit-start-x, 0%),
+        var(--lecture-flashcard-exit-start-y, 0%),
+        0
+      )
+      rotate(var(--lecture-flashcard-exit-start-rotation, 0deg))
+      scale(1);
   }
 
   22% {
     opacity: 1;
-    transform: translate3d(0, -2px, 0) rotate(-1deg) scale(1.01);
+    transform: translate3d(
+        var(--lecture-flashcard-exit-start-x, 0%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 2%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) - 1deg))
+      scale(1.01);
   }
 
   84% {
     opacity: 1;
-    transform: translate3d(12%, -3%, 0) rotate(4deg) scale(1.02);
+    transform: translate3d(
+        calc(var(--lecture-flashcard-exit-start-x, 0%) + 12%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 3%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) + 4deg))
+      scale(1.02);
   }
 
   96% {
     opacity: 1;
-    transform: translate3d(16%, -4%, 0) rotate(5deg) scale(1.02);
+    transform: translate3d(
+        calc(var(--lecture-flashcard-exit-start-x, 0%) + 16%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 4%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) + 5deg))
+      scale(1.02);
   }
 
   100% {
     opacity: 0;
-    transform: translate3d(18%, -4%, 0) rotate(6deg) scale(1.02);
+    transform: translate3d(
+        calc(var(--lecture-flashcard-exit-start-x, 0%) + 18%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 4%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) + 6deg))
+      scale(1.02);
   }
 }
 
 @keyframes lecture-flashcard-exit-swipe-left {
   0% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    transform: translate3d(
+        var(--lecture-flashcard-exit-start-x, 0%),
+        var(--lecture-flashcard-exit-start-y, 0%),
+        0
+      )
+      rotate(var(--lecture-flashcard-exit-start-rotation, 0deg))
+      scale(1);
   }
 
   22% {
     opacity: 1;
-    transform: translate3d(0, -2px, 0) rotate(1deg) scale(1.01);
+    transform: translate3d(
+        var(--lecture-flashcard-exit-start-x, 0%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 2%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) + 1deg))
+      scale(1.01);
   }
 
   84% {
     opacity: 1;
-    transform: translate3d(-12%, -3%, 0) rotate(-4deg) scale(1.02);
+    transform: translate3d(
+        calc(var(--lecture-flashcard-exit-start-x, 0%) - 12%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 3%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) - 4deg))
+      scale(1.02);
   }
 
   96% {
     opacity: 1;
-    transform: translate3d(-16%, -4%, 0) rotate(-5deg) scale(1.02);
+    transform: translate3d(
+        calc(var(--lecture-flashcard-exit-start-x, 0%) - 16%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 4%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) - 5deg))
+      scale(1.02);
   }
 
   100% {
     opacity: 0;
-    transform: translate3d(-18%, -4%, 0) rotate(-6deg) scale(1.02);
+    transform: translate3d(
+        calc(var(--lecture-flashcard-exit-start-x, 0%) - 18%),
+        calc(var(--lecture-flashcard-exit-start-y, 0%) - 4%),
+        0
+      )
+      rotate(calc(var(--lecture-flashcard-exit-start-rotation, 0deg) - 6deg))
+      scale(1.02);
   }
 }
 
@@ -5414,7 +5551,7 @@ select:disabled {
   will-change: transform, opacity;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  animation: lecture-flashcard-exit-swipe 0.74s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation: lecture-flashcard-exit-swipe 0.37s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
 .lecture-flashcard-exit-card.again {
@@ -6027,6 +6164,14 @@ select:disabled {
   background:
     radial-gradient(circle at top, color-mix(in srgb, var(--tint-soft) 58%, transparent), transparent 30%),
     color-mix(in srgb, var(--canvas) 90%, var(--surface-solid));
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.landing-auth-page,
+.landing-auth-page * {
+  box-sizing: border-box;
 }
 
 .landing-dashboard {
@@ -6376,6 +6521,7 @@ select:disabled {
   display: grid;
   gap: 1.4rem;
   width: min(100%, 35rem);
+  box-sizing: border-box;
   margin: 0 auto;
   min-height: 100vh;
   align-content: center;
@@ -6562,16 +6708,16 @@ select:disabled {
 }
 
 .landing-public-brand .brand-logo {
-  gap: 0.85rem;
+  gap: clamp(0.58rem, 1.13vw, 0.85rem);
 }
 
 .landing-public-brand .brand-logo-mark {
-  width: clamp(2.9rem, 4.2vw, 3.8rem);
-  height: clamp(2.55rem, 3.7vw, 3.35rem);
+  width: clamp(2.58rem, 5.07vw, 3.8rem);
+  height: clamp(2.28rem, 4.47vw, 3.35rem);
 }
 
 .landing-public-brand .brand-logo-copy strong {
-  font-size: clamp(1.3rem, 2vw, 1.75rem);
+  font-size: clamp(1.19rem, 2.33vw, 1.75rem);
   line-height: 1;
 }
 
@@ -7668,10 +7814,13 @@ select:disabled {
 }
 
 .check-email-topbar {
-  position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
+  position: relative;
   z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1.5rem 1.5rem 0;
 }
 
 .check-email-wrap {
@@ -7817,14 +7966,20 @@ select:disabled {
 }
 
 .email-entry-topbar {
-  position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
+  position: relative;
   z-index: 20;
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1.5rem 1.5rem 0;
 }
 
 .email-entry-wrap {
   gap: 1rem;
+  min-height: calc(100vh - 5.25rem);
+  align-content: center;
+  transform: translateY(-18vh);
 }
 
 .email-entry-brand {
@@ -8070,25 +8225,56 @@ select:disabled {
   }
 
   .landing-provider-button {
-    min-height: 4.35rem;
-    padding: 0 1rem;
-    font-size: 1rem;
+    min-height: 3.7rem;
+    padding: 0 0.85rem;
+    border-radius: 16px;
+    font-size: 0.92rem;
   }
 
   .landing-auth-wrap {
-    gap: 1rem;
+    gap: 0.7rem;
     width: min(100%, 32rem);
-    min-height: 100vh;
-    padding: 1.5rem 1.15rem 1.1rem;
-    transform: translateY(-3.5vh);
+    min-height: auto;
+    padding: 0.75rem 1rem 1rem;
+    transform: none;
   }
 
   .landing-auth-brand {
-    margin-bottom: 1.1rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .landing-auth-brand .brand-logo {
+    gap: 0.5rem;
+  }
+
+  .landing-auth-brand .brand-logo.compact .brand-logo-copy strong {
+    font-size: clamp(2.05rem, 9.2vw, 2.65rem);
+  }
+
+  .landing-auth-brand .brand-logo.compact .brand-logo-mark {
+    width: clamp(2.9rem, 13vw, 3.8rem);
+    height: clamp(2.55rem, 11.4vw, 3.35rem);
+  }
+
+  .landing-auth-title {
+    font-size: clamp(1.35rem, 6vw, 1.8rem);
+  }
+
+  .landing-auth-copy {
+    font-size: clamp(0.98rem, 4.4vw, 1.12rem);
+    line-height: 1.3;
   }
 
   .landing-auth-stack {
-    margin-top: 2rem;
+    gap: 0.65rem;
+    margin-top: 1rem;
+  }
+
+  .landing-auth-page:not(.check-email-page):not(.email-entry-page) .landing-auth-wrap {
+    min-height: 100vh;
+    align-content: center;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
   }
 
   .auth-panel {
@@ -8125,51 +8311,102 @@ select:disabled {
   }
 
   .email-entry-wrap {
-    gap: 1.2rem;
+    gap: 0.75rem;
+    min-height: calc(100vh - 3.1rem);
+    align-content: center;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    transform: translateY(-18vh);
   }
 
   .email-entry-topbar {
-    top: 1rem;
-    right: 1rem;
+    padding: 1rem 1rem 0;
   }
 
   .check-email-topbar {
-    top: 1rem;
-    right: 1rem;
+    padding: 1rem 1rem 0;
   }
 
   .check-email-wrap {
     width: min(100%, 31rem);
-    gap: 1rem;
+    gap: 0.65rem;
+  }
+
+  .check-email-brand,
+  .email-entry-brand {
+    margin-bottom: 0.35rem;
+  }
+
+  .check-email-hero,
+  .email-entry-copy {
+    gap: 0.35rem;
+  }
+
+  .check-email-eyebrow {
+    font-size: 0.78rem;
+    letter-spacing: 0.16em;
   }
 
   .check-email-title {
-    font-size: clamp(2.55rem, 12vw, 3.4rem);
+    font-size: clamp(2.1rem, 10vw, 2.85rem);
+    letter-spacing: -0.055em;
   }
 
   .check-email-copy {
-    font-size: 1.02rem;
+    font-size: 0.9rem;
+    line-height: 1.36;
   }
 
   .check-email-code-field {
-    min-height: 4.45rem;
-    padding: 0 1.2rem;
-    border-radius: 20px;
+    min-height: 3.65rem;
+    padding: 0 1rem;
+    border-radius: 16px;
+  }
+
+  .check-email-code-input {
+    font-size: 1rem;
   }
 
   .check-email-submit,
   .check-email-secondary {
-    min-height: 4.1rem;
-    border-radius: 20px;
+    min-height: 3.45rem;
+    border-radius: 16px;
+    font-size: 0.93rem;
+  }
+
+  .check-email-card {
+    margin-top: 0.45rem;
+  }
+
+  .check-email-form {
+    gap: 0.65rem;
+  }
+
+  .check-email-status-note {
+    margin-top: 0.7rem;
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+
+  .check-email-actions {
+    gap: 0.55rem;
+    margin-top: 0.8rem;
   }
 
   .email-entry-input {
-    min-height: 4.35rem;
-    padding: 0 1.2rem;
+    min-height: 3.75rem;
+    padding: 0 1rem;
+    border-radius: 16px;
   }
 
   .email-entry-submit {
-    min-height: 4.35rem;
+    min-height: 3.75rem;
+    border-radius: 16px;
+  }
+
+  .email-entry-form {
+    gap: 0.65rem;
+    margin-top: 1rem;
   }
 
   .app-topbar-cta,
@@ -8377,6 +8614,11 @@ select:disabled {
     border-radius: 20px;
   }
 
+  .lecture-flashcard-drag-overlay,
+  .lecture-flashcard-exit-overlay {
+    border-radius: 20px;
+  }
+
   .lecture-flashcard-review {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.65rem;
@@ -8441,6 +8683,12 @@ select:disabled {
     display: inline-flex;
   }
 
+  .ios-nav-inner.app-topbar-inner {
+    position: relative;
+    max-width: 100vw;
+    box-sizing: border-box;
+  }
+
   .app-topbar-copy {
     display: none;
   }
@@ -8451,7 +8699,11 @@ select:disabled {
 
   .app-topbar-subscribe-actions {
     display: flex;
-    margin-left: auto;
+    position: fixed;
+    top: 0.68rem;
+    right: clamp(0.65rem, 1.33vw, 1rem);
+    z-index: 42;
+    margin-left: 0;
   }
 }
 
@@ -8668,16 +8920,16 @@ select:disabled {
   }
 
   .desktop-brandline-brand .brand-logo {
-    gap: 0.85rem;
+    gap: clamp(0.58rem, 1.13vw, 0.85rem);
   }
 
   .desktop-brandline-brand .brand-logo-mark {
-    width: clamp(2.9rem, 4.2vw, 3.8rem);
-    height: clamp(2.55rem, 3.7vw, 3.35rem);
+    width: clamp(2.58rem, 5.07vw, 3.8rem);
+    height: clamp(2.28rem, 4.47vw, 3.35rem);
   }
 
   .desktop-brandline-brand .brand-logo-copy strong {
-    font-size: clamp(1.3rem, 2vw, 1.75rem);
+    font-size: clamp(1.19rem, 2.33vw, 1.75rem);
     line-height: 1;
   }
 
