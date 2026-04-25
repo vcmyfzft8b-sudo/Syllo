@@ -14,6 +14,7 @@ const flashcardConfidenceSchema = z.enum(["again", "good", "easy"]);
 const flashcardStateSchema = z.object({
   reviewQueue: z.array(z.string()),
   repeatQueue: z.array(z.string()),
+  activeFlashcardIndex: z.number().int().min(0).default(0),
   reviewCycle: z.number().int().min(1),
   cycleCardCount: z.number().int().min(0),
   roundSummary: z
