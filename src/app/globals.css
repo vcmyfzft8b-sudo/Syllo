@@ -4702,6 +4702,18 @@ select:disabled {
   background: color-mix(in srgb, var(--surface-muted) 84%, transparent);
 }
 
+.lecture-flashcard-answer-label.again {
+  color: var(--red);
+}
+
+.lecture-flashcard-answer-label.easy {
+  color: var(--green);
+}
+
+.lecture-flashcard-answer-label.unanswered {
+  color: var(--tertiary-label);
+}
+
 .lecture-flashcard-stage-card {
   position: relative;
 }
@@ -4756,7 +4768,7 @@ select:disabled {
   position: relative;
   min-height: 22rem;
   transform-style: preserve-3d;
-  transition: transform 0.72s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .lecture-flashcard.flipped .lecture-flashcard-rotator {
@@ -4767,7 +4779,8 @@ select:disabled {
   position: absolute;
   inset: 0;
   display: grid;
-  align-content: center;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-content: stretch;
   min-height: 22rem;
   padding: 1.45rem 1.55rem;
   border-radius: 24px;
@@ -4783,25 +4796,28 @@ select:disabled {
   transform: rotateY(180deg);
 }
 
-.lecture-flashcard-face-front {
-  grid-template-rows: 1fr;
+.lecture-flashcard-face-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.75rem;
+  min-width: 0;
+  color: var(--tertiary-label);
+  font-size: 0.76rem;
+  font-weight: 720;
+  line-height: 1;
 }
 
-.lecture-flashcard-face-answer {
-  grid-template-rows: 1fr;
+.lecture-flashcard-face-header span {
+  min-width: 0;
+  white-space: nowrap;
 }
 
-.lecture-flashcard-face-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  color: var(--secondary-label);
-  font-size: 0.82rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+.lecture-flashcard-face-header .lecture-flashcard-answer-label {
+  justify-self: end;
+  text-align: right;
+  font-size: 0.76rem;
+  font-weight: 780;
 }
 
 .lecture-flashcard-title {
@@ -4827,12 +4843,12 @@ select:disabled {
   text-wrap: pretty;
 }
 
-.lecture-flashcard-face-front .lecture-flashcard-content {
-  padding-top: 0;
-}
-
-.lecture-flashcard-face-answer .lecture-flashcard-content {
-  padding-top: 0;
+.lecture-flashcard-side-label {
+  justify-self: center;
+  color: var(--tertiary-label);
+  font-size: 0.76rem;
+  font-weight: 720;
+  line-height: 1;
 }
 
 .lecture-flashcard-drag-overlay {
@@ -5423,8 +5439,13 @@ select:disabled {
 
 .lecture-flashcard-review {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.7rem;
+  grid-template-columns:
+    minmax(3.25rem, 0.7fr)
+    minmax(5.4rem, 1fr)
+    minmax(5.4rem, 1fr)
+    minmax(3.25rem, 0.7fr);
+  align-items: center;
+  gap: 0.65rem;
 }
 
 @keyframes lecture-flashcard-exit-swipe {
@@ -5551,7 +5572,7 @@ select:disabled {
   will-change: transform, opacity;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  animation: lecture-flashcard-exit-swipe 0.37s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation: lecture-flashcard-exit-swipe 0.185s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
 .lecture-flashcard-exit-card.again {
@@ -5565,6 +5586,7 @@ select:disabled {
 }
 
 .lecture-flashcard-exit-blank {
+  grid-row: 1 / -1;
   flex: 1;
   min-height: 100%;
 }
@@ -5648,40 +5670,91 @@ select:disabled {
   }
 }
 
+.lecture-flashcard-nav-button,
 .lecture-flashcard-review-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.8rem;
+  min-height: 3.4rem;
   min-width: 0;
-  padding: 0;
-  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--separator-strong) 54%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-muted) 88%, transparent);
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease,
     opacity 0.15s ease,
-    background-color 0.15s ease;
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
+.lecture-flashcard-nav-button {
+  width: min(100%, 4rem);
+  aspect-ratio: 1;
+  justify-self: center;
+  padding: 0;
+  color: var(--blue);
+}
+
+.lecture-flashcard-nav-button svg {
+  width: 1.65rem;
+  height: 1.65rem;
+  stroke-width: 2.6;
+}
+
+.lecture-flashcard-review-button {
+  gap: 0.62rem;
+  padding: 0 1rem;
+  color: var(--label);
+  font-size: 1.25rem;
+  font-weight: 760;
+  line-height: 1;
+}
+
+.lecture-flashcard-review-button svg {
+  width: 1.55rem;
+  height: 1.55rem;
+  stroke-width: 2.7;
+}
+
+.lecture-flashcard-review-button span {
+  min-width: 1.4ch;
+  text-align: center;
+}
+
+.lecture-flashcard-nav-button:hover,
 .lecture-flashcard-review-button:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-soft);
 }
 
+.lecture-flashcard-nav-button:disabled,
 .lecture-flashcard-review-button:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .lecture-flashcard-review-button.again {
-  background: var(--red-soft);
+  border-color: color-mix(in srgb, var(--red) 28%, var(--separator));
+  background: color-mix(in srgb, var(--red-soft) 72%, var(--surface-solid));
   color: var(--red);
 }
 
 .lecture-flashcard-review-button.easy {
-  background: var(--green-soft);
+  border-color: color-mix(in srgb, var(--green) 28%, var(--separator));
+  background: color-mix(in srgb, var(--green-soft) 72%, var(--surface-solid));
   color: var(--green);
 }
 
+.lecture-flashcard-review-button.selected {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, currentColor 18%, transparent),
+    var(--shadow-soft);
+}
+
+:root[data-theme="dark"] .lecture-flashcard-nav-button,
 :root[data-theme="dark"] .lecture-flashcard-review-button {
   border: 1px solid color-mix(in srgb, var(--separator-strong) 72%, transparent);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
@@ -5696,6 +5769,8 @@ select:disabled {
 }
 
 @media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .lecture-flashcard-nav-button,
+  :root[data-theme="system"] .lecture-flashcard-nav-button,
   :root:not([data-theme]) .lecture-flashcard-review-button,
   :root[data-theme="system"] .lecture-flashcard-review-button {
     border: 1px solid color-mix(in srgb, var(--separator-strong) 72%, transparent);
@@ -8620,8 +8695,12 @@ select:disabled {
   }
 
   .lecture-flashcard-review {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.65rem;
+    grid-template-columns:
+      minmax(2.85rem, 0.72fr)
+      minmax(4.85rem, 1fr)
+      minmax(4.85rem, 1fr)
+      minmax(2.85rem, 0.72fr);
+    gap: 0.45rem;
   }
 
   .lecture-quiz-actions {
@@ -8640,9 +8719,25 @@ select:disabled {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .lecture-flashcard-nav-button,
   .lecture-flashcard-review-button {
-    width: auto;
-    min-height: 2.5rem;
+    min-height: 3rem;
+  }
+
+  .lecture-flashcard-nav-button {
+    width: min(100%, 3.1rem);
+  }
+
+  .lecture-flashcard-nav-button svg,
+  .lecture-flashcard-review-button svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .lecture-flashcard-review-button {
+    gap: 0.38rem;
+    padding: 0 0.6rem;
+    font-size: 1rem;
   }
 
   .lecture-chat-scroll {

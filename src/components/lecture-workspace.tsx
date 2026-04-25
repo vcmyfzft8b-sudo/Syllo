@@ -1,8 +1,12 @@
 "use client";
 
 import {
+  ArrowLeft,
+  ArrowRight,
   ArrowUp,
+  Check,
   Loader2,
+  X,
 } from "lucide-react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -170,7 +174,10 @@ function shouldPollDetail(detail: LectureDetail) {
     return true;
   }
 
-  if (shouldPollAsset(detail.studyAsset?.status) || shouldPollAsset(detail.quizAsset?.status)) {
+  if (
+    (detail.flashcards.length === 0 && shouldPollAsset(detail.studyAsset?.status)) ||
+    shouldPollAsset(detail.quizAsset?.status)
+  ) {
     return true;
   }
 
@@ -281,11 +288,7 @@ function confidenceLabel(value: FlashcardConfidenceBucket) {
   return "Vedel sem";
 }
 
-function confidenceIcon(value: FlashcardConfidenceBucket) {
-  return value === "again" ? "❌" : "✅";
-}
-
-const FLASHCARD_EXIT_ANIMATION_MS = 385;
+const FLASHCARD_EXIT_ANIMATION_MS = 193;
 const FLASHCARD_DRAG_TRIGGER_RATIO = 0.28;
 const FLASHCARD_DRAG_TRIGGER_MIN_PX = 88;
 const FLASHCARD_DRAG_TRIGGER_MAX_PX = 150;
@@ -646,6 +649,7 @@ function buildDefaultFlashcardSessionState(
   return {
     reviewQueue: flashcardIds,
     repeatQueue: [],
+    activeFlashcardIndex: 0,
     reviewCycle: 1,
     cycleCardCount: flashcardIds.length,
     roundSummary: null,
@@ -664,7 +668,7 @@ function sanitizeFlashcardSessionState(
     return fallback;
   }
 
-  const reviewQueue = session.reviewQueue.filter((id) => validIds.has(id));
+  let reviewQueue = session.reviewQueue.filter((id) => validIds.has(id));
   const repeatQueue = session.repeatQueue.filter((id) => validIds.has(id));
   const sessionResults = Object.fromEntries(
     Object.entries(session.sessionResults).filter(([id]) => validIds.has(id)),
@@ -677,6 +681,20 @@ function sanitizeFlashcardSessionState(
         missed: Math.max(0, session.roundSummary.missed),
       }
     : null;
+  const hasPersistedActiveIndex =
+    typeof session.activeFlashcardIndex === "number" && session.activeFlashcardIndex >= 0;
+  let activeFlashcardIndex =
+    reviewQueue.length > 0
+      ? Math.min(Math.max(0, session.activeFlashcardIndex ?? 0), reviewQueue.length - 1)
+      : 0;
+
+  if (!hasPersistedActiveIndex && flashcardIds.length > 0 && !roundSummary) {
+    const activeFlashcardId = reviewQueue[0];
+    activeFlashcardIndex = activeFlashcardId
+      ? Math.max(0, flashcardIds.findIndex((id) => id === activeFlashcardId))
+      : 0;
+    reviewQueue = flashcardIds;
+  }
 
   if (flashcardIds.length > 0 && reviewQueue.length === 0 && !roundSummary) {
     return fallback;
@@ -685,6 +703,7 @@ function sanitizeFlashcardSessionState(
   return {
     reviewQueue,
     repeatQueue,
+    activeFlashcardIndex,
     reviewCycle: Math.max(1, session.reviewCycle),
     cycleCardCount: Math.max(0, session.cycleCardCount),
     roundSummary,
@@ -905,9 +924,11 @@ export function LectureWorkspace({
   );
   const [reviewQueue, setReviewQueue] = useState<string[]>(initialFlashcardSession.reviewQueue);
   const [repeatQueue, setRepeatQueue] = useState<string[]>(initialFlashcardSession.repeatQueue);
+  const [activeFlashcardIndex, setActiveFlashcardIndex] = useState(
+    initialFlashcardSession.activeFlashcardIndex,
+  );
   const [reviewCycle, setReviewCycle] = useState(initialFlashcardSession.reviewCycle);
   const [cycleCardCount, setCycleCardCount] = useState(initialFlashcardSession.cycleCardCount);
-  const [activeProgressFlashcardId, setActiveProgressFlashcardId] = useState<string | null>(null);
   const [flashcardRoundSummary, setFlashcardRoundSummary] = useState<FlashcardRoundSummary | null>(
     initialFlashcardSession.roundSummary,
   );
@@ -984,14 +1005,15 @@ export function LectureWorkspace({
     () => new Map(detail.practiceTestAttempts.map((attempt) => [attempt.id, attempt])),
     [detail.practiceTestAttempts],
   );
-  const currentReviewFlashcardId = reviewQueue[0] ?? null;
+  const currentReviewFlashcardId = reviewQueue[activeFlashcardIndex] ?? null;
   const showsTranscript = lectureShowsTranscript({
     lecture: detail.lecture,
     artifact: detail.artifact,
   });
   const shouldPollCurrentDetail = shouldPollDetail(detail);
   const detailPollIntervalMs =
-    shouldPollAsset(detail.studyAsset?.status) || shouldPollAsset(detail.quizAsset?.status)
+    (detail.flashcards.length === 0 && shouldPollAsset(detail.studyAsset?.status)) ||
+    shouldPollAsset(detail.quizAsset?.status)
       ? 2000
       : POLL_INTERVAL_MS;
 
@@ -1194,6 +1216,7 @@ export function LectureWorkspace({
 
     setReviewQueue(nextState.reviewQueue);
     setRepeatQueue(nextState.repeatQueue);
+    setActiveFlashcardIndex(nextState.activeFlashcardIndex);
     setReviewCycle(nextState.reviewCycle);
     setCycleCardCount(nextState.cycleCardCount);
     setFlashcardRoundSummary(nextState.roundSummary);
@@ -1272,6 +1295,7 @@ export function LectureWorkspace({
           ? {
               reviewQueue,
               repeatQueue,
+              activeFlashcardIndex,
               reviewCycle,
               cycleCardCount,
               roundSummary: flashcardRoundSummary,
@@ -1319,6 +1343,7 @@ export function LectureWorkspace({
     };
   }, [
     activeQuizQuestionIndex,
+    activeFlashcardIndex,
     activeStudyView,
     cycleCardCount,
     currentPracticeAttemptId,
@@ -1420,10 +1445,6 @@ export function LectureWorkspace({
   }, 0);
   const flashcardConfidencePercent =
     totalFlashcards > 0 ? Math.round((flashcardFirstPassKnownCount / totalFlashcards) * 100) : 0;
-  const flashcardRoundPercent =
-    flashcardRoundSummary && flashcardRoundSummary.total > 0
-      ? Math.round((flashcardRoundSummary.known / flashcardRoundSummary.total) * 100)
-      : 0;
   const currentQuizQuestionId = quizQueue[activeQuizQuestionIndex] ?? null;
   const activeQuizQuestion = currentQuizQuestionId
     ? (quizQuestionsById.get(currentQuizQuestionId) ?? null)
@@ -1464,13 +1485,15 @@ export function LectureWorkspace({
   }).length;
   const activeMaterialStatus =
     activeStudyView === "flashcards"
-      ? detail.studyAsset?.status
+      ? totalFlashcards > 0
+        ? "ready"
+        : detail.studyAsset?.status
       : activeStudyView === "quiz"
         ? detail.quizAsset?.status
         : detail.practiceTestAsset?.status;
   const activeMaterialStatusLabel = studyAssetStatusLabel(activeMaterialStatus);
   const isStudyGenerating =
-    shouldPollAsset(detail.studyAsset?.status) || isAwaitingStudyGeneration;
+    totalFlashcards === 0 && (shouldPollAsset(detail.studyAsset?.status) || isAwaitingStudyGeneration);
   const isQuizGenerating = shouldPollAsset(detail.quizAsset?.status) || isAwaitingQuizGeneration;
   const isPracticeTestGenerating =
     shouldPollAsset(detail.practiceTestAsset?.status) || isAwaitingPracticeTestGeneration;
@@ -1704,9 +1727,7 @@ export function LectureWorkspace({
 
   function handleFlashcardPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
     if (
-      !isFlashcardFlipped ||
       flashcardExitAnimation ||
-      activeProgressFlashcardId === currentReviewFlashcardId ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) {
       return;
@@ -1853,23 +1874,26 @@ export function LectureWorkspace({
     confidenceBucket: FlashcardConfidenceBucket,
     options?: { exitStart?: FlashcardExitStart },
   ) {
-    const currentFlashcardId = reviewQueue[0];
+    const currentFlashcardId = reviewQueue[activeFlashcardIndex];
     const flashcard = studyDeck.find((item) => item.id === currentFlashcardId);
     if (!flashcard) {
       return;
     }
 
     setStudyError(null);
-    setActiveProgressFlashcardId(flashcard.id);
-    const isLastCardInRound = reviewQueue.length === 1;
-    const nextMissedCount = confidenceBucket === "again" ? repeatQueue.length + 1 : repeatQueue.length;
+    const isLastCardInRound = activeFlashcardIndex >= reviewQueue.length - 1;
     const previousDetail = detail;
     const previousReviewQueue = reviewQueue;
     const previousRepeatQueue = repeatQueue;
+    const previousActiveFlashcardIndex = activeFlashcardIndex;
     const previousRoundSummary = flashcardRoundSummary;
     const previousResults = flashcardSessionResults[flashcard.id];
     const previousProgress = flashcard.progress;
     const wasFlashcardFlipped = isFlashcardFlipped;
+    const nextRepeatQueue =
+      confidenceBucket === "again"
+        ? Array.from(new Set([...repeatQueue, flashcard.id]))
+        : repeatQueue.filter((id) => id !== flashcard.id);
     flashcardFeedbackTokenRef.current += 1;
     const feedbackToken = flashcardFeedbackTokenRef.current;
     const nextProgress = {
@@ -1949,22 +1973,17 @@ export function LectureWorkspace({
       };
     });
 
-    setReviewQueue((current) => {
-      const [activeId, ...remaining] = current;
-      return activeId === flashcard.id ? remaining : current;
-    });
-
-    if (confidenceBucket === "again") {
-      setRepeatQueue((current) => [...current, flashcard.id]);
-    }
+    setRepeatQueue(nextRepeatQueue);
 
     if (isLastCardInRound) {
       setFlashcardRoundSummary({
         cycle: reviewCycle,
         total: cycleCardCount,
-        known: cycleCardCount - nextMissedCount,
-        missed: nextMissedCount,
+        known: cycleCardCount - nextRepeatQueue.length,
+        missed: nextRepeatQueue.length,
       });
+    } else {
+      setActiveFlashcardIndex((current) => Math.min(current + 1, reviewQueue.length - 1));
     }
 
     let response: Response;
@@ -1993,11 +2012,10 @@ export function LectureWorkspace({
       });
       setReviewQueue(previousReviewQueue);
       setRepeatQueue(previousRepeatQueue);
+      setActiveFlashcardIndex(previousActiveFlashcardIndex);
       setFlashcardRoundSummary(previousRoundSummary);
       setStudyError(getRequestErrorMessage(error, "Napredka pri karticah ni bilo mogoče shraniti."));
       return;
-    } finally {
-      setActiveProgressFlashcardId(null);
     }
 
     if (!response.ok) {
@@ -2015,6 +2033,7 @@ export function LectureWorkspace({
       });
       setReviewQueue(previousReviewQueue);
       setRepeatQueue(previousRepeatQueue);
+      setActiveFlashcardIndex(previousActiveFlashcardIndex);
       setFlashcardRoundSummary(previousRoundSummary);
       setStudyError(payload?.error ?? "Napredka pri karticah ni bilo mogoče shraniti.");
       return;
@@ -2036,17 +2055,22 @@ export function LectureWorkspace({
     }
   }
 
-  function continueFlashcardReview() {
-    if (repeatQueue.length === 0) {
+  function continueFlashcardReview(nextRepeatQueue = repeatQueue) {
+    if (nextRepeatQueue.length === 0) {
       return;
     }
 
-    setReviewQueue(repeatQueue);
+    const repeatIds = new Set(nextRepeatQueue);
+    setReviewQueue(nextRepeatQueue);
     setRepeatQueue([]);
+    setActiveFlashcardIndex(0);
     setReviewCycle((current) => current + 1);
-    setCycleCardCount(repeatQueue.length);
+    setCycleCardCount(nextRepeatQueue.length);
     setIsFlashcardFlipped(false);
     setFlashcardRoundSummary(null);
+    setFlashcardSessionResults((current) =>
+      Object.fromEntries(Object.entries(current).filter(([flashcardId]) => !repeatIds.has(flashcardId))),
+    );
     setStudyError(null);
   }
 
@@ -2054,12 +2078,38 @@ export function LectureWorkspace({
     const initialQueue = studyDeck.map((flashcard) => flashcard.id);
     setReviewQueue(initialQueue);
     setRepeatQueue([]);
+    setActiveFlashcardIndex(0);
     setReviewCycle(1);
     setCycleCardCount(initialQueue.length);
     setIsFlashcardFlipped(false);
     setFlashcardRoundSummary(null);
     setFlashcardSessionResults({});
     setStudyError(null);
+  }
+
+  function handleFlashcardNavigate(direction: "previous" | "next") {
+    if (flashcardExitAnimation) {
+      return;
+    }
+
+    if (
+      direction === "next" &&
+      currentReviewFlashcardId &&
+      !flashcardSessionResults[currentReviewFlashcardId]
+    ) {
+      void handleFlashcardProgress("again");
+      return;
+    }
+
+    setIsFlashcardFlipped(false);
+    setStudyError(null);
+    setActiveFlashcardIndex((current) => {
+      if (direction === "previous") {
+        return Math.max(0, current - 1);
+      }
+
+      return Math.min(reviewQueue.length - 1, current + 1);
+    });
   }
 
   function handleQuizSelection(optionIndex: number) {
@@ -2285,6 +2335,58 @@ export function LectureWorkspace({
 
     if (activeTab === "study") {
       const currentFlashcard = studyDeck.find((flashcard) => flashcard.id === currentReviewFlashcardId) ?? null;
+      const currentFlashcardDisplayIndex = currentFlashcard ? activeFlashcardIndex + 1 : 0;
+      const currentFlashcardDisplayTotal = reviewQueue.length || totalFlashcards;
+      const currentFlashcardAnswer =
+        currentFlashcard ? flashcardSessionResults[currentFlashcard.id]?.latestConfidence ?? null : null;
+      const currentFlashcardAnswerLabel =
+        currentFlashcardAnswer == null
+          ? null
+          : currentFlashcardAnswer === "again"
+            ? "Nisem vedel"
+            : "Vedel sem";
+      const currentFlashcardAnswerClass =
+        currentFlashcardAnswer == null
+          ? "unanswered"
+          : currentFlashcardAnswer === "again"
+            ? "again"
+            : "easy";
+      const flashcardKnownCount = reviewQueue.reduce((total, flashcardId) => {
+        const answer = flashcardSessionResults[flashcardId]?.latestConfidence;
+        return answer && answer !== "again" ? total + 1 : total;
+      }, 0);
+      const flashcardMissedCount = reviewQueue.reduce((total, flashcardId) => {
+        return flashcardSessionResults[flashcardId]?.latestConfidence === "again" ? total + 1 : total;
+      }, 0);
+      const visibleFlashcardRepeatQueue =
+        repeatQueue.length > 0
+          ? repeatQueue
+          : reviewQueue.filter(
+              (flashcardId) => flashcardSessionResults[flashcardId]?.latestConfidence === "again",
+            );
+      const derivedFlashcardRoundSummary =
+        !flashcardRoundSummary &&
+        reviewQueue.length > 0 &&
+        reviewQueue.every((flashcardId) => flashcardSessionResults[flashcardId]?.latestConfidence)
+          ? {
+              cycle: reviewCycle,
+              total: cycleCardCount || reviewQueue.length,
+              known: flashcardKnownCount,
+              missed: flashcardMissedCount,
+            }
+          : null;
+      const visibleFlashcardRoundSummary = flashcardRoundSummary ?? derivedFlashcardRoundSummary;
+      const visibleFlashcardRoundPercent =
+        visibleFlashcardRoundSummary && visibleFlashcardRoundSummary.total > 0
+          ? Math.round((visibleFlashcardRoundSummary.known / visibleFlashcardRoundSummary.total) * 100)
+          : 0;
+      const canNavigateFlashcard =
+        !!currentFlashcard &&
+        !flashcardExitAnimation &&
+        !visibleFlashcardRoundSummary;
+      const canNavigatePreviousFlashcard = canNavigateFlashcard && activeFlashcardIndex > 0;
+      const canNavigateNextFlashcard =
+        canNavigateFlashcard && activeFlashcardIndex < reviewQueue.length - 1;
       const flashcardDragThreshold = getFlashcardDragThreshold(flashcardDrag.width);
       const flashcardDragProgress =
         flashcardDragThreshold > 0
@@ -2396,18 +2498,52 @@ export function LectureWorkspace({
                     <StudyGenerationNotice stageCopy={studyStageCopy} />
                   ) : null}
                 </div>
+            ) : visibleFlashcardRoundSummary ? (
+                <StudyCompletionCard
+                  eyebrow={
+                    visibleFlashcardRoundSummary.missed === 0
+                      ? "Zaključeno"
+                      : `Krog ${visibleFlashcardRoundSummary.cycle} zaključen`
+                  }
+                  title={
+                    visibleFlashcardRoundSummary.missed === 0
+                      ? "Vse kartice so predelane"
+                      : "Ponovi kartice, ki si jih zgrešil"
+                  }
+                  percentage={visibleFlashcardRoundSummary.missed === 0 ? 100 : visibleFlashcardRoundPercent}
+                  percentageLabel={visibleFlashcardRoundSummary.missed === 0 ? "Komplet opravljen" : "Rezultat kroga"}
+                  primaryMetric={{
+                    label: "Pravilno v tem krogu",
+                    value: `${visibleFlashcardRoundSummary.known}/${visibleFlashcardRoundSummary.total}`,
+                  }}
+                  actions={
+                    visibleFlashcardRoundSummary.missed === 0 ? (
+                      <button
+                        type="button"
+                        onClick={restartFlashcardReview}
+                        className="lecture-study-refresh lecture-study-restart"
+                        aria-label="Začni znova"
+                        title="Začni znova"
+                      >
+                        <EmojiIcon symbol="🔄" size="1rem" />
+                        Začni komplet znova
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => continueFlashcardReview(visibleFlashcardRepeatQueue)}
+                        className="lecture-study-refresh lecture-study-restart"
+                      >
+                        <EmojiIcon symbol="🔄" size="1rem" />
+                        Ponovi {visibleFlashcardRoundSummary.missed}{" "}
+                        {visibleFlashcardRoundSummary.missed === 1 ? "zgrešeno kartico" : "zgrešene kartice"}
+                      </button>
+                    )
+                  }
+                />
             ) : currentFlashcard ? (
                 <>
                   <div className="lecture-flashcard-stage">
-                    <div className="lecture-flashcard-stage-meta">
-                      <span>
-                        {Math.max(
-                          1,
-                          studyDeck.findIndex((flashcard) => flashcard.id === currentFlashcard.id) + 1,
-                        )}{" "}
-                        / {totalFlashcards}
-                      </span>
-                    </div>
                     <div className="lecture-flashcard-stage-card">
                       <button
                         type="button"
@@ -2423,10 +2559,28 @@ export function LectureWorkspace({
                       >
                         <div className="lecture-flashcard-rotator">
                           <div className="lecture-flashcard-face lecture-flashcard-face-front">
+                            <div className="lecture-flashcard-face-header">
+                              <span>{currentFlashcardDisplayIndex} / {currentFlashcardDisplayTotal}</span>
+                              {currentFlashcardAnswerLabel ? (
+                                <span className={`lecture-flashcard-answer-label ${currentFlashcardAnswerClass}`}>
+                                  {currentFlashcardAnswerLabel}
+                                </span>
+                              ) : null}
+                            </div>
                             <p className="lecture-flashcard-content">{currentFlashcard.front}</p>
+                            <span className="lecture-flashcard-side-label">Pokaži odgovor</span>
                           </div>
                           <div className="lecture-flashcard-face lecture-flashcard-face-answer">
+                            <div className="lecture-flashcard-face-header">
+                              <span>{currentFlashcardDisplayIndex} / {currentFlashcardDisplayTotal}</span>
+                              {currentFlashcardAnswerLabel ? (
+                                <span className={`lecture-flashcard-answer-label ${currentFlashcardAnswerClass}`}>
+                                  {currentFlashcardAnswerLabel}
+                                </span>
+                              ) : null}
+                            </div>
                             <p className="lecture-flashcard-content">{currentFlashcard.back}</p>
+                            <span className="lecture-flashcard-side-label">Nazaj na vprašanje</span>
                           </div>
                         </div>
                         <div className="lecture-flashcard-drag-overlay" aria-hidden="true">
@@ -2472,76 +2626,54 @@ export function LectureWorkspace({
                   </div>
 
                   <div className="lecture-flashcard-toolbar">
-                    {isFlashcardFlipped ? (
-                      <div className="lecture-flashcard-review">
-                        {(["again", "easy"] as const).map((bucket) => {
-                          const Icon = confidenceIcon(bucket);
-
-                          return (
-                            <button
-                              key={bucket}
-                              type="button"
-                              onClick={() => void handleFlashcardProgress(bucket)}
-                              disabled={activeProgressFlashcardId === currentFlashcard.id}
-                              className={`lecture-flashcard-review-button ${bucket}`}
-                              aria-label={confidenceLabel(bucket)}
-                              title={confidenceLabel(bucket)}
-                            >
-                              {activeProgressFlashcardId === currentFlashcard.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <EmojiIcon symbol={Icon} size="1.15rem" />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : null}
+                    <div className="lecture-flashcard-review">
+                      <button
+                        type="button"
+                        onClick={() => handleFlashcardNavigate("previous")}
+                        disabled={!canNavigatePreviousFlashcard}
+                        className="lecture-flashcard-nav-button previous"
+                        aria-label="Prejšnja kartica"
+                        title="Prejšnja kartica"
+                      >
+                        <ArrowLeft aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleFlashcardProgress("again")}
+                        className={`lecture-flashcard-review-button again ${
+                          currentFlashcardAnswer === "again" ? "selected" : ""
+                        }`}
+                        aria-label={confidenceLabel("again")}
+                        title={confidenceLabel("again")}
+                      >
+                        <X aria-hidden="true" />
+                        <span>{flashcardMissedCount}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleFlashcardProgress("easy")}
+                        className={`lecture-flashcard-review-button easy ${
+                          currentFlashcardAnswer && currentFlashcardAnswer !== "again" ? "selected" : ""
+                        }`}
+                        aria-label={confidenceLabel("easy")}
+                        title={confidenceLabel("easy")}
+                      >
+                        <span>{flashcardKnownCount}</span>
+                        <Check aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleFlashcardNavigate("next")}
+                        disabled={!canNavigateNextFlashcard}
+                        className="lecture-flashcard-nav-button next"
+                        aria-label="Naslednja kartica"
+                        title="Naslednja kartica"
+                      >
+                        <ArrowRight aria-hidden="true" />
+                      </button>
+                    </div>
                   </div>
                 </>
-              ) : flashcardRoundSummary ? (
-                <StudyCompletionCard
-                  eyebrow={
-                    flashcardRoundSummary.missed === 0
-                      ? "Zaključeno"
-                      : `Krog ${flashcardRoundSummary.cycle} zaključen`
-                  }
-                  title={
-                    flashcardRoundSummary.missed === 0
-                      ? "Vse kartice so predelane"
-                      : "Ponovi kartice, ki si jih zgrešil"
-                  }
-                  percentage={flashcardRoundSummary.missed === 0 ? 100 : flashcardRoundPercent}
-                  percentageLabel={flashcardRoundSummary.missed === 0 ? "Komplet opravljen" : "Rezultat kroga"}
-                  primaryMetric={{
-                    label: "Pravilno v tem krogu",
-                    value: `${flashcardRoundSummary.known}/${flashcardRoundSummary.total}`,
-                  }}
-                  actions={
-                    flashcardRoundSummary.missed === 0 ? (
-                      <button
-                        type="button"
-                        onClick={restartFlashcardReview}
-                        className="lecture-study-refresh lecture-study-restart"
-                        aria-label="Začni znova"
-                        title="Začni znova"
-                      >
-                        <EmojiIcon symbol="🔄" size="1rem" />
-                        Začni komplet znova
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={continueFlashcardReview}
-                        className="lecture-study-refresh lecture-study-restart"
-                      >
-                        <EmojiIcon symbol="🔄" size="1rem" />
-                        Ponovi {flashcardRoundSummary.missed}{" "}
-                        {flashcardRoundSummary.missed === 1 ? "zgrešeno kartico" : "zgrešene kartice"}
-                      </button>
-                    )
-                  }
-                />
               ) : (
                 <StudyCompletionCard
                   eyebrow="Zaključeno"
@@ -3138,7 +3270,7 @@ export function LectureWorkspace({
           ) : null}
 
           {shouldPollLecture(detail.lecture.status) ||
-          shouldPollAsset(detail.studyAsset?.status) ||
+          (detail.flashcards.length === 0 && shouldPollAsset(detail.studyAsset?.status)) ||
           shouldPollAsset(detail.quizAsset?.status) ||
           shouldPollAsset(detail.practiceTestAsset?.status) ? (
             <p className="ios-info lecture-inline-note">

@@ -436,6 +436,10 @@ function parseFlashcardSessionState(value: unknown): PersistedFlashcardSessionSt
     repeatQueue: Array.isArray(record.repeatQueue)
       ? record.repeatQueue.filter((item): item is string => typeof item === "string")
       : [],
+    activeFlashcardIndex:
+      typeof record.activeFlashcardIndex === "number"
+        ? toNonNegativeInteger(record.activeFlashcardIndex, 0)
+        : -1,
     reviewCycle: toPositiveInteger(record.reviewCycle, 1),
     cycleCardCount: toNonNegativeInteger(record.cycleCardCount, 0),
     roundSummary:

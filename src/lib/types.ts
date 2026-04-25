@@ -95,6 +95,7 @@ export interface PersistedFlashcardSessionResult {
 export interface PersistedFlashcardSessionState {
   reviewQueue: string[];
   repeatQueue: string[];
+  activeFlashcardIndex: number;
   reviewCycle: number;
   cycleCardCount: number;
   roundSummary: {
