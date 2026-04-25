@@ -26,7 +26,7 @@
     "@vercel/analytics": "^2.0.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
-    "inngest": "^3.52.6",
+    "inngest": "^3.54.0",
     "lucide-react": "^0.577.0",
     "mammoth": "^1.12.0",
     "next": "16.1.6",
