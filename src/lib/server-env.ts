@@ -2,6 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 
+import { DEFAULT_NOTE_TTS_VOICE } from "@/lib/note-tts-settings";
 import { getPublicEnv } from "@/lib/public-env";
 
 const serverEnvSchema = z.object({
@@ -16,6 +17,8 @@ const serverEnvSchema = z.object({
   GEMINI_EMBEDDING_MODEL: z.string().default("gemini-embedding-001"),
   SONIOX_API_KEY: z.string().optional(),
   SONIOX_MODEL: z.string().default("stt-async-v4"),
+  SONIOX_TTS_MODEL: z.string().default("tts-rt-v1-preview"),
+  SONIOX_TTS_VOICE: z.string().default(DEFAULT_NOTE_TTS_VOICE),
   INNGEST_EVENT_KEY: z.string().optional(),
   INNGEST_SIGNING_KEY: z.string().optional(),
   INTERNAL_JOB_SECRET: z.string().optional(),
@@ -39,6 +42,8 @@ export function getServerEnv() {
     GEMINI_EMBEDDING_MODEL: process.env.GEMINI_EMBEDDING_MODEL,
     SONIOX_API_KEY: process.env.SONIOX_API_KEY,
     SONIOX_MODEL: process.env.SONIOX_MODEL,
+    SONIOX_TTS_MODEL: process.env.SONIOX_TTS_MODEL,
+    SONIOX_TTS_VOICE: process.env.SONIOX_TTS_VOICE,
     INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY,
     INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
     INTERNAL_JOB_SECRET: process.env.INTERNAL_JOB_SECRET?.trim(),
