@@ -78,6 +78,7 @@ export function AppShell({
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
+  const [isMobileDockOpen, setIsMobileDockOpen] = useState(false);
   const touchStartYRef = useRef<number | null>(null);
   const pullEligibleRef = useRef(false);
   const pullDistanceRef = useRef(0);
@@ -210,6 +211,12 @@ export function AppShell({
       mobilePullOffset > 0 ? `translate3d(0, ${mobilePullOffset}px, 0)` : undefined,
     transition: isPulling ? "none" : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
   };
+  const activeTabItem =
+    TAB_ITEMS.find((item) =>
+      item.href === "/app"
+        ? pathname === "/app" || pathname.startsWith("/app/lectures/")
+        : pathname === item.href || pathname.startsWith(`${item.href}/`),
+    ) ?? TAB_ITEMS[0];
 
   function renderPullToRefreshIndicator() {
     return (
@@ -363,7 +370,19 @@ export function AppShell({
         </div>
       </div>
 
-      <nav className="ios-tabbar" aria-label="Glavna navigacija">
+      <nav
+        className={`ios-tabbar ${isMobileDockOpen ? "mobile-open" : "mobile-collapsed"}`}
+        aria-label="Glavna navigacija"
+      >
+        <button
+          type="button"
+          className="mobile-dock-toggle"
+          onClick={() => setIsMobileDockOpen((current) => !current)}
+          aria-label={isMobileDockOpen ? "Zapri navigacijo" : "Odpri navigacijo"}
+          aria-expanded={isMobileDockOpen}
+        >
+          <EmojiIcon symbol={activeTabItem.icon} size="1.05rem" />
+        </button>
         <div className="ios-tabbar-inner">
           {TAB_ITEMS.map((item) => {
             const active =
@@ -377,6 +396,7 @@ export function AppShell({
                 href={item.href}
                 className={`ios-tab-item ${active ? "active" : ""}`}
                 aria-current={active ? "page" : undefined}
+                onClick={() => setIsMobileDockOpen(false)}
               >
                 <span className="ios-tab-item-icon">
                   <EmojiIcon symbol={item.icon} size="1.05rem" />

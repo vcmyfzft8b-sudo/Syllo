@@ -207,6 +207,7 @@ export function HomeDashboard({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const [manualModal, setManualModal] = useState<NoteSourceMode | null>(null);
+  const [isMobileCreateMenuOpen, setIsMobileCreateMenuOpen] = useState(false);
   const [libraryLectures, setLibraryLectures] = useState(lectures);
   const [busyLectureId, setBusyLectureId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -299,11 +300,36 @@ export function HomeDashboard({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [busyLectureId, deleteTarget, renameTarget]);
 
+  useEffect(() => {
+    if (!isMobileCreateMenuOpen) {
+      return;
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsMobileCreateMenuOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isMobileCreateMenuOpen]);
+
   function closeModal() {
     setManualModal(null);
     if (searchModal) {
       router.replace("/app", { scroll: false });
     }
+  }
+
+  function openQuickAction(mode: NoteSourceMode) {
+    if (!canCreateNotes) {
+      router.push("/app/start");
+      return;
+    }
+
+    setIsMobileCreateMenuOpen(false);
+    setManualModal(mode);
   }
 
   function openRenameModal(lecture: AppLectureListItem) {
@@ -458,7 +484,7 @@ export function HomeDashboard({
           </section>
         ) : null}
 
-        <section className="dashboard-section">
+        <section className="dashboard-section dashboard-create-section">
           <div className="dashboard-section-heading">
             <h2 className="dashboard-section-title">Nov zapisek</h2>
           </div>
@@ -468,14 +494,7 @@ export function HomeDashboard({
               <button
                 key={action.id}
                 type="button"
-                onClick={() => {
-                  if (!canCreateNotes) {
-                    router.push("/app/start");
-                    return;
-                  }
-
-                  setManualModal(action.id);
-                }}
+                onClick={() => openQuickAction(action.id)}
                 className="note-action-card"
               >
                 <span
@@ -495,7 +514,7 @@ export function HomeDashboard({
           </div>
         </section>
 
-        <section className="dashboard-section mt-4">
+        <section className="dashboard-section dashboard-library-section mt-4">
           <div className="dashboard-section-heading mb-4">
             <h2 className="dashboard-section-title">Moji zapiski</h2>
           </div>
@@ -628,7 +647,78 @@ export function HomeDashboard({
             </div>
           )}
         </section>
+
       </div>
+
+      <ViewportPortal>
+        <button
+          type="button"
+          className="mobile-new-note-pill"
+          onClick={() => setIsMobileCreateMenuOpen(true)}
+          aria-haspopup="dialog"
+          aria-expanded={isMobileCreateMenuOpen}
+        >
+          <EmojiIcon symbol="➕" size="1rem" />
+          <span>Nov zapisek</span>
+        </button>
+      </ViewportPortal>
+
+      {isMobileCreateMenuOpen ? (
+        <ViewportPortal>
+          <>
+            <button
+              type="button"
+              className="mobile-create-menu-backdrop"
+              onClick={() => setIsMobileCreateMenuOpen(false)}
+              aria-label="Zapri meni za nov zapisek"
+            />
+            <section
+              className="mobile-create-menu"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="mobile-create-menu-title"
+            >
+              <div className="mobile-create-menu-header">
+                <h2 id="mobile-create-menu-title" className="dashboard-section-title">
+                  Nov zapisek
+                </h2>
+                <button
+                  type="button"
+                  className="app-close-button"
+                  onClick={() => setIsMobileCreateMenuOpen(false)}
+                  aria-label="Zapri meni za nov zapisek"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="note-action-grid mobile-create-action-grid">
+                {QUICK_ACTIONS.map((action) => (
+                  <button
+                    key={action.id}
+                    type="button"
+                    onClick={() => openQuickAction(action.id)}
+                    className="note-action-card"
+                  >
+                    <span
+                      className={`note-action-card-icon ${
+                        action.accent === "record" ? "record" : ""
+                      }`}
+                    >
+                      <EmojiIcon symbol={action.icon} size="1.2rem" />
+                    </span>
+                    <span className="note-action-card-copy">
+                      <span className="note-action-card-label">{action.label}</span>
+                      <span className="note-action-card-detail">{action.detail}</span>
+                    </span>
+                    <EmojiIcon className="note-action-card-chevron" symbol="›" size="1.1rem" />
+                  </button>
+                ))}
+              </div>
+            </section>
+          </>
+        </ViewportPortal>
+      ) : null}
 
       <NoteSourceModal
         mode={activeModal}
