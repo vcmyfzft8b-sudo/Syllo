@@ -104,6 +104,10 @@ function getStoredHighlightColorId(): NoteTtsHighlightColorId {
   );
 }
 
+function getChunkCacheKey(voice: NoteTtsVoice, chunkIndex: number) {
+  return `${voice}:${chunkIndex}`;
+}
+
 function getPlaybackWordState(activeChunk: ActiveChunk, currentMs: number) {
   const firstTiming = activeChunk.alignment[0];
 
@@ -275,7 +279,13 @@ async function parseResponse<T>(response: Response): Promise<T> {
   };
 
   if (!response.ok) {
-    throw new Error(payload.error || "Poslušanja ni bilo mogoče pripraviti.");
+    const message = payload.error || "Poslušanja ni bilo mogoče pripraviti.";
+
+    if (response.status === 429 || message.includes("HTTP 429")) {
+      throw new Error("Poslušanje se še pripravlja. Poskusi znova čez trenutek.");
+    }
+
+    throw new Error(message);
   }
 
   return payload;
@@ -402,6 +412,9 @@ export function NoteReadAloud({
   const lastAutoScrolledWordRef = useRef<number | null>(null);
   const lastUserInteractionRef = useRef(Date.now());
   const ignoreScrollUntilRef = useRef(0);
+  const prefetchedChunksRef = useRef(new Map<string, TtsChunkResponse>());
+  const pendingChunkRequestsRef = useRef(new Map<string, Promise<TtsChunkResponse | null>>());
+  const prefetchQueueRef = useRef<Promise<void>>(Promise.resolve());
   const playbackWordStateRef = useRef<{
     completedWordIndex: number;
     currentWordIndex: number | null;
@@ -507,6 +520,9 @@ export function NoteReadAloud({
   useEffect(() => {
     window.localStorage.setItem(NOTE_TTS_VOICE_STORAGE_KEY, selectedVoice);
     sessionIdRef.current = createReadSessionId();
+    prefetchedChunksRef.current.clear();
+    pendingChunkRequestsRef.current.clear();
+    prefetchQueueRef.current = Promise.resolve();
 
     const audio = audioRef.current;
 
@@ -526,51 +542,153 @@ export function NoteReadAloud({
     });
   }, [selectedVoice, setPlaybackWordState]);
 
+  const fetchChunk = useCallback(
+    async (chunkIndex: number, options?: { silent?: boolean }) => {
+      const cacheKey = getChunkCacheKey(selectedVoice, chunkIndex);
+      const cachedChunk = prefetchedChunksRef.current.get(cacheKey);
+
+      if (cachedChunk) {
+        return cachedChunk;
+      }
+
+      const pendingRequest = pendingChunkRequestsRef.current.get(cacheKey);
+
+      if (pendingRequest) {
+        return pendingRequest;
+      }
+
+      const request = (async () => {
+        try {
+          const response = await fetch(`/api/lectures/${lectureId}/tts/chunks`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              sessionId: sessionIdRef.current,
+              chunkIndex,
+              voice: selectedVoice,
+            }),
+          });
+          const payload = await parseResponse<TtsChunkResponse>(response);
+          updateQuota(payload);
+          prefetchedChunksRef.current.set(cacheKey, payload);
+
+          return payload;
+        } catch (chunkError) {
+          const message =
+            chunkError instanceof Error ? chunkError.message : "Poslušanje ni na voljo.";
+
+          if (!options?.silent) {
+            setError(message);
+          }
+
+          if (message === "Limit dosežen.") {
+            setStatus((current) =>
+              current
+                ? {
+                    ...current,
+                    remainingSeconds: 0,
+                  }
+                : current,
+            );
+          }
+
+          return null;
+        } finally {
+          pendingChunkRequestsRef.current.delete(cacheKey);
+        }
+      })();
+
+      pendingChunkRequestsRef.current.set(cacheKey, request);
+
+      return request;
+    },
+    [lectureId, selectedVoice, updateQuota],
+  );
+
   const loadChunk = useCallback(
     async (chunkIndex: number) => {
-      setIsFetchingChunk(true);
+      const cacheKey = getChunkCacheKey(selectedVoice, chunkIndex);
+      const hasReadyChunk = prefetchedChunksRef.current.has(cacheKey);
+
+      if (!hasReadyChunk) {
+        setIsFetchingChunk(true);
+      }
+
       setError(null);
 
       try {
-        const response = await fetch(`/api/lectures/${lectureId}/tts/chunks`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            sessionId: sessionIdRef.current,
-            chunkIndex,
-            voice: selectedVoice,
-          }),
-        });
-        const payload = await parseResponse<TtsChunkResponse>(response);
-        updateQuota(payload);
-        setActiveChunk(payload);
-        setActiveChunkIndex(payload.chunkIndex);
+        const payload = await fetchChunk(chunkIndex);
 
-        return payload;
-      } catch (chunkError) {
-        const message = chunkError instanceof Error ? chunkError.message : "Poslušanje ni na voljo.";
-        setError(message);
-
-        if (message === "Limit dosežen.") {
-          setStatus((current) =>
-            current
-              ? {
-                  ...current,
-                  remainingSeconds: 0,
-                }
-              : current,
-          );
+        if (payload) {
+          setActiveChunk(payload);
+          setActiveChunkIndex(payload.chunkIndex);
         }
 
-        return null;
+        return payload;
       } finally {
         setIsFetchingChunk(false);
       }
     },
-    [lectureId, selectedVoice, updateQuota],
+    [fetchChunk, selectedVoice],
   );
+
+  const prefetchChunk = useCallback(
+    (chunkIndex: number) => {
+      const cacheKey = getChunkCacheKey(selectedVoice, chunkIndex);
+
+      if (
+        prefetchedChunksRef.current.has(cacheKey) ||
+        pendingChunkRequestsRef.current.has(cacheKey)
+      ) {
+        return;
+      }
+
+      prefetchQueueRef.current = prefetchQueueRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          if (
+            prefetchedChunksRef.current.has(cacheKey) ||
+            pendingChunkRequestsRef.current.has(cacheKey)
+          ) {
+            return;
+          }
+
+          await fetchChunk(chunkIndex, { silent: true });
+        });
+    },
+    [fetchChunk, selectedVoice],
+  );
+
+  const prefetchUpcomingChunks = useCallback(
+    (chunkIndex: number) => {
+      if (!status?.available || status.remainingSeconds <= 0) {
+        return;
+      }
+
+      const bufferSize = playbackRate >= 1.5 ? 2 : 1;
+
+      for (let offset = 1; offset <= bufferSize; offset += 1) {
+        const nextChunkIndex = chunkIndex + offset;
+
+        if (nextChunkIndex >= chunks.length) {
+          break;
+        }
+
+        prefetchChunk(nextChunkIndex);
+      }
+    },
+    [chunks.length, playbackRate, prefetchChunk, status?.available, status?.remainingSeconds],
+  );
+
+  useEffect(() => {
+    if (!status?.available || status.remainingSeconds <= 0 || chunks.length === 0) {
+      return;
+    }
+
+    prefetchChunk(0);
+  }, [chunks.length, prefetchChunk, status?.available, status?.remainingSeconds]);
 
   useEffect(() => {
     const markUserInteraction = () => {
@@ -726,6 +844,14 @@ export function NoteReadAloud({
   }, [activeChunk, isPlaying, updatePlaybackPosition]);
 
   useEffect(() => {
+    if (!isPlaying || !activeChunk) {
+      return;
+    }
+
+    prefetchUpcomingChunks(activeChunk.chunkIndex);
+  }, [activeChunk, isPlaying, prefetchUpcomingChunks]);
+
+  useEffect(() => {
     if (currentWordIndex === null || !isPlaying) {
       return;
     }
@@ -777,8 +903,18 @@ export function NoteReadAloud({
       return;
     }
 
+    setActiveChunk(null);
+    setActiveChunkIndex(0);
+    setSpokenStartWordIndex(0);
+    resetPlaybackWordState(document.words.length - 1);
     setIsPlaying(false);
-  }, [activeChunk, playChunk, resetPlaybackWordState, status?.remainingSeconds]);
+  }, [
+    activeChunk,
+    document.words.length,
+    playChunk,
+    resetPlaybackWordState,
+    status?.remainingSeconds,
+  ]);
 
   const disabled =
     isLoadingStatus ||
@@ -786,6 +922,14 @@ export function NoteReadAloud({
     !status?.available ||
     status.remainingSeconds <= 0 ||
     chunks.length === 0;
+  const playButtonLabel =
+    isFetchingChunk || isLoadingStatus
+      ? "Pripravljam..."
+      : isPlaying
+        ? "Premor"
+        : activeChunk
+          ? "Nadaljuj"
+          : "Poslušaj";
 
   return (
     <>
@@ -797,7 +941,7 @@ export function NoteReadAloud({
             void handlePlayPause();
           }}
           disabled={disabled}
-          aria-label={isPlaying ? "Premor" : activeChunk ? "Nadaljuj" : "Poslušaj"}
+          aria-label={playButtonLabel}
         >
           {isFetchingChunk || isLoadingStatus ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -806,7 +950,7 @@ export function NoteReadAloud({
           ) : (
             <Play className="h-4 w-4" />
           )}
-          <span>{isPlaying ? "Premor" : activeChunk ? "Nadaljuj" : "Poslušaj"}</span>
+          <span>{playButtonLabel}</span>
         </button>
         <QuotaUsageMenu
           status={status}

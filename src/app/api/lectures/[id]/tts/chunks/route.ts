@@ -24,6 +24,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 const TTS_CHUNK_REQUEST_MAX_BYTES = 4 * 1024;
+const TTS_PROVIDER_RETRY_DELAYS_MS = [1_500, 3_500];
 
 const ttsChunkRequestSchema = z.object({
   sessionId: z.string().trim().min(8).max(128),
@@ -46,6 +47,46 @@ function createTtsLimitResponse(params: {
     },
     { status: 429 },
   );
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function isProviderRateLimitError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const statusCode =
+    "statusCode" in error && typeof error.statusCode === "number"
+      ? error.statusCode
+      : undefined;
+  const message = error instanceof Error ? error.message : "";
+
+  return statusCode === 429 || message.includes("HTTP 429") || message.includes("rate limit");
+}
+
+async function retryProviderRateLimit<T>(operation: () => Promise<T>) {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= TTS_PROVIDER_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+
+      if (!isProviderRateLimitError(error) || attempt >= TTS_PROVIDER_RETRY_DELAYS_MS.length) {
+        throw error;
+      }
+
+      await wait(TTS_PROVIDER_RETRY_DELAYS_MS[attempt] ?? 0);
+    }
+  }
+
+  throw lastError;
 }
 
 export async function POST(
@@ -135,15 +176,17 @@ export async function POST(
   let quota: Awaited<ReturnType<typeof consumeTtsQuota>>;
 
   try {
-    generated = await getOrCreateTtsChunk({
-      userId: user.id,
-      lectureId: id,
-      contentHash,
-      chunk,
-      allWords: document.words,
-      languageHint: detail.lecture.language_hint,
-      voice: parsedBody.data.voice,
-    });
+    generated = await retryProviderRateLimit(() =>
+      getOrCreateTtsChunk({
+        userId: user.id,
+        lectureId: id,
+        contentHash,
+        chunk,
+        allWords: document.words,
+        languageHint: detail.lecture.language_hint,
+        voice: parsedBody.data.voice,
+      }),
+    );
     const chargedSeconds = Math.max(1, Math.ceil(generated.row.duration_ms / 1000));
     quota = await consumeTtsQuota({
       userId: user.id,
@@ -157,10 +200,20 @@ export async function POST(
   } catch (error) {
     console.error("Failed to prepare note TTS chunk", error);
 
+    if (isProviderRateLimitError(error)) {
+      return NextResponse.json(
+        {
+          error: "Poslušanje se še pripravlja. Poskusi znova čez trenutek.",
+          code: "tts_provider_rate_limited",
+        },
+        { status: 503 },
+      );
+    }
+
     return NextResponse.json(
       {
         error:
-          process.env.NODE_ENV === "production"
+          process.env.NODE_ENV === "production" || isProviderRateLimitError(error)
             ? "Poslušanja ni bilo mogoče pripraviti."
             : error instanceof Error
               ? error.message
