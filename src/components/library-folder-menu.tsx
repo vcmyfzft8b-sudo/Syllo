@@ -201,7 +201,15 @@ export function LibraryFolderMenu({
         return;
       }
 
-      if (!shellRef.current?.contains(event.target as Node)) {
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest(".library-folder-mobile-sheet")
+      ) {
+        return;
+      }
+
+      if (!shellRef.current?.contains(target as Node)) {
         setIsOpen(false);
       }
     }
@@ -331,6 +339,92 @@ export function LibraryFolderMenu({
     setIsOpen(false);
   }
 
+  function renderFolderMenuOptions() {
+    return (
+      <div className="library-folder-menu-primary">
+      <div className="library-folder-actions">
+        <button
+          type="button"
+          className={`library-folder-option library-folder-option-folder ${selectedFolderId === null ? "active" : ""}`}
+          onClick={handleSelectAllNotes}
+        >
+          <span className="library-folder-option-copy">
+            <span className="library-folder-option-icon">
+              <Folder open={false} size={0.34} />
+            </span>
+            <span className="library-folder-option-text">
+              <span>Vsi zapiski</span>
+              <span className="library-folder-option-meta">
+                {lectureSummary(lectures.length)}
+              </span>
+            </span>
+          </span>
+        </button>
+
+        {folders.map((folder) => (
+          <button
+            type="button"
+            key={folder.id}
+            className={`library-folder-option library-folder-option-folder ${selectedFolderId === folder.id ? "active" : ""}`}
+            onClick={() => handleSelectFolder(folder)}
+          >
+            <span className="library-folder-option-copy">
+              <span className="library-folder-option-icon">
+                <Folder open={false} size={0.34} />
+              </span>
+              <span className="library-folder-option-text">
+                <span>{folder.name}</span>
+                <span className="library-folder-option-meta">
+                  {lectureSummary(folder.lectureIds.length)}
+                </span>
+              </span>
+            </span>
+          </button>
+        ))}
+
+        <div className="library-folder-menu-divider" />
+
+        <button
+          type="button"
+          className="library-folder-option library-folder-option-action"
+          onClick={() => {
+            setFolderName("");
+            setDraftLectureIds([]);
+            setIsOpen(false);
+            setIsCreateModalOpen(true);
+          }}
+        >
+          <span className="library-folder-option-copy">
+            <span className="library-folder-option-icon">
+              <EmojiIcon symbol="➕" size="0.95rem" />
+            </span>
+            <span>Nova mapa</span>
+          </span>
+          <span className="library-folder-option-icon">
+            <EmojiIcon symbol="›" size="1.1rem" />
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className="library-folder-option library-folder-option-action"
+          onClick={handleOpenEditModal}
+        >
+          <span className="library-folder-option-copy">
+            <span className="library-folder-option-icon">
+              <EmojiIcon symbol="✏️" size="0.95rem" />
+            </span>
+            <span>Uredi mape</span>
+          </span>
+          <span className="library-folder-option-icon">
+            <EmojiIcon symbol="›" size="1.1rem" />
+          </span>
+        </button>
+      </div>
+      </div>
+    );
+  }
+
   return (
     <div className="library-folder-shell" ref={shellRef}>
       <button
@@ -349,79 +443,42 @@ export function LibraryFolderMenu({
       </button>
 
       {isOpen ? (
-        <div className="library-folder-menu">
-          <div className="library-folder-menu-primary">
-            <div className="library-folder-actions">
-              <button
-                type="button"
-                className={`library-folder-option library-folder-option-folder ${selectedFolderId === null ? "active" : ""}`}
-                onClick={handleSelectAllNotes}
-              >
-                <span className="library-folder-option-copy">
-                  <span className="library-folder-option-icon">
-                    <Folder open={false} size={0.34} />
-                  </span>
-                  <span>Vsi zapiski</span>
-                </span>
-              </button>
-
-              {folders.map((folder) => (
+        <>
+          <div className="library-folder-menu library-folder-menu-desktop">
+            {renderFolderMenuOptions()}
+          </div>
+          <ViewportPortal>
+            <div
+              className="library-folder-mobile-sheet-backdrop"
+              role="presentation"
+              onClick={() => setIsOpen(false)}
+            />
+            <section
+              className="library-folder-mobile-sheet"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="folders-sheet-title"
+            >
+              <div className="library-folder-mobile-sheet-handle" aria-hidden="true" />
+              <div className="library-folder-mobile-sheet-header">
+                <h2 id="folders-sheet-title" className="library-folder-mobile-sheet-title">
+                  Mape
+                </h2>
                 <button
                   type="button"
-                  key={folder.id}
-                  className={`library-folder-option library-folder-option-folder ${selectedFolderId === folder.id ? "active" : ""}`}
-                  onClick={() => handleSelectFolder(folder)}
+                  className="app-close-button library-folder-mobile-sheet-close"
+                  onClick={() => setIsOpen(false)}
+                  aria-label="Zapri mape"
                 >
-                  <span className="library-folder-option-copy">
-                    <span className="library-folder-option-icon">
-                      <Folder open={false} size={0.34} />
-                    </span>
-                    <span>{folder.name}</span>
-                  </span>
+                  <EmojiIcon symbol="✖️" size="1rem" />
                 </button>
-              ))}
-
-              <div className="library-folder-menu-divider" />
-
-              <button
-                type="button"
-                className="library-folder-option library-folder-option-action"
-                onClick={() => {
-                  setFolderName("");
-                  setDraftLectureIds([]);
-                  setIsOpen(false);
-                  setIsCreateModalOpen(true);
-                }}
-              >
-                <span className="library-folder-option-copy">
-                  <span className="library-folder-option-icon">
-                    <EmojiIcon symbol="➕" size="0.95rem" />
-                  </span>
-                  <span>Nova mapa</span>
-                </span>
-                <span className="library-folder-option-icon">
-                  <EmojiIcon symbol="›" size="1.1rem" />
-                </span>
-              </button>
-
-              <button
-                type="button"
-                className="library-folder-option library-folder-option-action"
-                onClick={handleOpenEditModal}
-              >
-                <span className="library-folder-option-copy">
-                  <span className="library-folder-option-icon">
-                    <EmojiIcon symbol="✏️" size="0.95rem" />
-                  </span>
-                  <span>Uredi mape</span>
-                </span>
-                <span className="library-folder-option-icon">
-                  <EmojiIcon symbol="›" size="1.1rem" />
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
+              </div>
+              <div className="library-folder-mobile-sheet-body">
+                {renderFolderMenuOptions()}
+              </div>
+            </section>
+          </ViewportPortal>
+        </>
       ) : null}
 
       {isCreateModalOpen ? (
