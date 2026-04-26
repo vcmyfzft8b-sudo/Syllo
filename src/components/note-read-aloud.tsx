@@ -64,6 +64,10 @@ const NOTE_TTS_VOICE_STORAGE_KEY = "memo-note-tts-voice";
 const NOTE_TTS_RATE_STORAGE_KEY = "memo-note-tts-rate";
 const NOTE_TTS_COLOR_STORAGE_KEY = "memo-note-tts-color";
 const TTS_DAILY_LIMIT_MESSAGE = "Porabil si današnje poslušanje.";
+const TTS_FREE_DAILY_LIMIT_MESSAGE =
+  "Porabil si današnje brezplačno poslušanje. Nadgradi za več poslušanja.";
+const TTS_PAID_DAILY_LIMIT_MESSAGE =
+  "Porabil si današnje poslušanje. Znova lahko poslušaš po ponastavitvi ob 00:00.";
 
 function createReadSessionId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -109,6 +113,10 @@ function getStoredHighlightColorId(): NoteTtsHighlightColorId {
 
 function getChunkCacheKey(voice: NoteTtsVoice, chunkIndex: number) {
   return `${voice}:${chunkIndex}`;
+}
+
+function getDailyLimitDisplayMessage(status: TtsStatusResponse | null) {
+  return status?.tier === "free" ? TTS_FREE_DAILY_LIMIT_MESSAGE : TTS_PAID_DAILY_LIMIT_MESSAGE;
 }
 
 function getPlaybackWordState(activeChunk: ActiveChunk, currentMs: number) {
@@ -557,12 +565,7 @@ export function NoteReadAloud({
     [],
   );
 
-  useEffect(() => {
-    if (!hasHydratedSettings) {
-      return;
-    }
-
-    window.localStorage.setItem(NOTE_TTS_VOICE_STORAGE_KEY, selectedVoice);
+  const resetPlaybackToStart = useCallback(() => {
     sessionIdRef.current = createReadSessionId();
     prefetchedChunksRef.current.clear();
     pendingChunkRequestsRef.current.clear();
@@ -576,6 +579,7 @@ export function NoteReadAloud({
       audio.load();
     }
 
+    lastAutoScrolledWordRef.current = null;
     setActiveChunk(null);
     setActiveChunkIndex(0);
     setSpokenStartWordIndex(0);
@@ -584,7 +588,22 @@ export function NoteReadAloud({
       completedWordIndex: -1,
       currentWordIndex: null,
     });
-  }, [hasHydratedSettings, selectedVoice, setPlaybackWordState]);
+  }, [setPlaybackWordState]);
+
+  useEffect(() => {
+    if (status && !status.hasUnlimitedUsage && status.remainingSeconds <= 0) {
+      setError(getDailyLimitDisplayMessage(status));
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (!hasHydratedSettings) {
+      return;
+    }
+
+    window.localStorage.setItem(NOTE_TTS_VOICE_STORAGE_KEY, selectedVoice);
+    resetPlaybackToStart();
+  }, [hasHydratedSettings, resetPlaybackToStart, selectedVoice]);
 
   const fetchChunk = useCallback(
     async (chunkIndex: number, options?: { silent?: boolean }) => {
@@ -622,20 +641,27 @@ export function NoteReadAloud({
         } catch (chunkError) {
           const message =
             chunkError instanceof Error ? chunkError.message : "Poslušanje ni na voljo.";
+          const isDailyLimit =
+            message === "Limit dosežen." || message === TTS_DAILY_LIMIT_MESSAGE;
+          const displayMessage = isDailyLimit
+            ? getDailyLimitDisplayMessage(status)
+            : message;
 
-          if (!options?.silent) {
-            setError(message);
-          }
+          setError(displayMessage);
 
-        if (message === "Limit dosežen." || message === TTS_DAILY_LIMIT_MESSAGE) {
-          setStatus((current) =>
-            current
-              ? {
+          if (isDailyLimit) {
+            setStatus((current) =>
+              current
+                ? {
                     ...current,
                     remainingSeconds: 0,
                   }
                 : current,
             );
+
+            if (!options?.silent) {
+              resetPlaybackToStart();
+            }
           }
 
           return null;
@@ -648,7 +674,7 @@ export function NoteReadAloud({
 
       return request;
     },
-    [lectureId, selectedVoice, updateQuota],
+    [lectureId, resetPlaybackToStart, selectedVoice, status, updateQuota],
   );
 
   const loadChunk = useCallback(
@@ -953,8 +979,22 @@ export function NoteReadAloud({
 
     const nextChunkIndex = activeChunk.chunkIndex + 1;
 
-    if (nextChunkIndex < activeChunk.chunkCount && (status?.remainingSeconds ?? 0) > 0) {
-      void playChunk(nextChunkIndex);
+    if (nextChunkIndex < activeChunk.chunkCount) {
+      if ((status?.remainingSeconds ?? 0) > 0) {
+        void playChunk(nextChunkIndex);
+        return;
+      }
+
+      setError(getDailyLimitDisplayMessage(status));
+      setStatus((current) =>
+        current
+          ? {
+              ...current,
+              remainingSeconds: 0,
+            }
+          : current,
+      );
+      resetPlaybackToStart();
       return;
     }
 
@@ -968,7 +1008,8 @@ export function NoteReadAloud({
     document.words.length,
     playChunk,
     resetPlaybackWordState,
-    status?.remainingSeconds,
+    resetPlaybackToStart,
+    status,
   ]);
 
   const disabled =
