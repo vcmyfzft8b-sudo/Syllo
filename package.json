@@ -20,7 +20,7 @@
     "@ffmpeg/util": "^0.12.2",
     "@google/genai": "^1.46.0",
     "@sentry/nextjs": "^10.49.0",
-    "@soniox/node": "^1.1.2",
+    "@soniox/node": "^2.0.0",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.99.1",
     "@vercel/analytics": "^2.0.1",

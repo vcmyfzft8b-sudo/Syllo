@@ -45,6 +45,7 @@ const pdfExtractionSchema = z.object({
 
 const MAX_LINK_FETCH_REDIRECTS = 3;
 const MAX_LINK_FETCH_BYTES = 1_000_000;
+const MAX_LINK_READABLE_TEXT_CHARS = 45_000;
 const LINK_FETCH_TIMEOUT_MS = 10_000;
 const TRANSCRIPT_SEGMENT_INSERT_BATCH_SIZE = 25;
 const OCR_PRIMARY_MAX_OUTPUT_TOKENS = 3500;
@@ -236,21 +237,146 @@ function extractMetaDescription(html: string) {
   return metaMatch?.[1]?.replace(/\s+/g, " ").trim() ?? "";
 }
 
+function decodeBasicHtmlEntities(value: string) {
+  return value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_match, codepoint: string) => {
+      const value = Number(codepoint);
+      return Number.isFinite(value) ? String.fromCodePoint(value) : " ";
+    })
+    .replace(/&#x([0-9a-f]+);/gi, (_match, codepoint: string) => {
+      const value = Number.parseInt(codepoint, 16);
+      return Number.isFinite(value) ? String.fromCodePoint(value) : " ";
+    });
+}
+
+function extractPageMainHtml(html: string) {
+  const wikipediaContentStart = html.search(/<div\b[^>]+id=["']mw-content-text["'][^>]*>/i);
+
+  if (wikipediaContentStart >= 0) {
+    const rest = html.slice(wikipediaContentStart);
+    const endCandidates = [
+      rest.search(/<div\b[^>]+id=["']catlinks["'][^>]*>/i),
+      rest.search(/<div\b[^>]+class=["'][^"']*\bprintfooter\b[^"']*["'][^>]*>/i),
+      rest.search(/<footer\b/i),
+    ].filter((index) => index > 0);
+    const end = endCandidates.length > 0 ? Math.min(...endCandidates) : rest.length;
+
+    return rest.slice(0, end);
+  }
+
+  const articleMatch = html.match(/<article\b[\s\S]*?<\/article>/i);
+
+  if (articleMatch?.[0]) {
+    return articleMatch[0];
+  }
+
+  const mainMatch = html.match(/<main\b[\s\S]*?<\/main>/i);
+
+  if (mainMatch?.[0]) {
+    return mainMatch[0];
+  }
+
+  const roleMainMatch = html.match(/<[^>]+\brole=["']main["'][^>]*>[\s\S]*?<\/[^>]+>/i);
+
+  return roleMainMatch?.[0] ?? html;
+}
+
+function stripNoisyHtml(html: string) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+    .replace(/<svg[\s\S]*?<\/svg>/gi, " ")
+    .replace(/<header[\s\S]*?<\/header>/gi, " ")
+    .replace(/<footer[\s\S]*?<\/footer>/gi, " ")
+    .replace(/<nav[\s\S]*?<\/nav>/gi, " ")
+    .replace(/<aside[\s\S]*?<\/aside>/gi, " ")
+    .replace(/<form[\s\S]*?<\/form>/gi, " ")
+    .replace(/<button[\s\S]*?<\/button>/gi, " ")
+    .replace(/<select[\s\S]*?<\/select>/gi, " ")
+    .replace(
+      /<table\b[^>]*(?:class|id)=["'][^"']*(?:infobox|navbox|metadata|sidebar|ambox|vertical-navbox)[^"']*["'][\s\S]*?<\/table>/gi,
+      " ",
+    )
+    .replace(
+      /<(?:div|section|ul|ol)\b[^>]*(?:class|id)=["'][^"']*(?:toc|reference|references|reflist|mw-editsection|mw-empty-elt|noprint|hatnote|portal|printfooter|catlinks|vector-page-toolbar)[^"']*["'][\s\S]*?<\/(?:div|section|ul|ol)>/gi,
+      " ",
+    )
+    .replace(/<sup\b[^>]*(?:class|id)=["'][^"']*(?:reference|mw-ref)[^"']*["'][\s\S]*?<\/sup>/gi, " ");
+}
+
+function isNoisyReadableLine(line: string) {
+  const normalized = line.trim();
+  const lower = normalized.toLowerCase();
+
+  if (!normalized) {
+    return true;
+  }
+
+  if (/^\[\s*\d+\s*\]$/.test(normalized) || /^\d+$/.test(normalized)) {
+    return true;
+  }
+
+  if (/^\{\{[^}]+}}$/.test(normalized)) {
+    return true;
+  }
+
+  return [
+    "pojdi na vsebino",
+    "glavni meni",
+    "navigacija",
+    "iskanje",
+    "išči",
+    "videz",
+    "ustvari račun",
+    "prijava",
+    "osebna orodja",
+    "orodja",
+    "dejanja",
+    "splošno",
+    "tiskanje/izvoz",
+    "v drugih projektih",
+    "uredi povezave",
+    "preberi",
+    "uredi stran",
+    "uredi kodo",
+    "zgodovina",
+    "vklopi kazalo vsebine",
+    "iz wikipedije, proste enciklopedije",
+  ].includes(lower);
+}
+
+function cleanReadableWebpageText(text: string) {
+  const lines = text
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter((line) => !isNoisyReadableLine(line));
+  const cleanedLines: string[] = [];
+
+  for (const line of lines) {
+    if (line === cleanedLines[cleanedLines.length - 1]) {
+      continue;
+    }
+
+    cleanedLines.push(line);
+  }
+
+  return normalizeWhitespace(cleanedLines.join("\n\n"));
+}
+
 function htmlToText(html: string) {
   return normalizeWhitespace(
-    html
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+    stripNoisyHtml(extractPageMainHtml(html))
       .replace(/<\/(p|div|section|article|li|h1|h2|h3|h4|h5|h6|tr)>/gi, "\n")
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<[^>]+>/g, " ")
-      .replace(/&nbsp;/gi, " ")
-      .replace(/&amp;/gi, "&")
-      .replace(/&quot;/gi, '"')
-      .replace(/&#39;/gi, "'")
-      .replace(/&lt;/gi, "<")
-      .replace(/&gt;/gi, ">"),
+      .replace(/&nbsp;/gi, " "),
   );
 }
 
@@ -542,7 +668,7 @@ export async function fetchReadableWebpage(params: { url: string }) {
   const html = await readResponseBodyWithLimit(response, MAX_LINK_FETCH_BYTES);
   const title = extractTitle(html);
   const description = extractMetaDescription(html);
-  const text = htmlToText(html);
+  const text = cleanReadableWebpageText(decodeBasicHtmlEntities(htmlToText(html)));
   const composed = normalizeWhitespace(
     [title, description, text].filter(Boolean).join("\n\n"),
   );
@@ -553,7 +679,7 @@ export async function fetchReadableWebpage(params: { url: string }) {
 
   return {
     title,
-    text: composed.slice(0, 120000),
+    text: composed.slice(0, MAX_LINK_READABLE_TEXT_CHARS),
   };
 }
 
@@ -1087,6 +1213,19 @@ export async function prepareLectureFromTextSource(params: {
 
     if (!lecture) {
       throw new Error("Lecture was cancelled.");
+    }
+
+    const [{ error: transcriptDeleteError }, { error: artifactDeleteError }] = await Promise.all([
+      supabase.from("transcript_segments").delete().eq("lecture_id", params.lectureId),
+      supabase.from("lecture_artifacts").delete().eq("lecture_id", params.lectureId),
+    ]);
+
+    if (transcriptDeleteError) {
+      throw new Error(transcriptDeleteError.message);
+    }
+
+    if (artifactDeleteError) {
+      throw new Error(artifactDeleteError.message);
     }
 
     return params.lectureId;

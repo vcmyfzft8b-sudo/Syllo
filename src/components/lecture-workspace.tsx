@@ -12,11 +12,12 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { EmojiIcon } from "@/components/emoji-icon";
-import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { NoteReadAloud } from "@/components/note-read-aloud";
 import { StudyCompletionCard } from "@/components/study-completion-card";
 import { parseApiResponse, redirectToBillingIfNeeded } from "@/lib/billing-client";
 import type { FlashcardConfidenceBucket, StudyAssetStatus } from "@/lib/database.types";
 import { isRecord, lectureShowsTranscript } from "@/lib/lecture-source-metadata";
+import { stripLeadingRedundantHeading } from "@/lib/note-tts-text";
 import {
   POLL_INTERVAL_MS,
 } from "@/lib/constants";
@@ -293,45 +294,6 @@ const FLASHCARD_DRAG_TRIGGER_RATIO = 0.28;
 const FLASHCARD_DRAG_TRIGGER_MIN_PX = 88;
 const FLASHCARD_DRAG_TRIGGER_MAX_PX = 150;
 const FLASHCARD_DRAG_MAX_ROTATION_DEG = 8;
-
-function normalizeHeadingText(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/["'“”‘’]/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function stripLeadingRedundantHeading(markdown: string, title?: string | null) {
-  const lines = markdown.split("\n");
-  const firstContentIndex = lines.findIndex((line) => line.trim().length > 0);
-
-  if (firstContentIndex === -1) {
-    return markdown;
-  }
-
-  const match = lines[firstContentIndex].match(/^#{1,6}\s+(.+)$/);
-  if (!match) {
-    return markdown;
-  }
-
-  const heading = normalizeHeadingText(match[1] ?? "");
-  const normalizedTitle = normalizeHeadingText(title ?? "");
-  const genericHeadings = new Set(["notes", "lecture notes", "structured notes"]);
-
-  if (!genericHeadings.has(heading) && heading !== normalizedTitle) {
-    return markdown;
-  }
-
-  const remainingLines = lines.slice(firstContentIndex + 1);
-
-  while (remainingLines[0]?.trim() === "") {
-    remainingLines.shift();
-  }
-
-  return remainingLines.join("\n").trim();
-}
 
 function sourceLabel(sourceType: string) {
   if (sourceType === "link") {
@@ -2316,7 +2278,7 @@ export function LectureWorkspace({
           <div className="ios-card lecture-notes-card">
             {cleanedStructuredNotes ? (
               <div className="markdown lecture-markdown">
-                <MarkdownRenderer content={cleanedStructuredNotes} />
+                <NoteReadAloud lectureId={detail.lecture.id} content={cleanedStructuredNotes} />
               </div>
             ) : shouldPollLecture(detail.lecture.status) ? (
               <div className="lecture-notes-processing">

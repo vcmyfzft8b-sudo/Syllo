@@ -3950,9 +3950,307 @@ select:disabled {
   max-width: 100%;
 }
 
+.lecture-notes-card {
+  position: relative;
+}
+
 .lecture-transcript-card {
   overflow-x: hidden;
   overflow-x: clip;
+}
+
+.note-read-toolbar {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 1rem;
+  padding-right: 2.2rem;
+}
+
+.note-read-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.35rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--separator);
+  border-radius: 999px;
+  background: var(--fill-primary);
+  color: var(--label);
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: var(--shadow-soft);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.note-read-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-raised);
+}
+
+.note-read-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+  box-shadow: none;
+}
+
+.note-read-error {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.note-read-usage-menu {
+  position: absolute;
+  top: 0.2rem;
+  right: 0;
+  display: inline-flex;
+}
+
+.note-read-usage-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--separator) 75%, transparent);
+  border-radius: 999px;
+  color: var(--secondary-label);
+  background: color-mix(in srgb, var(--surface-solid) 98%, transparent);
+  box-shadow: var(--shadow-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.note-read-usage-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.note-read-usage-menu[open] .note-read-usage-trigger {
+  color: #7c2d12;
+  border-color: color-mix(in srgb, #fb923c 42%, var(--separator));
+  background: #fff7ed;
+}
+
+.note-read-usage-menu[open] .note-read-usage-chevron {
+  transform: rotate(180deg);
+}
+
+.note-read-usage-popover {
+  position: absolute;
+  z-index: 70;
+  top: calc(100% + 0.75rem);
+  right: 0;
+  width: min(13.5rem, 74vw);
+  padding: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--separator) 80%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--surface-solid) 98%, black 2%);
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.3);
+  animation: fade-in 0.14s ease-out;
+}
+
+.note-read-usage-bar {
+  position: relative;
+  height: 1rem;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--separator) 86%, transparent);
+  background: color-mix(in srgb, var(--fill-secondary) 82%, white 18%);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.note-read-usage-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f97316, #fdba74);
+  box-shadow: inset -1px 0 0 rgba(124, 45, 18, 0.18);
+  transition: width 0.2s ease;
+}
+
+.note-read-usage-menu.limit .note-read-usage-fill {
+  background: linear-gradient(90deg, #fecaca, #ef4444);
+}
+
+.note-read-usage-bar-label {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: #7c2d12;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.note-read-usage-menu.limit .note-read-usage-bar-label {
+  color: #7f1d1d;
+}
+
+.note-read-usage-reset {
+  margin-top: 0.38rem;
+  color: var(--secondary-label);
+  font-size: 0.58rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.note-read-settings-divider {
+  height: 1px;
+  margin: 0.68rem 0;
+  background: color-mix(in srgb, var(--separator) 78%, transparent);
+}
+
+.note-read-setting-group {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.62rem;
+}
+
+.note-read-settings-divider + .note-read-setting-group {
+  margin-top: 0;
+}
+
+.note-read-setting-label {
+  color: var(--secondary-label);
+  font-size: 0.6rem;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.note-read-rate-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.note-read-rate-option {
+  min-width: 0;
+  height: 1.55rem;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--separator) 75%, transparent);
+  border-radius: 999px;
+  background: var(--fill-primary);
+  color: var(--secondary-label);
+  font-size: 0.6rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.note-read-rate-option.active {
+  border-color: color-mix(in srgb, #fb923c 52%, var(--separator));
+  background: #fff7ed;
+  color: #7c2d12;
+}
+
+.note-read-setting-select-wrap {
+  position: relative;
+  display: block;
+}
+
+.note-read-setting-select-wrap::after {
+  position: absolute;
+  top: 50%;
+  right: 0.95rem;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 2px solid var(--label);
+  border-bottom: 2px solid var(--label);
+  content: "";
+  pointer-events: none;
+  transform: translateY(-65%) rotate(45deg);
+}
+
+.note-read-setting-select {
+  width: 100%;
+  height: 1.85rem;
+  padding: 0 2.2rem 0 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--separator) 80%, transparent);
+  border-radius: 999px;
+  background: var(--fill-primary);
+  color: var(--label);
+  font-size: 0.68rem;
+  font-weight: 750;
+  line-height: 1;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.note-read-color-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+}
+
+.note-read-color-option {
+  width: 1.45rem;
+  height: 1.45rem;
+  padding: 0;
+  border: 2px solid color-mix(in srgb, var(--separator) 76%, transparent);
+  border-radius: 999px;
+  background: var(--note-read-swatch-color);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.68);
+}
+
+.note-read-color-option.active {
+  border-color: #111827;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.78),
+    0 0 0 2px color-mix(in srgb, var(--note-read-swatch-color) 38%, transparent);
+}
+
+.note-read-error {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red-soft) 88%, transparent);
+}
+
+.note-read-audio {
+  display: none;
+}
+
+.note-read-word {
+  border-radius: 0.28rem;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0.03rem 0.1rem;
+  transition:
+    background-color 0.12s ease,
+    box-shadow 0.12s ease,
+    color 0.12s ease;
+}
+
+.note-read-word.read {
+  background: var(--note-read-read-bg, #ffedd5);
+  color: var(--note-read-read-color, #7c2d12);
+}
+
+.note-read-word.current {
+  background: var(--note-read-current-bg, #fb923c);
+  color: var(--note-read-current-color, #431407);
+  box-shadow: 0 0 0 0.11rem var(--note-read-current-ring, rgba(251, 146, 60, 0.28));
 }
 
 .lecture-study-shell {

@@ -2,11 +2,34 @@ import { after, NextResponse } from "next/server";
 
 import { enqueueLectureNotesGeneration, enqueueLectureProcessing } from "@/lib/jobs";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
+import { isRecord } from "@/lib/lecture-source-metadata";
+import { fetchReadableWebpage, prepareLectureFromTextSource } from "@/lib/manual-lectures";
+import { markLecturePipelineFailed } from "@/lib/pipeline";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { routeIdParamSchema } from "@/lib/validation";
 
 export const maxDuration = 300;
+
+function getManualImportMetadata(processingMetadata: unknown) {
+  if (!isRecord(processingMetadata) || !isRecord(processingMetadata.manualImport)) {
+    return null;
+  }
+
+  return processingMetadata.manualImport;
+}
+
+function getLinkSourceUrl(processingMetadata: unknown) {
+  const manualImport = getManualImportMetadata(processingMetadata);
+
+  if (!manualImport || !isRecord(manualImport.modelMetadata)) {
+    return null;
+  }
+
+  const sourceUrl = manualImport.modelMetadata.sourceUrl;
+
+  return typeof sourceUrl === "string" && sourceUrl.length > 0 ? sourceUrl : null;
+}
 
 export async function POST(
   request: Request,
@@ -48,17 +71,58 @@ export async function POST(
     return NextResponse.json({ error: "Ni najdeno." }, { status: 404 });
   }
 
-  const hasManualImport =
-    lecture.processing_metadata &&
-    typeof lecture.processing_metadata === "object" &&
-    !Array.isArray(lecture.processing_metadata) &&
-    "manualImport" in lecture.processing_metadata;
+  const hasManualImport = Boolean(getManualImportMetadata(lecture.processing_metadata));
 
   if (lecture.source_type !== "audio" && !hasManualImport) {
     return NextResponse.json(
       { error: "Ponovni poskus za ta zapisek ni na voljo." },
       { status: 400 },
     );
+  }
+
+  if (lecture.source_type === "link") {
+    const sourceUrl = getLinkSourceUrl(lecture.processing_metadata);
+
+    if (!sourceUrl) {
+      return NextResponse.json(
+        { error: "Povezave ni bilo mogoče znova pripraviti." },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const webpage = await fetchReadableWebpage({ url: sourceUrl });
+      await prepareLectureFromTextSource({
+        lectureId: id,
+        userId: user.id,
+        sourceType: "link",
+        text: webpage.text,
+        titleHint: webpage.title || lecture.title || undefined,
+        languageHint: lecture.language_hint ?? undefined,
+        modelMetadata: {
+          importMode: "link",
+          sourceUrl,
+        },
+      });
+
+      after(async () => {
+        try {
+          await enqueueLectureNotesGeneration(id);
+        } catch (error) {
+          await markLecturePipelineFailed({ lectureId: id, error });
+        }
+      });
+
+      return NextResponse.json({ ok: true });
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error ? error.message : "Povezave ni bilo mogoče znova pripraviti.",
+        },
+        { status: 500 },
+      );
+    }
   }
 
   const nextStatus = "queued";
@@ -79,12 +143,16 @@ export async function POST(
   }
 
   after(async () => {
-    if (lecture.source_type === "audio") {
-      await enqueueLectureProcessing(id);
-      return;
-    }
+    try {
+      if (lecture.source_type === "audio") {
+        await enqueueLectureProcessing(id);
+        return;
+      }
 
-    await enqueueLectureNotesGeneration(id);
+      await enqueueLectureNotesGeneration(id);
+    } catch (error) {
+      await markLecturePipelineFailed({ lectureId: id, error });
+    }
   });
 
   return NextResponse.json({ ok: true });

@@ -102,6 +102,11 @@ export const rateLimitPresets = {
   ] satisfies RateLimitRule[],
   studySession: [{ windowSeconds: 300, maxRequests: 240, scope: "user" }] satisfies RateLimitRule[],
   progress: [{ windowSeconds: 300, maxRequests: 240, scope: "user" }] satisfies RateLimitRule[],
+  ttsStatus: [{ windowSeconds: 60, maxRequests: 120, scope: "user" }] satisfies RateLimitRule[],
+  ttsChunk: [
+    { windowSeconds: 300, maxRequests: 20, scope: "user" },
+    { windowSeconds: 3600, maxRequests: 120, scope: "user" },
+  ] satisfies RateLimitRule[],
   internal: [
     { windowSeconds: 60, maxRequests: 90, scope: "ip" },
     { windowSeconds: 3600, maxRequests: 1500, scope: "ip" },

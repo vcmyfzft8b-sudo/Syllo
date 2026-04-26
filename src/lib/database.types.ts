@@ -329,6 +329,113 @@ export type Database = {
           generated_at?: string;
         };
       };
+      lecture_tts_chunks: {
+        Row: {
+          id: string;
+          lecture_id: string;
+          content_hash: string;
+          chunk_index: number;
+          text: string;
+          word_start_index: number;
+          word_end_index: number;
+          language: string;
+          voice: string;
+          model: string;
+          audio_storage_path: string;
+          audio_mime_type: string;
+          duration_ms: number;
+          alignment_json: Json;
+          generated_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          lecture_id: string;
+          content_hash: string;
+          chunk_index: number;
+          text: string;
+          word_start_index: number;
+          word_end_index: number;
+          language: string;
+          voice: string;
+          model: string;
+          audio_storage_path: string;
+          audio_mime_type?: string;
+          duration_ms: number;
+          alignment_json?: Json;
+          generated_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          content_hash?: string;
+          chunk_index?: number;
+          text?: string;
+          word_start_index?: number;
+          word_end_index?: number;
+          language?: string;
+          voice?: string;
+          model?: string;
+          audio_storage_path?: string;
+          audio_mime_type?: string;
+          duration_ms?: number;
+          alignment_json?: Json;
+          generated_at?: string;
+          updated_at?: string;
+        };
+      };
+      tts_daily_usage: {
+        Row: {
+          user_id: string;
+          usage_date: string;
+          seconds_used: number;
+          limit_seconds: number;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          usage_date: string;
+          seconds_used?: number;
+          limit_seconds: number;
+          updated_at?: string;
+        };
+        Update: {
+          seconds_used?: number;
+          limit_seconds?: number;
+          updated_at?: string;
+        };
+      };
+      tts_play_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          lecture_id: string;
+          session_id: string;
+          content_hash: string;
+          chunk_index: number;
+          usage_date: string;
+          charged_seconds: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          lecture_id: string;
+          session_id: string;
+          content_hash: string;
+          chunk_index: number;
+          usage_date: string;
+          charged_seconds: number;
+          created_at?: string;
+        };
+        Update: {
+          session_id?: string;
+          content_hash?: string;
+          chunk_index?: number;
+          usage_date?: string;
+          charged_seconds?: number;
+          created_at?: string;
+        };
+      };
       chat_messages: {
         Row: {
           id: string;
@@ -772,6 +879,19 @@ export type Database = {
           similarity: number;
         }[];
       };
+      consume_tts_daily_quota: {
+        Args: {
+          p_user_id: string;
+          p_lecture_id: string;
+          p_session_id: string;
+          p_content_hash: string;
+          p_chunk_index: number;
+          p_usage_date: string;
+          p_seconds: number;
+          p_limit_seconds: number;
+        };
+        Returns: Json;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
@@ -788,6 +908,12 @@ export type TranscriptSegmentRow =
   Database["public"]["Tables"]["transcript_segments"]["Row"];
 export type LectureArtifactRow =
   Database["public"]["Tables"]["lecture_artifacts"]["Row"];
+export type LectureTtsChunkRow =
+  Database["public"]["Tables"]["lecture_tts_chunks"]["Row"];
+export type TtsDailyUsageRow =
+  Database["public"]["Tables"]["tts_daily_usage"]["Row"];
+export type TtsPlayEventRow =
+  Database["public"]["Tables"]["tts_play_events"]["Row"];
 export type ChatMessageRow = Database["public"]["Tables"]["chat_messages"]["Row"];
 export type LectureStudyAssetRow =
   Database["public"]["Tables"]["lecture_study_assets"]["Row"];
