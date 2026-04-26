@@ -7,7 +7,7 @@ import {
   parseNoteTtsDocument,
   stripLeadingRedundantHeading,
 } from "@/lib/note-tts-text";
-import { getTtsUsageState } from "@/lib/note-tts";
+import { getTtsUsageState, hasUnlimitedTtsUsage } from "@/lib/note-tts";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { routeIdParamSchema } from "@/lib/validation";
@@ -55,9 +55,11 @@ export async function GET(
   }
 
   const access = await canUseLectureFeatures(user.id, id, "study");
+  const hasUnlimitedUsage = hasUnlimitedTtsUsage(user.email);
   const usage = await getTtsUsageState({
     userId: user.id,
     hasPaidAccess: access.entitlement.hasPaidAccess,
+    hasUnlimitedUsage,
   });
   const content = detail.artifact?.structured_notes_md
     ? stripLeadingRedundantHeading(detail.artifact.structured_notes_md, detail.lecture.title)
@@ -79,6 +81,7 @@ export async function GET(
     limitSeconds: usage.limitSeconds,
     secondsUsed: usage.secondsUsed,
     remainingSeconds: usage.remainingSeconds,
+    hasUnlimitedUsage,
     chunkCount,
     totalWords: document?.words.length ?? 0,
   });

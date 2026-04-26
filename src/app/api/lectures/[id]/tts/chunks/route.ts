@@ -7,6 +7,7 @@ import {
   consumeTtsQuota,
   getOrCreateTtsChunk,
   getTtsUsageState,
+  hasUnlimitedTtsUsage,
   hashNoteTtsContent,
 } from "@/lib/note-tts";
 import {
@@ -39,7 +40,7 @@ function createTtsLimitResponse(params: {
 }) {
   return NextResponse.json(
     {
-      error: "Limit dosežen.",
+      error: "Porabil si današnje poslušanje.",
       code: "tts_daily_limit_reached",
       secondsUsed: params.secondsUsed,
       remainingSeconds: params.remainingSeconds,
@@ -138,6 +139,7 @@ export async function POST(
   }
 
   const access = await canUseLectureFeatures(user.id, id, "study");
+  const hasUnlimitedUsage = hasUnlimitedTtsUsage(user.email);
 
   if (!access.allowed) {
     return createBillingRequiredResponse(
@@ -157,6 +159,7 @@ export async function POST(
   const usageBeforeGeneration = await getTtsUsageState({
     userId: user.id,
     hasPaidAccess: access.entitlement.hasPaidAccess,
+    hasUnlimitedUsage,
   });
 
   if (usageBeforeGeneration.remainingSeconds <= 0) {
@@ -196,6 +199,7 @@ export async function POST(
       chunkIndex: chunk.chunkIndex,
       chargedSeconds,
       hasPaidAccess: access.entitlement.hasPaidAccess,
+      hasUnlimitedUsage,
     });
   } catch (error) {
     console.error("Failed to prepare note TTS chunk", error);
@@ -238,5 +242,6 @@ export async function POST(
     limitSeconds: quota.limitSeconds,
     secondsUsed: quota.secondsUsed,
     remainingSeconds: quota.remainingSeconds,
+    hasUnlimitedUsage,
   });
 }

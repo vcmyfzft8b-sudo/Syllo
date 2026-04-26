@@ -31,6 +31,7 @@ type TtsStatusResponse = {
   limitSeconds: number;
   secondsUsed: number;
   remainingSeconds: number;
+  hasUnlimitedUsage?: boolean;
   chunkCount: number;
   totalWords: number;
   error?: string;
@@ -51,6 +52,7 @@ type TtsChunkResponse = {
   limitSeconds: number;
   secondsUsed: number;
   remainingSeconds: number;
+  hasUnlimitedUsage?: boolean;
   error?: string;
   code?: string;
 };
@@ -61,6 +63,7 @@ const AUTO_SCROLL_IDLE_MS = 5_000;
 const NOTE_TTS_VOICE_STORAGE_KEY = "memo-note-tts-voice";
 const NOTE_TTS_RATE_STORAGE_KEY = "memo-note-tts-rate";
 const NOTE_TTS_COLOR_STORAGE_KEY = "memo-note-tts-color";
+const TTS_DAILY_LIMIT_MESSAGE = "Porabil si današnje poslušanje.";
 
 function createReadSessionId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -145,6 +148,10 @@ function getQuotaRemainingPercent(status: TtsStatusResponse | null) {
     return 0;
   }
 
+  if (status.hasUnlimitedUsage) {
+    return 100;
+  }
+
   return Math.min(
     100,
     Math.max(0, Math.round((status.remainingSeconds / status.limitSeconds) * 100)),
@@ -174,8 +181,8 @@ function QuotaUsageMenu({
 
   const remainingPercent = getQuotaRemainingPercent(status);
   const usedPercent = 100 - remainingPercent;
-  const isLimitReached = status.remainingSeconds <= 0;
-  const remainingLabel = `${remainingPercent}%`;
+  const isLimitReached = !status.hasUnlimitedUsage && status.remainingSeconds <= 0;
+  const remainingLabel = status.hasUnlimitedUsage ? "∞" : `${remainingPercent}%`;
 
   return (
     <details className={`note-read-usage-menu ${isLimitReached ? "limit" : ""}`}>
@@ -184,6 +191,8 @@ function QuotaUsageMenu({
         aria-label={
           isLimitReached
             ? "Limit poslušanja dosežen"
+            : status.hasUnlimitedUsage
+              ? "Brez dnevne omejitve poslušanja"
             : `Preostalo ${remainingPercent} % dnevnega poslušanja`
         }
         title="Poraba poslušanja"
@@ -201,9 +210,15 @@ function QuotaUsageMenu({
           aria-label={
             isLimitReached
               ? "Limit poslušanja dosežen"
+              : status.hasUnlimitedUsage
+                ? "Brez dnevne omejitve poslušanja"
               : `Preostalo ${remainingPercent} % dnevnega poslušanja, porabljeno ${usedPercent} %`
           }
-          aria-valuetext={`${remainingPercent} % preostalo, ${usedPercent} % porabljeno`}
+          aria-valuetext={
+            status.hasUnlimitedUsage
+              ? "Brez dnevne omejitve poslušanja"
+              : `${remainingPercent} % preostalo, ${usedPercent} % porabljeno`
+          }
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={remainingPercent}
@@ -211,7 +226,9 @@ function QuotaUsageMenu({
           <span className="note-read-usage-fill" style={{ width: `${remainingPercent}%` }} />
           <span className="note-read-usage-bar-label">{remainingLabel}</span>
         </div>
-        <div className="note-read-usage-reset">Ponastavi se ob 00:00</div>
+        <div className="note-read-usage-reset">
+          {status.hasUnlimitedUsage ? "Brez dnevne omejitve" : "Ponastavi se ob 00:00"}
+        </div>
         <div className="note-read-settings-divider" />
         <div className="note-read-setting-group">
           <span className="note-read-setting-label">Hitrost</span>
@@ -275,11 +292,16 @@ function QuotaUsageMenu({
 
 async function parseResponse<T>(response: Response): Promise<T> {
   const payload = (await response.json().catch(() => ({}))) as T & {
+    code?: string;
     error?: string;
   };
 
   if (!response.ok) {
     const message = payload.error || "Poslušanja ni bilo mogoče pripraviti.";
+
+    if (payload.code === "tts_daily_limit_reached") {
+      throw new Error(TTS_DAILY_LIMIT_MESSAGE);
+    }
 
     if (response.status === 429 || message.includes("HTTP 429")) {
       throw new Error("Poslušanje se še pripravlja. Poskusi znova čez trenutek.");
@@ -429,11 +451,14 @@ export function NoteReadAloud({
   const [completedWordIndex, setCompletedWordIndex] = useState(-1);
   const [currentWordIndex, setCurrentWordIndex] = useState<number | null>(null);
   const [spokenStartWordIndex, setSpokenStartWordIndex] = useState(0);
-  const [playbackRate, setPlaybackRate] =
-    useState<NoteTtsPlaybackRate>(getStoredPlaybackRate);
-  const [selectedVoice, setSelectedVoice] = useState<NoteTtsVoice>(getStoredVoice);
+  const [playbackRate, setPlaybackRate] = useState<NoteTtsPlaybackRate>(
+    DEFAULT_NOTE_TTS_PLAYBACK_RATE,
+  );
+  const [selectedVoice, setSelectedVoice] =
+    useState<NoteTtsVoice>(DEFAULT_NOTE_TTS_VOICE);
   const [highlightColorId, setHighlightColorId] =
-    useState<NoteTtsHighlightColorId>(getStoredHighlightColorId);
+    useState<NoteTtsHighlightColorId>(DEFAULT_NOTE_TTS_HIGHLIGHT_COLOR_ID);
+  const [hasHydratedSettings, setHasHydratedSettings] = useState(false);
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
   const [isFetchingChunk, setIsFetchingChunk] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -484,16 +509,31 @@ export function NoteReadAloud({
   }, [lectureId]);
 
   useEffect(() => {
+    setPlaybackRate(getStoredPlaybackRate());
+    setSelectedVoice(getStoredVoice());
+    setHighlightColorId(getStoredHighlightColorId());
+    setHasHydratedSettings(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydratedSettings) {
+      return;
+    }
+
     window.localStorage.setItem(NOTE_TTS_RATE_STORAGE_KEY, String(playbackRate));
 
     if (audioRef.current) {
       audioRef.current.playbackRate = playbackRate;
     }
-  }, [playbackRate]);
+  }, [hasHydratedSettings, playbackRate]);
 
   useEffect(() => {
+    if (!hasHydratedSettings) {
+      return;
+    }
+
     window.localStorage.setItem(NOTE_TTS_COLOR_STORAGE_KEY, highlightColorId);
-  }, [highlightColorId]);
+  }, [hasHydratedSettings, highlightColorId]);
 
   const updateQuota = useCallback((payload: TtsChunkResponse) => {
     setStatus((current) =>
@@ -518,6 +558,10 @@ export function NoteReadAloud({
   );
 
   useEffect(() => {
+    if (!hasHydratedSettings) {
+      return;
+    }
+
     window.localStorage.setItem(NOTE_TTS_VOICE_STORAGE_KEY, selectedVoice);
     sessionIdRef.current = createReadSessionId();
     prefetchedChunksRef.current.clear();
@@ -540,7 +584,7 @@ export function NoteReadAloud({
       completedWordIndex: -1,
       currentWordIndex: null,
     });
-  }, [selectedVoice, setPlaybackWordState]);
+  }, [hasHydratedSettings, selectedVoice, setPlaybackWordState]);
 
   const fetchChunk = useCallback(
     async (chunkIndex: number, options?: { silent?: boolean }) => {
@@ -583,10 +627,10 @@ export function NoteReadAloud({
             setError(message);
           }
 
-          if (message === "Limit dosežen.") {
-            setStatus((current) =>
-              current
-                ? {
+        if (message === "Limit dosežen." || message === TTS_DAILY_LIMIT_MESSAGE) {
+          setStatus((current) =>
+            current
+              ? {
                     ...current,
                     remainingSeconds: 0,
                   }
@@ -683,12 +727,23 @@ export function NoteReadAloud({
   );
 
   useEffect(() => {
-    if (!status?.available || status.remainingSeconds <= 0 || chunks.length === 0) {
+    if (
+      !hasHydratedSettings ||
+      !status?.available ||
+      status.remainingSeconds <= 0 ||
+      chunks.length === 0
+    ) {
       return;
     }
 
     prefetchChunk(0);
-  }, [chunks.length, prefetchChunk, status?.available, status?.remainingSeconds]);
+  }, [
+    chunks.length,
+    hasHydratedSettings,
+    prefetchChunk,
+    status?.available,
+    status?.remainingSeconds,
+  ]);
 
   useEffect(() => {
     const markUserInteraction = () => {

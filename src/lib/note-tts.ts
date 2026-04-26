@@ -30,6 +30,9 @@ export type TtsQuotaState = {
 
 export const FREE_TTS_DAILY_LIMIT_SECONDS = 5 * 60;
 export const PAID_TTS_DAILY_LIMIT_SECONDS = 60 * 60;
+export const UNLIMITED_TTS_USAGE_SECONDS = Number.MAX_SAFE_INTEGER;
+
+const UNLIMITED_TTS_USAGE_EMAILS = new Set(["nace.valencic@gmail.com"]);
 
 const TTS_OUTPUT_FORMAT = "mp3";
 const TTS_OUTPUT_MIME_TYPE = "audio/mpeg";
@@ -52,6 +55,10 @@ function getSonioxClient() {
 
 export function getTtsDailyLimitSeconds(hasPaidAccess: boolean) {
   return hasPaidAccess ? PAID_TTS_DAILY_LIMIT_SECONDS : FREE_TTS_DAILY_LIMIT_SECONDS;
+}
+
+export function hasUnlimitedTtsUsage(email?: string | null) {
+  return email ? UNLIMITED_TTS_USAGE_EMAILS.has(email.trim().toLowerCase()) : false;
 }
 
 export function getLjubljanaUsageDate(now = new Date()) {
@@ -243,7 +250,18 @@ export function alignTtsTokensToWords(params: {
 export async function getTtsUsageState(params: {
   userId: string;
   hasPaidAccess: boolean;
+  hasUnlimitedUsage?: boolean;
 }) {
+  if (params.hasUnlimitedUsage) {
+    return {
+      usageDate: getLjubljanaUsageDate(),
+      secondsUsed: 0,
+      limitSeconds: UNLIMITED_TTS_USAGE_SECONDS,
+      remainingSeconds: UNLIMITED_TTS_USAGE_SECONDS,
+      hasUnlimitedUsage: true,
+    };
+  }
+
   const limitSeconds = getTtsDailyLimitSeconds(params.hasPaidAccess);
   const usageDate = getLjubljanaUsageDate();
   const { data } = await createSupabaseServiceRoleClient()
@@ -260,6 +278,7 @@ export async function getTtsUsageState(params: {
     secondsUsed,
     limitSeconds,
     remainingSeconds: Math.max(limitSeconds - secondsUsed, 0),
+    hasUnlimitedUsage: false,
   };
 }
 
@@ -410,7 +429,17 @@ export async function consumeTtsQuota(params: {
   chunkIndex: number;
   chargedSeconds: number;
   hasPaidAccess: boolean;
+  hasUnlimitedUsage?: boolean;
 }) {
+  if (params.hasUnlimitedUsage) {
+    return buildQuotaState({
+      allowed: true,
+      secondsUsed: 0,
+      limitSeconds: UNLIMITED_TTS_USAGE_SECONDS,
+      chargedSeconds: 0,
+    });
+  }
+
   const limitSeconds = getTtsDailyLimitSeconds(params.hasPaidAccess);
   const usageDate = getLjubljanaUsageDate();
   const chargedSeconds = Math.max(1, Math.ceil(params.chargedSeconds));
