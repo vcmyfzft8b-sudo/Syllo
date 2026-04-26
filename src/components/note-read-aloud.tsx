@@ -325,17 +325,15 @@ function WordToken({
   token,
   completedWordIndex,
   currentWordIndex,
-  spokenStartWordIndex,
 }: {
   token: Extract<NoteTtsInlineToken, { type: "word" }>;
   completedWordIndex: number;
   currentWordIndex: number | null;
-  spokenStartWordIndex: number;
 }) {
   const stateClass =
     token.wordIndex === currentWordIndex
       ? "current"
-      : token.wordIndex >= spokenStartWordIndex && token.wordIndex <= completedWordIndex
+      : token.wordIndex <= completedWordIndex
         ? "read"
         : "";
 
@@ -350,7 +348,6 @@ function renderTokens(params: {
   tokens: NoteTtsInlineToken[];
   completedWordIndex: number;
   currentWordIndex: number | null;
-  spokenStartWordIndex: number;
 }) {
   return params.tokens.map((token, index) => {
     if (token.type === "text") {
@@ -363,7 +360,6 @@ function renderTokens(params: {
         token={token}
         completedWordIndex={params.completedWordIndex}
         currentWordIndex={params.currentWordIndex}
-        spokenStartWordIndex={params.spokenStartWordIndex}
       />
     );
   });
@@ -373,18 +369,15 @@ function ReadAlongBlock({
   block,
   completedWordIndex,
   currentWordIndex,
-  spokenStartWordIndex,
 }: {
   block: NoteTtsBlock;
   completedWordIndex: number;
   currentWordIndex: number | null;
-  spokenStartWordIndex: number;
 }) {
   const children = renderTokens({
     tokens: block.tokens,
     completedWordIndex,
     currentWordIndex,
-    spokenStartWordIndex,
   });
 
   if (block.kind === "heading") {
@@ -406,12 +399,10 @@ function ReadAlongMarkdown({
   document,
   completedWordIndex,
   currentWordIndex,
-  spokenStartWordIndex,
 }: {
   document: NoteTtsDocument;
   completedWordIndex: number;
   currentWordIndex: number | null;
-  spokenStartWordIndex: number;
 }) {
   return (
     <div className="markdown text-sm text-stone-700 sm:text-[15px]">
@@ -421,7 +412,6 @@ function ReadAlongMarkdown({
           block={block}
           completedWordIndex={completedWordIndex}
           currentWordIndex={currentWordIndex}
-          spokenStartWordIndex={spokenStartWordIndex}
         />
       ))}
     </div>
@@ -458,7 +448,6 @@ export function NoteReadAloud({
   const [activeChunkIndex, setActiveChunkIndex] = useState(0);
   const [completedWordIndex, setCompletedWordIndex] = useState(-1);
   const [currentWordIndex, setCurrentWordIndex] = useState<number | null>(null);
-  const [spokenStartWordIndex, setSpokenStartWordIndex] = useState(0);
   const [playbackRate, setPlaybackRate] = useState<NoteTtsPlaybackRate>(
     DEFAULT_NOTE_TTS_PLAYBACK_RATE,
   );
@@ -582,7 +571,6 @@ export function NoteReadAloud({
     lastAutoScrolledWordRef.current = null;
     setActiveChunk(null);
     setActiveChunkIndex(0);
-    setSpokenStartWordIndex(0);
     setIsPlaying(false);
     setPlaybackWordState({
       completedWordIndex: -1,
@@ -849,7 +837,6 @@ export function NoteReadAloud({
       audio.src = payload.audioUrl;
       audio.currentTime = 0;
       audio.playbackRate = playbackRate;
-      setSpokenStartWordIndex(payload.wordStartIndex);
       setPlaybackWordState({
         completedWordIndex: payload.wordStartIndex - 1,
         currentWordIndex: payload.alignment[0]?.wordIndex ?? payload.wordStartIndex,
@@ -1000,7 +987,6 @@ export function NoteReadAloud({
 
     setActiveChunk(null);
     setActiveChunkIndex(0);
-    setSpokenStartWordIndex(0);
     resetPlaybackWordState(document.words.length - 1);
     setIsPlaying(false);
   }, [
@@ -1072,7 +1058,6 @@ export function NoteReadAloud({
           document={document}
           completedWordIndex={completedWordIndex}
           currentWordIndex={currentWordIndex}
-          spokenStartWordIndex={spokenStartWordIndex}
         />
       </div>
     </>
