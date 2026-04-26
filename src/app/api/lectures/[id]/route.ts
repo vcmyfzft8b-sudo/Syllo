@@ -5,6 +5,7 @@ import { parseAudioChunkManifest } from "@/lib/audio-processing";
 import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
 import { enqueueLectureNotesGeneration } from "@/lib/jobs";
 import { isRecord } from "@/lib/lecture-source-metadata";
+import { markLecturePipelineFailed } from "@/lib/pipeline";
 import { parseJsonRequest } from "@/lib/request-validation";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { extractScanImageStoragePaths } from "@/lib/scan-image-uploads";
@@ -13,6 +14,7 @@ import { lectureTitleSchema, routeIdParamSchema } from "@/lib/validation";
 
 const UPDATE_LECTURE_MAX_BYTES = 8 * 1024;
 const STALE_NOTES_GENERATION_MS = 6 * 60 * 1000;
+const FAILED_STALE_NOTES_GENERATION_MS = 15 * 60 * 1000;
 
 const updateLectureSchema = z.object({
   title: lectureTitleSchema,
@@ -78,6 +80,17 @@ export async function GET(
     Date.parse(detail.lecture.updated_at);
 
   if (
+    detail.lecture.status === "generating_notes" &&
+    !detail.artifact &&
+    Date.now() - processingUpdatedAt > FAILED_STALE_NOTES_GENERATION_MS
+  ) {
+    after(async () => {
+      await markLecturePipelineFailed({
+        lectureId: detail.lecture.id,
+        error: new Error("Obdelava se je zataknila. Poskusi znova."),
+      });
+    });
+  } else if (
     detail.lecture.status === "generating_notes" &&
     !detail.artifact &&
     detail.transcript.length > 0 &&
