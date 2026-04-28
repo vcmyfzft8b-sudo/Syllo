@@ -89,8 +89,8 @@ export function AppShell({
   const showCreateCta = !shouldHideNavigation;
   const showSubscribeCta = !hasPaidAccess && showCreateCta;
   const subscribeLabel = hasTrialLectureAvailable ? "Trial" : "Naročnina";
-  const pullThreshold = 84;
-  const cappedPullDistance = Math.min(pullDistance, 120);
+  const pullThreshold = 126;
+  const cappedPullDistance = Math.min(pullDistance, 180);
   const isLecturePage = pathname.startsWith("/app/lectures/");
 
   useEffect(() => {
@@ -133,8 +133,24 @@ export function AppShell({
       return window.scrollY <= 0;
     }
 
+    function isInsideMobileSheet(target: EventTarget | null) {
+      return (
+        target instanceof HTMLElement &&
+        Boolean(
+          target.closest(
+            ".mobile-create-menu, .library-folder-mobile-sheet, .library-folder-modal, .note-read-usage-popover, .dashboard-note-dialog",
+          ),
+        )
+      );
+    }
+
     function handleTouchStart(event: TouchEvent) {
-      if (window.innerWidth >= mobileBreakpoint || isRefreshing || event.touches.length !== 1) {
+      if (
+        window.innerWidth >= mobileBreakpoint ||
+        isRefreshing ||
+        event.touches.length !== 1 ||
+        isInsideMobileSheet(event.target)
+      ) {
         resetGesture();
         return;
       }
@@ -161,7 +177,7 @@ export function AppShell({
       }
 
       event.preventDefault();
-      const nextPullDistance = Math.min(deltaY * 0.5, 120);
+      const nextPullDistance = Math.min(deltaY * 0.5, 180);
       pullDistanceRef.current = nextPullDistance;
       setIsPulling(true);
       setPullDistance(nextPullDistance);

@@ -7,6 +7,7 @@ import {
 import {
   memo,
   startTransition,
+  useCallback,
   useDeferredValue,
   useEffect,
   useMemo,
@@ -114,55 +115,8 @@ const NoteRow = memo(function NoteRow({
   onOpenDelete,
   attachMenuRef,
 }: NoteRowProps) {
-  const longPressTimerRef = useRef<number | null>(null);
-  const longPressTriggeredRef = useRef(false);
-
-  function clearLongPressTimer() {
-    if (longPressTimerRef.current === null) {
-      return;
-    }
-
-    window.clearTimeout(longPressTimerRef.current);
-    longPressTimerRef.current = null;
-  }
-
-  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (event.pointerType === "mouse" && event.button !== 0) {
-      return;
-    }
-
-    const target = event.target;
-    if (target instanceof Element && target.closest("button")) {
-      return;
-    }
-
-    longPressTriggeredRef.current = false;
-    clearLongPressTimer();
-    longPressTimerRef.current = window.setTimeout(() => {
-      longPressTriggeredRef.current = true;
-      onToggleMenu(lecture.id);
-    }, 520);
-  }
-
-  function handleClickCapture(event: ReactMouseEvent<HTMLDivElement>) {
-    if (!longPressTriggeredRef.current) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    longPressTriggeredRef.current = false;
-  }
-
   return (
-    <div
-      className={`ios-row-note-card ${isMenuOpen ? "menu-open" : ""}`}
-      onPointerDown={handlePointerDown}
-      onPointerUp={clearLongPressTimer}
-      onPointerCancel={clearLongPressTimer}
-      onPointerLeave={clearLongPressTimer}
-      onClickCapture={handleClickCapture}
-    >
+    <div className={`ios-row-note-card ${isMenuOpen ? "menu-open" : ""}`}>
       <InstantLink
         href={`/app/lectures/${lecture.id}`}
         className="ios-row-note-card-link"
@@ -256,6 +210,8 @@ export function HomeDashboard({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const mobileCreateMenuDragStartYRef = useRef<number | null>(null);
   const mobileCreateMenuDragOffsetRef = useRef(0);
+  const mobileCreateMenuSuppressClickRef = useRef(false);
+  const mobileCreateMenuCloseTimerRef = useRef<number | null>(null);
   const dashboardDialogDragStartYRef = useRef<number | null>(null);
   const dashboardDialogDragOffsetRef = useRef(0);
   const [query, setQuery] = useState("");
@@ -355,24 +311,6 @@ export function HomeDashboard({
     return () => window.removeEventListener("keydown", handleEscape);
   }, [busyLectureId, deleteTarget, renameTarget]);
 
-  useEffect(() => {
-    if (!isMobileCreateMenuOpen) {
-      return;
-    }
-
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        mobileCreateMenuDragStartYRef.current = null;
-        mobileCreateMenuDragOffsetRef.current = 0;
-        setMobileCreateMenuDragOffset(0);
-        setIsMobileCreateMenuOpen(false);
-      }
-    }
-
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [isMobileCreateMenuOpen]);
-
   function closeModal() {
     setManualModal(null);
     if (searchModal) {
@@ -380,17 +318,62 @@ export function HomeDashboard({
     }
   }
 
-  function closeMobileCreateMenu() {
+  const closeMobileCreateMenu = useCallback(() => {
+    if (mobileCreateMenuCloseTimerRef.current !== null) {
+      window.clearTimeout(mobileCreateMenuCloseTimerRef.current);
+      mobileCreateMenuCloseTimerRef.current = null;
+    }
     mobileCreateMenuDragStartYRef.current = null;
     mobileCreateMenuDragOffsetRef.current = 0;
     setMobileCreateMenuDragOffset(0);
     setIsMobileCreateMenuOpen(false);
-  }
+  }, []);
 
-  function handleMobileCreateMenuHandlePointerDown(
-    event: ReactPointerEvent<HTMLButtonElement>,
+  const animateCloseMobileCreateMenu = useCallback(() => {
+    if (mobileCreateMenuCloseTimerRef.current !== null) {
+      return;
+    }
+
+    mobileCreateMenuDragStartYRef.current = null;
+    mobileCreateMenuDragOffsetRef.current = window.innerHeight;
+    setMobileCreateMenuDragOffset(window.innerHeight);
+    mobileCreateMenuCloseTimerRef.current = window.setTimeout(() => {
+      mobileCreateMenuCloseTimerRef.current = null;
+      closeMobileCreateMenu();
+    }, 180);
+  }, [closeMobileCreateMenu]);
+
+  useEffect(() => {
+    if (!isMobileCreateMenuOpen) {
+      return;
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        animateCloseMobileCreateMenu();
+      }
+    }
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [animateCloseMobileCreateMenu, isMobileCreateMenuOpen]);
+
+  function handleMobileCreateMenuPointerDown(
+    event: ReactPointerEvent<HTMLElement>,
   ) {
-    event.preventDefault();
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest("a, input, textarea, select, .app-close-button")
+    ) {
+      return;
+    }
+
+    mobileCreateMenuSuppressClickRef.current = false;
     mobileCreateMenuDragStartYRef.current = event.clientY;
     event.currentTarget.setPointerCapture(event.pointerId);
   }
@@ -402,7 +385,22 @@ export function HomeDashboard({
 
     const nextOffset = Math.max(0, clientY - mobileCreateMenuDragStartYRef.current);
     mobileCreateMenuDragOffsetRef.current = nextOffset;
+    if (nextOffset > 8) {
+      mobileCreateMenuSuppressClickRef.current = true;
+    }
     setMobileCreateMenuDragOffset(nextOffset);
+  }
+
+  function handleMobileCreateMenuClickCapture(
+    event: ReactMouseEvent<HTMLElement>,
+  ) {
+    if (!mobileCreateMenuSuppressClickRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    mobileCreateMenuSuppressClickRef.current = false;
   }
 
   useEffect(() => {
@@ -416,10 +414,7 @@ export function HomeDashboard({
 
     function handleWindowPointerEnd() {
       if (mobileCreateMenuDragOffsetRef.current > 80) {
-        mobileCreateMenuDragStartYRef.current = null;
-        mobileCreateMenuDragOffsetRef.current = 0;
-        setMobileCreateMenuDragOffset(0);
-        setIsMobileCreateMenuOpen(false);
+        animateCloseMobileCreateMenu();
         return;
       }
 
@@ -436,7 +431,7 @@ export function HomeDashboard({
       window.removeEventListener("pointerup", handleWindowPointerEnd);
       window.removeEventListener("pointercancel", handleWindowPointerEnd);
     };
-  }, [isMobileCreateMenuOpen]);
+  }, [animateCloseMobileCreateMenu, isMobileCreateMenuOpen]);
 
   function openQuickAction(mode: NoteSourceMode) {
     if (!canCreateNotes) {
@@ -848,7 +843,7 @@ export function HomeDashboard({
             <button
               type="button"
               className="mobile-create-menu-backdrop"
-              onClick={closeMobileCreateMenu}
+              onClick={animateCloseMobileCreateMenu}
               aria-label="Zapri meni za nov zapisek"
             />
             <section
@@ -856,6 +851,8 @@ export function HomeDashboard({
               role="dialog"
               aria-modal="true"
               aria-labelledby="mobile-create-menu-title"
+              onPointerDown={handleMobileCreateMenuPointerDown}
+              onClickCapture={handleMobileCreateMenuClickCapture}
               style={
                 mobileCreateMenuDragOffset > 0
                   ? { transform: `translateY(${mobileCreateMenuDragOffset}px)` }
@@ -865,7 +862,6 @@ export function HomeDashboard({
               <button
                 type="button"
                 className="mobile-sheet-drag-handle mobile-create-menu-drag-handle"
-                onPointerDown={handleMobileCreateMenuHandlePointerDown}
                 aria-label="Povleci navzdol za zapiranje"
               />
               <div className="mobile-create-menu-header">
@@ -875,7 +871,7 @@ export function HomeDashboard({
                 <button
                   type="button"
                   className="app-close-button"
-                  onClick={closeMobileCreateMenu}
+                  onClick={animateCloseMobileCreateMenu}
                   aria-label="Zapri meni za nov zapisek"
                 >
                   <EmojiIcon symbol="✖️" size="1rem" />
