@@ -261,6 +261,11 @@ export function AppShell({
   };
   const isHomePage = pathname === "/app";
   const mobileDockToggleItem = isHomePage ? TAB_ITEMS[2] : TAB_ITEMS[0];
+  const isTabItemActive = (item: (typeof TAB_ITEMS)[number]) =>
+    item.href === "/app"
+      ? pathname === "/app" || isLecturePage
+      : pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const isMobileDockToggleActive = isTabItemActive(mobileDockToggleItem);
 
   function handleMobileDockToggle() {
     if (isMobileDockOpen) {
@@ -430,7 +435,7 @@ export function AppShell({
       >
         <button
           type="button"
-          className="mobile-dock-toggle"
+          className={`mobile-dock-toggle ${isMobileDockToggleActive ? "active" : ""}`}
           onClick={handleMobileDockToggle}
           aria-label={
             isMobileDockOpen
@@ -443,10 +448,7 @@ export function AppShell({
         </button>
         <div className="ios-tabbar-inner">
           {TAB_ITEMS.map((item) => {
-            const active =
-              item.href === "/app"
-                ? pathname === "/app" || isLecturePage
-                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const active = isTabItemActive(item);
 
             return (
               <InstantLink

@@ -845,8 +845,8 @@ export function HomeDashboard({
           aria-haspopup="dialog"
           aria-expanded={isMobileCreateMenuOpen}
         >
-          <EmojiIcon symbol="➕" size="1rem" />
-          <span>Nov zapisek</span>
+          <EmojiIcon symbol="➕" size="1rem" className="mobile-new-note-pill-icon" />
+          <span className="mobile-new-note-pill-label">Nov zapisek</span>
         </button>
       </ViewportPortal>
 

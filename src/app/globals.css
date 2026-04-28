@@ -9469,7 +9469,12 @@ select:disabled {
       transform var(--motion-duration-fast) var(--motion-curve-soft);
   }
 
-  .mobile-new-note-pill span {
+  .mobile-new-note-pill-icon {
+    flex: 0 0 auto;
+    opacity: 1;
+  }
+
+  .mobile-new-note-pill-label {
     max-width: 8rem;
     overflow: hidden;
     white-space: nowrap;
@@ -9486,7 +9491,7 @@ select:disabled {
     gap: 0;
   }
 
-  body[data-mobile-dock-open="true"] .mobile-new-note-pill span {
+  body[data-mobile-dock-open="true"] .mobile-new-note-pill .mobile-new-note-pill-label {
     max-width: 0;
     opacity: 0;
   }
@@ -9670,8 +9675,14 @@ select:disabled {
   }
 
   .ios-tabbar.mobile-open {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    width: calc(100vw - max(1rem, env(safe-area-inset-left)) - max(1rem, env(safe-area-inset-right)) - 4rem - 0.75rem);
+    max-width: 17.5rem;
     min-height: 3.2rem;
-    padding: 0;
+    padding: 0 0.22rem;
+    gap: 0;
     border: 1px solid color-mix(in srgb, var(--separator) 80%, transparent);
     background: var(--nav-background);
     box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
@@ -9699,9 +9710,15 @@ select:disabled {
   }
 
   .ios-tabbar.mobile-open .mobile-dock-toggle {
+    justify-self: center;
     width: 3.2rem;
     height: 3.2rem;
     border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .ios-tabbar.mobile-open .mobile-dock-toggle.active {
     background: var(--tab-item-active-highlight);
     color: var(--label);
     box-shadow: var(--tab-item-active-highlight-shadow);
@@ -9742,11 +9759,15 @@ select:disabled {
   }
 
   .ios-tabbar.mobile-open .ios-tabbar-inner {
+    display: contents;
     visibility: visible;
-    max-width: 10rem;
     opacity: 1;
     pointer-events: auto;
-    transform: translateX(0) scaleX(1);
+    transform: none;
+  }
+
+  .ios-tabbar.mobile-open .ios-tab-item {
+    justify-self: center;
   }
 
   .ios-tab-item {
