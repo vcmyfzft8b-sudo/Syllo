@@ -100,6 +100,28 @@ export function AppShell({
   }, [router]);
 
   useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    document.body.dataset.mobileDockOpen = isMobileDockOpen ? "true" : "false";
+    return () => {
+      delete document.body.dataset.mobileDockOpen;
+    };
+  }, [isMobileDockOpen]);
+
+  useEffect(() => {
+    function handleMobileDockClose() {
+      setIsMobileDockOpen(false);
+    }
+
+    window.addEventListener("memoai:mobile-dock-close", handleMobileDockClose);
+    return () => {
+      window.removeEventListener("memoai:mobile-dock-close", handleMobileDockClose);
+    };
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }

@@ -838,7 +838,10 @@ export function HomeDashboard({
         <button
           type="button"
           className="mobile-new-note-pill"
-          onClick={() => setIsMobileCreateMenuOpen(true)}
+          onClick={() => {
+            window.dispatchEvent(new Event("memoai:mobile-dock-close"));
+            setIsMobileCreateMenuOpen(true);
+          }}
           aria-haspopup="dialog"
           aria-expanded={isMobileCreateMenuOpen}
         >

@@ -296,16 +296,26 @@ export function LibraryFolderMenu({
     }
 
     const target = event.target;
+    const interactiveTarget =
+      target instanceof Element
+        ? target.closest("button, a, input, textarea, select, .app-close-button")
+        : null;
+    const dragHandleTarget =
+      target instanceof Element ? target.closest(".library-folder-mobile-sheet-handle") : null;
+
     if (
-      target instanceof Element &&
-      target.closest("a, input, textarea, select, .app-close-button")
+      interactiveTarget &&
+      !dragHandleTarget &&
+      !(interactiveTarget as Element).closest(".library-folder-option")
     ) {
       return;
     }
 
     folderSheetSuppressClickRef.current = false;
     folderSheetDragStartYRef.current = event.clientY;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (!interactiveTarget || dragHandleTarget) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
   }
 
   function updateFolderSheetDragOffset(clientY: number) {
@@ -369,16 +379,25 @@ export function LibraryFolderMenu({
     }
 
     const target = event.target;
+    const interactiveTarget =
+      target instanceof Element
+        ? target.closest("button, a, input, textarea, select, label, .app-close-button")
+        : null;
+    const dragHandleTarget =
+      target instanceof Element ? target.closest(".library-folder-modal-drag-handle") : null;
+
     if (
-      target instanceof Element &&
-      target.closest("a, input, textarea, select, .app-close-button")
+      interactiveTarget &&
+      !dragHandleTarget
     ) {
       return;
     }
 
     folderModalSuppressClickRef.current = false;
     folderModalDragStartYRef.current = event.clientY;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (!interactiveTarget || dragHandleTarget) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
   }
 
   function updateFolderModalDragOffset(clientY: number) {
@@ -650,7 +669,7 @@ export function LibraryFolderMenu({
             <div
               className="library-folder-mobile-sheet-backdrop"
               role="presentation"
-              onClick={closeFolderSheet}
+              onClick={animateCloseFolderSheet}
             />
             <section
               className="library-folder-mobile-sheet"
