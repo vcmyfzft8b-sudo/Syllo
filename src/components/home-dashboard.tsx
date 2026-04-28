@@ -366,16 +366,26 @@ export function HomeDashboard({
     }
 
     const target = event.target;
+    const interactiveTarget =
+      target instanceof Element
+        ? target.closest("button, a, input, textarea, select, .app-close-button")
+        : null;
+    const dragHandleTarget =
+      target instanceof Element ? target.closest(".mobile-create-menu-drag-handle") : null;
+
     if (
-      target instanceof Element &&
-      target.closest("a, input, textarea, select, .app-close-button")
+      interactiveTarget &&
+      !dragHandleTarget &&
+      !(interactiveTarget as Element).closest(".note-action-card")
     ) {
       return;
     }
 
     mobileCreateMenuSuppressClickRef.current = false;
     mobileCreateMenuDragStartYRef.current = event.clientY;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (!interactiveTarget || dragHandleTarget) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
   }
 
   function updateMobileCreateMenuDragOffset(clientY: number) {

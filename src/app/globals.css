@@ -2048,6 +2048,10 @@ select:disabled {
   margin-inline: 4px;
 }
 
+.note-source-segmented .ios-segment {
+  min-height: 2.15rem;
+}
+
 .note-source-field-label,
 .note-source-card-label {
   margin: 0 0 0.45rem;
@@ -9295,8 +9299,8 @@ select:disabled {
     border-radius: 34px 34px 0 0;
     background: color-mix(in srgb, var(--surface-solid) 96%, var(--canvas));
     box-shadow: 0 -18px 54px rgba(0, 0, 0, 0.2);
-    animation: folder-sheet-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
-    transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    animation: folder-sheet-in 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .mobile-sheet-drag-handle {

@@ -73,6 +73,7 @@ const TTS_FREE_DAILY_LIMIT_MESSAGE =
   "Porabil si današnje brezplačno poslušanje. Nadgradi za več poslušanja.";
 const TTS_PAID_DAILY_LIMIT_MESSAGE =
   "Porabil si današnje poslušanje. Znova lahko poslušaš po ponastavitvi ob 00:00.";
+const READ_SETTINGS_SHEET_CLOSE_MS = 180;
 
 function createReadSessionId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -192,27 +193,48 @@ function QuotaUsageMenu({
   const dragStartYRef = useRef<number | null>(null);
   const dragOffsetRef = useRef(0);
   const suppressClickRef = useRef(false);
+  const closeTimerRef = useRef<number | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMenuClosing, setIsMenuClosing] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
 
   const closeMenu = useCallback(() => {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
     dragStartYRef.current = null;
     dragOffsetRef.current = 0;
     setDragOffset(0);
     setIsMenuOpen(false);
+    setIsMenuClosing(false);
     if (menuRef.current) {
       menuRef.current.open = false;
     }
   }, []);
 
   const animateCloseMenu = useCallback(() => {
+    if (isMenuClosing) {
+      return;
+    }
+
     dragStartYRef.current = null;
     dragOffsetRef.current = window.innerHeight;
+    setIsMenuClosing(true);
     setDragOffset(window.innerHeight);
-    window.setTimeout(() => {
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null;
       closeMenu();
-    }, 180);
-  }, [closeMenu]);
+    }, READ_SETTINGS_SHEET_CLOSE_MS);
+  }, [closeMenu, isMenuClosing]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
 
   function handleSheetPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) {
@@ -299,7 +321,7 @@ function QuotaUsageMenu({
     <>
       <button
         type="button"
-          className="mobile-sheet-drag-handle note-read-usage-drag-handle"
+        className="mobile-sheet-drag-handle note-read-usage-drag-handle"
         aria-label="Povleci navzdol za zapiranje"
       />
       <div
@@ -391,7 +413,16 @@ function QuotaUsageMenu({
       <details
         ref={menuRef}
         className={`note-read-usage-menu ${isLimitReached ? "limit" : ""}`}
-        onToggle={(event) => setIsMenuOpen(event.currentTarget.open)}
+        onToggle={(event) => {
+          const isOpen = event.currentTarget.open;
+          setIsMenuOpen(isOpen);
+          if (isOpen) {
+            setIsMenuClosing(false);
+            dragStartYRef.current = null;
+            dragOffsetRef.current = 0;
+            setDragOffset(0);
+          }
+        }}
       >
         <summary
           className="note-read-usage-trigger"

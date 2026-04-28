@@ -58,11 +58,12 @@ type ScanUploadResponse = {
 const MODES: Array<{
   id: NoteSourceMode;
   label: string;
+  icon: string;
 }> = [
-  { id: "record", label: "Snemaj" },
-  { id: "upload", label: "Naloži" },
-  { id: "text", label: "Dokumenti" },
-  { id: "link", label: "Povezava" },
+  { id: "record", label: "Snemaj", icon: "🎙️" },
+  { id: "upload", label: "Naloži", icon: "📤" },
+  { id: "text", label: "Dokumenti", icon: "📄" },
+  { id: "link", label: "Povezava", icon: "🔗" },
 ];
 
 function pickRecorderMimeType() {
@@ -1324,8 +1325,10 @@ export function NoteSourceModal({
                         type="button"
                         onClick={() => setSelectedMode(item.id)}
                         className={`ios-segment ${selectedMode === item.id ? "active" : ""}`}
+                        aria-label={item.label}
+                        title={item.label}
                       >
-                        {item.label}
+                        <EmojiIcon symbol={item.icon} size="1.05rem" />
                       </button>
                     ))}
                   </div>
