@@ -1793,6 +1793,11 @@ select:disabled {
   opacity: 0.82;
 }
 
+.mobile-sheet-drag-handle,
+.note-read-usage-mobile-backdrop {
+  display: none;
+}
+
 .app-back-button {
   display: inline-flex;
   align-items: center;
@@ -3247,9 +3252,12 @@ select:disabled {
   }
 
   .library-folder-modal {
-    padding: 1.2rem;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    width: min(100%, calc(100vw - 2rem));
+    max-height: calc(100dvh - 3rem);
+    padding: 1.2rem 1.2rem 1.65rem;
     border-radius: 24px;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .lecture-tab-button-content {
@@ -3268,6 +3276,30 @@ select:disabled {
   .library-folder-modal-body {
     padding-left: 0.35rem;
     padding-right: 0.35rem;
+    overflow-y: auto;
+  }
+
+  .library-folder-modal-actions {
+    gap: 0.45rem;
+    padding: 0.25rem 0.55rem 1.35rem;
+    box-sizing: border-box;
+  }
+
+  .library-folder-modal > .library-folder-primary-button.modal {
+    width: calc(100% - 1.1rem);
+    margin: 0.25rem 0.55rem 1.35rem;
+  }
+
+  .library-folder-primary-button.modal,
+  .library-folder-secondary-button,
+  .library-folder-danger-button {
+    min-height: 2.35rem;
+    padding: 0.58rem 0.75rem;
+    border-radius: 14px;
+  }
+
+  .library-folder-primary-button.modal {
+    font-size: 0.86rem;
   }
 
   .library-folder-modal .ios-input {
@@ -9167,6 +9199,17 @@ select:disabled {
     padding-bottom: calc(env(safe-area-inset-bottom) + 8.8rem);
   }
 
+  .mobile-new-note-pill,
+  .mobile-dock-toggle,
+  .ios-tab-item,
+  .library-folder-trigger,
+  .ios-row-note-card,
+  .dashboard-note-menu-button,
+  .mobile-create-action-grid .note-action-card {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   .dashboard-create-section {
     display: none;
   }
@@ -9254,6 +9297,7 @@ select:disabled {
   }
 
   .mobile-sheet-drag-handle {
+    display: block;
     position: relative;
     justify-self: center;
     width: 1.5rem;
@@ -9349,11 +9393,20 @@ select:disabled {
 
   .dashboard-note-list {
     gap: 0.55rem;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 5.2rem);
   }
 
   .ios-row-note-card {
     gap: 0.7rem;
     padding: 0.94rem 1rem;
+  }
+
+  .ios-row-note-card:active,
+  .dashboard-note-menu-button:active,
+  .library-folder-trigger:active,
+  .mobile-create-action-grid .note-action-card:active {
+    opacity: 0.88;
+    transform: scale(0.985);
   }
 
   .ios-row-note-card-link {
@@ -9398,6 +9451,11 @@ select:disabled {
     font-size: 0.92rem;
     font-weight: 650;
     box-shadow: 0 12px 24px rgba(244, 95, 90, 0.24);
+  }
+
+  .mobile-new-note-pill:active {
+    opacity: 0.88;
+    transform: scale(0.97);
   }
 
   .mobile-create-menu-backdrop {
@@ -9481,6 +9539,64 @@ select:disabled {
 
   .mobile-create-action-grid .note-action-card-detail {
     font-size: 0.78rem;
+  }
+
+  .mobile-draggable-sheet {
+    transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .library-folder-modal-drag-handle,
+  .dashboard-note-dialog-drag-handle,
+  .note-read-usage-drag-handle {
+    display: block;
+    margin: -0.35rem auto 0.1rem;
+  }
+
+  .dashboard-note-dialog {
+    padding-top: 0.85rem;
+  }
+
+  .dashboard-note-dialog-drag-handle {
+    margin-bottom: -0.2rem;
+  }
+
+  .library-folder-modal-drag-handle {
+    margin-bottom: -0.35rem;
+  }
+
+  .note-read-usage-mobile-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 118;
+    padding: 0;
+    border: 0;
+    background: color-mix(in srgb, var(--canvas) 45%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    animation: fade-in 160ms ease-out;
+  }
+
+  .note-read-usage-popover {
+    position: fixed;
+    inset: auto 0 0;
+    right: auto;
+    top: auto;
+    z-index: 119;
+    width: auto;
+    max-height: min(72vh, 36rem);
+    overflow-y: auto;
+    padding: 0.75rem 1rem calc(env(safe-area-inset-bottom) + 1.1rem);
+    border-bottom: 0;
+    border-radius: 30px 30px 0 0;
+    background: color-mix(in srgb, var(--surface-solid) 96%, var(--canvas));
+    animation: folder-sheet-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .note-read-usage-drag-handle {
+    margin-top: -0.25rem;
+    margin-bottom: 0.25rem;
   }
 
   .ios-tabbar {

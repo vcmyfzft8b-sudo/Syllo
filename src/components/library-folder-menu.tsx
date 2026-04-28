@@ -151,8 +151,11 @@ export function LibraryFolderMenu({
   const hasRestoredSelectionRef = useRef(false);
   const folderSheetDragStartYRef = useRef<number | null>(null);
   const folderSheetDragOffsetRef = useRef(0);
+  const folderModalDragStartYRef = useRef<number | null>(null);
+  const folderModalDragOffsetRef = useRef(0);
   const [isOpen, setIsOpen] = useState(false);
   const [folderSheetDragOffset, setFolderSheetDragOffset] = useState(0);
+  const [folderModalDragOffset, setFolderModalDragOffset] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [folders, setFolders] = useState<LibraryFolder[]>(() => readStoredFolders(userId));
   const [folderName, setFolderName] = useState("");
@@ -165,6 +168,9 @@ export function LibraryFolderMenu({
   const isEditModalOpen = editingFolderId !== null;
 
   function handleCancelEdit() {
+    folderModalDragStartYRef.current = null;
+    folderModalDragOffsetRef.current = 0;
+    setFolderModalDragOffset(0);
     setEditingFolderId(null);
     setEditingName("");
     setEditingLectureIds([]);
@@ -255,6 +261,13 @@ export function LibraryFolderMenu({
     setIsOpen((currentValue) => !currentValue);
   }
 
+  function closeCreateModal() {
+    folderModalDragStartYRef.current = null;
+    folderModalDragOffsetRef.current = 0;
+    setFolderModalDragOffset(0);
+    setIsCreateModalOpen(false);
+  }
+
   function closeFolderSheet() {
     folderSheetDragStartYRef.current = null;
     folderSheetDragOffsetRef.current = 0;
@@ -313,6 +326,62 @@ export function LibraryFolderMenu({
     };
   }, [isOpen]);
 
+  function handleFolderModalHandlePointerDown(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    event.preventDefault();
+    folderModalDragStartYRef.current = event.clientY;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function updateFolderModalDragOffset(clientY: number) {
+    if (folderModalDragStartYRef.current === null) {
+      return;
+    }
+
+    const nextOffset = Math.max(0, clientY - folderModalDragStartYRef.current);
+    folderModalDragOffsetRef.current = nextOffset;
+    setFolderModalDragOffset(nextOffset);
+  }
+
+  useEffect(() => {
+    if (!isCreateModalOpen && !isEditModalOpen) {
+      return;
+    }
+
+    function handleWindowPointerMove(event: PointerEvent) {
+      updateFolderModalDragOffset(event.clientY);
+    }
+
+    function handleWindowPointerEnd() {
+      if (folderModalDragOffsetRef.current > 80) {
+        folderModalDragStartYRef.current = null;
+        folderModalDragOffsetRef.current = 0;
+        setFolderModalDragOffset(0);
+        if (isCreateModalOpen) {
+          setIsCreateModalOpen(false);
+          return;
+        }
+
+        handleCancelEdit();
+        return;
+      }
+
+      folderModalDragStartYRef.current = null;
+      folderModalDragOffsetRef.current = 0;
+      setFolderModalDragOffset(0);
+    }
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerEnd);
+    window.addEventListener("pointercancel", handleWindowPointerEnd);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerEnd);
+      window.removeEventListener("pointercancel", handleWindowPointerEnd);
+    };
+  }, [isCreateModalOpen, isEditModalOpen]);
+
   function handleSelectAllNotes() {
     onSelectFolder(null, null);
     closeFolderSheet();
@@ -338,7 +407,7 @@ export function LibraryFolderMenu({
     onSelectFolder(nextFolder.id, nextFolder.lectureIds);
     setFolderName("");
     setDraftLectureIds([]);
-    setIsCreateModalOpen(false);
+    closeCreateModal();
     setIsOpen(false);
   }
 
@@ -562,19 +631,30 @@ export function LibraryFolderMenu({
           <div
             className="library-folder-modal-overlay"
             role="presentation"
-            onClick={() => setIsCreateModalOpen(false)}
+            onClick={closeCreateModal}
           >
             <div
-              className="library-folder-modal"
+              className="library-folder-modal mobile-draggable-sheet"
               role="dialog"
               aria-modal="true"
               aria-labelledby="new-folder-title"
               onClick={(event) => event.stopPropagation()}
+              style={
+                folderModalDragOffset > 0
+                  ? { transform: `translateY(${folderModalDragOffset}px)` }
+                  : undefined
+              }
             >
               <button
                 type="button"
+                className="mobile-sheet-drag-handle library-folder-modal-drag-handle"
+                onPointerDown={handleFolderModalHandlePointerDown}
+                aria-label="Povleci navzdol za zapiranje"
+              />
+              <button
+                type="button"
                 className="app-close-button library-folder-modal-close"
-                onClick={() => setIsCreateModalOpen(false)}
+                onClick={closeCreateModal}
                 aria-label="Zapri okno za novo mapo"
               >
                 <EmojiIcon symbol="✖️" size="1rem" />
@@ -654,12 +734,23 @@ export function LibraryFolderMenu({
             onClick={handleCancelEdit}
           >
             <div
-              className="library-folder-modal"
+              className="library-folder-modal mobile-draggable-sheet"
               role="dialog"
               aria-modal="true"
               aria-labelledby="edit-folder-title"
               onClick={(event) => event.stopPropagation()}
+              style={
+                folderModalDragOffset > 0
+                  ? { transform: `translateY(${folderModalDragOffset}px)` }
+                  : undefined
+              }
             >
+            <button
+              type="button"
+              className="mobile-sheet-drag-handle library-folder-modal-drag-handle"
+              onPointerDown={handleFolderModalHandlePointerDown}
+              aria-label="Povleci navzdol za zapiranje"
+            />
             <button
               type="button"
               className="app-close-button library-folder-modal-close"

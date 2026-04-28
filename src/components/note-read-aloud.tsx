@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Pause, Play } from "lucide-react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { EmojiIcon } from "@/components/emoji-icon";
@@ -183,6 +183,68 @@ function QuotaUsageMenu({
   onVoiceChange: (voice: NoteTtsVoice) => void;
   onHighlightColorChange: (colorId: NoteTtsHighlightColorId) => void;
 }) {
+  const menuRef = useRef<HTMLDetailsElement | null>(null);
+  const dragStartYRef = useRef<number | null>(null);
+  const dragOffsetRef = useRef(0);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+
+  function closeMenu() {
+    dragStartYRef.current = null;
+    dragOffsetRef.current = 0;
+    setDragOffset(0);
+    setIsMenuOpen(false);
+    if (menuRef.current) {
+      menuRef.current.open = false;
+    }
+  }
+
+  function handleDragHandlePointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    dragStartYRef.current = event.clientY;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function updateDragOffset(clientY: number) {
+    if (dragStartYRef.current === null) {
+      return;
+    }
+
+    const nextOffset = Math.max(0, clientY - dragStartYRef.current);
+    dragOffsetRef.current = nextOffset;
+    setDragOffset(nextOffset);
+  }
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    function handleWindowPointerMove(event: PointerEvent) {
+      updateDragOffset(event.clientY);
+    }
+
+    function handleWindowPointerEnd() {
+      if (dragOffsetRef.current > 80) {
+        closeMenu();
+        return;
+      }
+
+      dragStartYRef.current = null;
+      dragOffsetRef.current = 0;
+      setDragOffset(0);
+    }
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerEnd);
+    window.addEventListener("pointercancel", handleWindowPointerEnd);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerEnd);
+      window.removeEventListener("pointercancel", handleWindowPointerEnd);
+    };
+  }, [isMenuOpen]);
+
   if (!status) {
     return null;
   }
@@ -193,7 +255,11 @@ function QuotaUsageMenu({
   const remainingLabel = status.hasUnlimitedUsage ? "∞" : `${remainingPercent}%`;
 
   return (
-    <details className={`note-read-usage-menu ${isLimitReached ? "limit" : ""}`}>
+    <details
+      ref={menuRef}
+      className={`note-read-usage-menu ${isLimitReached ? "limit" : ""}`}
+      onToggle={(event) => setIsMenuOpen(event.currentTarget.open)}
+    >
       <summary
         className="note-read-usage-trigger"
         aria-label={
@@ -211,7 +277,28 @@ function QuotaUsageMenu({
           size="0.95rem"
         />
       </summary>
-      <div className="note-read-usage-popover">
+      {isMenuOpen ? (
+        <button
+          type="button"
+          className="note-read-usage-mobile-backdrop"
+          onClick={closeMenu}
+          aria-label="Zapri nastavitve poslušanja"
+        />
+      ) : null}
+      <div
+        className="note-read-usage-popover"
+        style={
+          dragOffset > 0
+            ? { transform: `translateY(${dragOffset}px)` }
+            : undefined
+        }
+      >
+        <button
+          type="button"
+          className="mobile-sheet-drag-handle note-read-usage-drag-handle"
+          onPointerDown={handleDragHandlePointerDown}
+          aria-label="Povleci navzdol za zapiranje"
+        />
         <div
           className="note-read-usage-bar"
           role="progressbar"

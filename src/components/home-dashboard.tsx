@@ -12,6 +12,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -113,8 +114,55 @@ const NoteRow = memo(function NoteRow({
   onOpenDelete,
   attachMenuRef,
 }: NoteRowProps) {
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressTriggeredRef = useRef(false);
+
+  function clearLongPressTimer() {
+    if (longPressTimerRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+  }
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    const target = event.target;
+    if (target instanceof Element && target.closest("button")) {
+      return;
+    }
+
+    longPressTriggeredRef.current = false;
+    clearLongPressTimer();
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTriggeredRef.current = true;
+      onToggleMenu(lecture.id);
+    }, 520);
+  }
+
+  function handleClickCapture(event: ReactMouseEvent<HTMLDivElement>) {
+    if (!longPressTriggeredRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    longPressTriggeredRef.current = false;
+  }
+
   return (
-    <div className={`ios-row-note-card ${isMenuOpen ? "menu-open" : ""}`}>
+    <div
+      className={`ios-row-note-card ${isMenuOpen ? "menu-open" : ""}`}
+      onPointerDown={handlePointerDown}
+      onPointerUp={clearLongPressTimer}
+      onPointerCancel={clearLongPressTimer}
+      onPointerLeave={clearLongPressTimer}
+      onClickCapture={handleClickCapture}
+    >
       <InstantLink
         href={`/app/lectures/${lecture.id}`}
         className="ios-row-note-card-link"
@@ -208,10 +256,13 @@ export function HomeDashboard({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const mobileCreateMenuDragStartYRef = useRef<number | null>(null);
   const mobileCreateMenuDragOffsetRef = useRef(0);
+  const dashboardDialogDragStartYRef = useRef<number | null>(null);
+  const dashboardDialogDragOffsetRef = useRef(0);
   const [query, setQuery] = useState("");
   const [manualModal, setManualModal] = useState<NoteSourceMode | null>(null);
   const [isMobileCreateMenuOpen, setIsMobileCreateMenuOpen] = useState(false);
   const [mobileCreateMenuDragOffset, setMobileCreateMenuDragOffset] = useState(0);
+  const [dashboardDialogDragOffset, setDashboardDialogDragOffset] = useState(0);
   const [libraryLectures, setLibraryLectures] = useState(lectures);
   const [busyLectureId, setBusyLectureId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -408,6 +459,9 @@ export function HomeDashboard({
       return;
     }
 
+    dashboardDialogDragStartYRef.current = null;
+    dashboardDialogDragOffsetRef.current = 0;
+    setDashboardDialogDragOffset(0);
     setRenameTarget(null);
     setRenameValue("");
   }
@@ -422,8 +476,68 @@ export function HomeDashboard({
       return;
     }
 
+    dashboardDialogDragStartYRef.current = null;
+    dashboardDialogDragOffsetRef.current = 0;
+    setDashboardDialogDragOffset(0);
     setDeleteTarget(null);
   }
+
+  function handleDashboardDialogDragHandlePointerDown(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    if (busyLectureId) {
+      return;
+    }
+
+    event.preventDefault();
+    dashboardDialogDragStartYRef.current = event.clientY;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function updateDashboardDialogDragOffset(clientY: number) {
+    if (dashboardDialogDragStartYRef.current === null) {
+      return;
+    }
+
+    const nextOffset = Math.max(0, clientY - dashboardDialogDragStartYRef.current);
+    dashboardDialogDragOffsetRef.current = nextOffset;
+    setDashboardDialogDragOffset(nextOffset);
+  }
+
+  useEffect(() => {
+    if (!renameTarget && !deleteTarget) {
+      return;
+    }
+
+    function handleWindowPointerMove(event: PointerEvent) {
+      updateDashboardDialogDragOffset(event.clientY);
+    }
+
+    function handleWindowPointerEnd() {
+      if (dashboardDialogDragOffsetRef.current > 80 && !busyLectureId) {
+        dashboardDialogDragStartYRef.current = null;
+        dashboardDialogDragOffsetRef.current = 0;
+        setDashboardDialogDragOffset(0);
+        setRenameTarget(null);
+        setRenameValue("");
+        setDeleteTarget(null);
+        return;
+      }
+
+      dashboardDialogDragStartYRef.current = null;
+      dashboardDialogDragOffsetRef.current = 0;
+      setDashboardDialogDragOffset(0);
+    }
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerEnd);
+    window.addEventListener("pointercancel", handleWindowPointerEnd);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerEnd);
+      window.removeEventListener("pointercancel", handleWindowPointerEnd);
+    };
+  }, [busyLectureId, deleteTarget, renameTarget]);
 
   async function handleDeleteLecture() {
     if (!deleteTarget) {
@@ -814,11 +928,23 @@ export function HomeDashboard({
             <div className="ios-sheet-wrap dashboard-note-dialog-wrap" role="presentation">
               <div className="ios-sheet-stack">
                 <section
-                  className="ios-sheet dashboard-note-dialog"
+                  className="ios-sheet dashboard-note-dialog mobile-draggable-sheet"
                   role="dialog"
                   aria-modal="true"
                   aria-labelledby="rename-note-title"
+                  style={
+                    dashboardDialogDragOffset > 0
+                      ? { transform: `translateY(${dashboardDialogDragOffset}px)` }
+                      : undefined
+                  }
                 >
+                  <button
+                    type="button"
+                    className="mobile-sheet-drag-handle dashboard-note-dialog-drag-handle"
+                    onPointerDown={handleDashboardDialogDragHandlePointerDown}
+                    aria-label="Povleci navzdol za zapiranje"
+                    disabled={busyLectureId === renameTarget.id}
+                  />
                   <div className="ios-sheet-header">
                     <h2 id="rename-note-title" className="ios-sheet-title">
                       Preimenuj zapisek
@@ -899,11 +1025,23 @@ export function HomeDashboard({
             <div className="ios-sheet-wrap dashboard-note-dialog-wrap" role="presentation">
               <div className="ios-sheet-stack">
                 <section
-                  className="ios-sheet dashboard-note-dialog"
+                  className="ios-sheet dashboard-note-dialog mobile-draggable-sheet"
                   role="dialog"
                   aria-modal="true"
                   aria-labelledby="delete-note-title"
+                  style={
+                    dashboardDialogDragOffset > 0
+                      ? { transform: `translateY(${dashboardDialogDragOffset}px)` }
+                      : undefined
+                  }
                 >
+                  <button
+                    type="button"
+                    className="mobile-sheet-drag-handle dashboard-note-dialog-drag-handle"
+                    onPointerDown={handleDashboardDialogDragHandlePointerDown}
+                    aria-label="Povleci navzdol za zapiranje"
+                    disabled={busyLectureId === deleteTarget.id}
+                  />
                   <div className="ios-sheet-header">
                     <h2 id="delete-note-title" className="ios-sheet-title">
                       Izbriši zapisek
