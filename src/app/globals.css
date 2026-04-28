@@ -4087,10 +4087,10 @@ select:disabled {
   z-index: 70;
   top: calc(100% + 0.75rem);
   right: 0;
-  width: min(13.5rem, 74vw);
-  padding: 0.8rem;
+  width: min(16.2rem, calc(100vw - 2rem));
+  padding: 0.96rem;
   border: 1px solid color-mix(in srgb, var(--separator) 80%, transparent);
-  border-radius: 20px;
+  border-radius: 24px;
   background: color-mix(in srgb, var(--surface-solid) 98%, black 2%);
   box-shadow: 0 22px 50px rgba(0, 0, 0, 0.3);
   animation: fade-in 0.14s ease-out;
@@ -4098,7 +4098,7 @@ select:disabled {
 
 .note-read-usage-bar {
   position: relative;
-  height: 1rem;
+  height: 1.2rem;
   overflow: hidden;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--separator) 86%, transparent);
@@ -4130,7 +4130,7 @@ select:disabled {
   align-items: center;
   justify-content: center;
   color: #7c2d12;
-  font-size: 0.62rem;
+  font-size: 0.74rem;
   font-weight: 800;
   line-height: 1;
 }
@@ -4140,23 +4140,23 @@ select:disabled {
 }
 
 .note-read-usage-reset {
-  margin-top: 0.38rem;
+  margin-top: 0.46rem;
   color: var(--secondary-label);
-  font-size: 0.58rem;
+  font-size: 0.7rem;
   font-weight: 650;
   line-height: 1.2;
 }
 
 .note-read-settings-divider {
   height: 1px;
-  margin: 0.68rem 0;
+  margin: 0.82rem 0;
   background: color-mix(in srgb, var(--separator) 78%, transparent);
 }
 
 .note-read-setting-group {
   display: grid;
-  gap: 0.35rem;
-  margin-top: 0.62rem;
+  gap: 0.42rem;
+  margin-top: 0.74rem;
 }
 
 .note-read-settings-divider + .note-read-setting-group {
@@ -4165,7 +4165,7 @@ select:disabled {
 
 .note-read-setting-label {
   color: var(--secondary-label);
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   font-weight: 750;
   line-height: 1;
 }
@@ -4173,18 +4173,18 @@ select:disabled {
 .note-read-rate-options {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.25rem;
+  gap: 0.3rem;
 }
 
 .note-read-rate-option {
   min-width: 0;
-  height: 1.55rem;
+  height: 1.86rem;
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--separator) 75%, transparent);
   border-radius: 999px;
   background: var(--fill-primary);
   color: var(--secondary-label);
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   font-weight: 800;
   line-height: 1;
 }
@@ -4203,9 +4203,9 @@ select:disabled {
 .note-read-setting-select-wrap::after {
   position: absolute;
   top: 50%;
-  right: 0.95rem;
-  width: 0.4rem;
-  height: 0.4rem;
+  right: 1.14rem;
+  width: 0.48rem;
+  height: 0.48rem;
   border-right: 2px solid var(--label);
   border-bottom: 2px solid var(--label);
   content: "";
@@ -4215,13 +4215,13 @@ select:disabled {
 
 .note-read-setting-select {
   width: 100%;
-  height: 1.85rem;
-  padding: 0 2.2rem 0 0.55rem;
+  height: 2.22rem;
+  padding: 0 2.64rem 0 0.66rem;
   border: 1px solid color-mix(in srgb, var(--separator) 80%, transparent);
   border-radius: 999px;
   background: var(--fill-primary);
   color: var(--label);
-  font-size: 0.68rem;
+  font-size: 0.82rem;
   font-weight: 750;
   line-height: 1;
   appearance: none;
@@ -4231,12 +4231,12 @@ select:disabled {
 .note-read-color-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.38rem;
+  gap: 0.46rem;
 }
 
 .note-read-color-option {
-  width: 1.45rem;
-  height: 1.45rem;
+  width: 1.74rem;
+  height: 1.74rem;
   padding: 0;
   border: 2px solid color-mix(in srgb, var(--separator) 76%, transparent);
   border-radius: 999px;
