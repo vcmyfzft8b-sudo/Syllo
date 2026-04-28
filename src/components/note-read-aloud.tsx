@@ -242,17 +242,25 @@ function QuotaUsageMenu({
     }
 
     const target = event.target;
+    const interactiveTarget =
+      target instanceof Element
+        ? target.closest("button, input, textarea, select, a, .app-close-button")
+        : null;
+    const dragHandleTarget =
+      target instanceof Element ? target.closest(".note-read-usage-drag-handle") : null;
+
     if (
-      target instanceof Element &&
-      target.closest("button, input, textarea, select, a, .app-close-button") &&
-      !target.closest(".note-read-usage-drag-handle")
+      interactiveTarget &&
+      !dragHandleTarget
     ) {
       return;
     }
 
     suppressClickRef.current = false;
     dragStartYRef.current = event.clientY;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (!interactiveTarget || dragHandleTarget) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
   }
 
   function updateDragOffset(clientY: number) {
