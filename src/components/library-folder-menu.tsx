@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 import { EmojiIcon } from "@/components/emoji-icon";
 import { Folder } from "@/components/folder";
@@ -144,7 +149,10 @@ export function LibraryFolderMenu({
 }) {
   const shellRef = useRef<HTMLDivElement | null>(null);
   const hasRestoredSelectionRef = useRef(false);
+  const folderSheetDragStartYRef = useRef<number | null>(null);
+  const folderSheetDragOffsetRef = useRef(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [folderSheetDragOffset, setFolderSheetDragOffset] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [folders, setFolders] = useState<LibraryFolder[]>(() => readStoredFolders(userId));
   const [folderName, setFolderName] = useState("");
@@ -247,14 +255,72 @@ export function LibraryFolderMenu({
     setIsOpen((currentValue) => !currentValue);
   }
 
+  function closeFolderSheet() {
+    folderSheetDragStartYRef.current = null;
+    folderSheetDragOffsetRef.current = 0;
+    setFolderSheetDragOffset(0);
+    setIsOpen(false);
+  }
+
+  function handleFolderSheetHandlePointerDown(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    event.preventDefault();
+    folderSheetDragStartYRef.current = event.clientY;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function updateFolderSheetDragOffset(clientY: number) {
+    if (folderSheetDragStartYRef.current === null) {
+      return;
+    }
+
+    const nextOffset = Math.max(0, clientY - folderSheetDragStartYRef.current);
+    folderSheetDragOffsetRef.current = nextOffset;
+    setFolderSheetDragOffset(nextOffset);
+  }
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handleWindowPointerMove(event: PointerEvent) {
+      updateFolderSheetDragOffset(event.clientY);
+    }
+
+    function handleWindowPointerEnd() {
+      if (folderSheetDragOffsetRef.current > 80) {
+        folderSheetDragStartYRef.current = null;
+        folderSheetDragOffsetRef.current = 0;
+        setFolderSheetDragOffset(0);
+        setIsOpen(false);
+        return;
+      }
+
+      folderSheetDragStartYRef.current = null;
+      folderSheetDragOffsetRef.current = 0;
+      setFolderSheetDragOffset(0);
+    }
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerEnd);
+    window.addEventListener("pointercancel", handleWindowPointerEnd);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerEnd);
+      window.removeEventListener("pointercancel", handleWindowPointerEnd);
+    };
+  }, [isOpen]);
+
   function handleSelectAllNotes() {
     onSelectFolder(null, null);
-    setIsOpen(false);
+    closeFolderSheet();
   }
 
   function handleSelectFolder(folder: LibraryFolder) {
     onSelectFolder(folder.id, folder.lectureIds);
-    setIsOpen(false);
+    closeFolderSheet();
   }
 
   function handleCreateFolder() {
@@ -451,15 +517,25 @@ export function LibraryFolderMenu({
             <div
               className="library-folder-mobile-sheet-backdrop"
               role="presentation"
-              onClick={() => setIsOpen(false)}
+              onClick={closeFolderSheet}
             />
             <section
               className="library-folder-mobile-sheet"
               role="dialog"
               aria-modal="true"
               aria-labelledby="folders-sheet-title"
+              style={
+                folderSheetDragOffset > 0
+                  ? { transform: `translateY(${folderSheetDragOffset}px)` }
+                  : undefined
+              }
             >
-              <div className="library-folder-mobile-sheet-handle" aria-hidden="true" />
+              <button
+                type="button"
+                className="mobile-sheet-drag-handle library-folder-mobile-sheet-handle"
+                onPointerDown={handleFolderSheetHandlePointerDown}
+                aria-label="Povleci navzdol za zapiranje map"
+              />
               <div className="library-folder-mobile-sheet-header">
                 <h2 id="folders-sheet-title" className="library-folder-mobile-sheet-title">
                   Mape
@@ -467,7 +543,7 @@ export function LibraryFolderMenu({
                 <button
                   type="button"
                   className="app-close-button library-folder-mobile-sheet-close"
-                  onClick={() => setIsOpen(false)}
+                  onClick={closeFolderSheet}
                   aria-label="Zapri mape"
                 >
                   <EmojiIcon symbol="✖️" size="1rem" />

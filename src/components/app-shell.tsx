@@ -91,6 +91,7 @@ export function AppShell({
   const subscribeLabel = hasTrialLectureAvailable ? "Trial" : "Naročnina";
   const pullThreshold = 84;
   const cappedPullDistance = Math.min(pullDistance, 120);
+  const isLecturePage = pathname.startsWith("/app/lectures/");
 
   useEffect(() => {
     for (const item of TAB_ITEMS) {
@@ -211,12 +212,18 @@ export function AppShell({
       mobilePullOffset > 0 ? `translate3d(0, ${mobilePullOffset}px, 0)` : undefined,
     transition: isPulling ? "none" : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
   };
-  const activeTabItem =
-    TAB_ITEMS.find((item) =>
-      item.href === "/app"
-        ? pathname === "/app" || pathname.startsWith("/app/lectures/")
-        : pathname === item.href || pathname.startsWith(`${item.href}/`),
-    ) ?? TAB_ITEMS[0];
+  const isHomePage = pathname === "/app";
+  const mobileDockToggleItem = isHomePage ? TAB_ITEMS[2] : TAB_ITEMS[0];
+
+  function handleMobileDockToggle() {
+    if (isMobileDockOpen) {
+      setIsMobileDockOpen(false);
+      router.push(mobileDockToggleItem.href);
+      return;
+    }
+
+    setIsMobileDockOpen((current) => !current);
+  }
 
   function renderPullToRefreshIndicator() {
     return (
@@ -377,26 +384,36 @@ export function AppShell({
         <button
           type="button"
           className="mobile-dock-toggle"
-          onClick={() => setIsMobileDockOpen((current) => !current)}
-          aria-label={isMobileDockOpen ? "Zapri navigacijo" : "Odpri navigacijo"}
+          onClick={handleMobileDockToggle}
+          aria-label={
+            isMobileDockOpen
+              ? `Pojdi na ${mobileDockToggleItem.displayLabel}`
+              : "Odpri navigacijo"
+          }
           aria-expanded={isMobileDockOpen}
         >
-          <EmojiIcon symbol={activeTabItem.icon} size="1.05rem" />
+          <EmojiIcon symbol={mobileDockToggleItem.icon} size="1.05rem" />
         </button>
         <div className="ios-tabbar-inner">
           {TAB_ITEMS.map((item) => {
             const active =
               item.href === "/app"
-                ? pathname === "/app" || pathname.startsWith("/app/lectures/")
+                ? pathname === "/app" || isLecturePage
                 : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
             return (
               <InstantLink
                 key={item.href}
                 href={item.href}
-                className={`ios-tab-item ${active ? "active" : ""}`}
+                className={`ios-tab-item ${active ? "active" : ""} ${
+                  item.href === mobileDockToggleItem.href ? "mobile-toggle-item" : ""
+                }`}
                 aria-current={active ? "page" : undefined}
-                onClick={() => setIsMobileDockOpen(false)}
+                onClick={(event) => {
+                  event.preventDefault();
+                  setIsMobileDockOpen(false);
+                  router.push(item.href);
+                }}
               >
                 <span className="ios-tab-item-icon">
                   <EmojiIcon symbol={item.icon} size="1.05rem" />

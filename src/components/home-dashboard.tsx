@@ -12,6 +12,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -205,9 +206,12 @@ export function HomeDashboard({
   const router = useRouter();
   const searchParams = useSearchParams();
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const mobileCreateMenuDragStartYRef = useRef<number | null>(null);
+  const mobileCreateMenuDragOffsetRef = useRef(0);
   const [query, setQuery] = useState("");
   const [manualModal, setManualModal] = useState<NoteSourceMode | null>(null);
   const [isMobileCreateMenuOpen, setIsMobileCreateMenuOpen] = useState(false);
+  const [mobileCreateMenuDragOffset, setMobileCreateMenuDragOffset] = useState(0);
   const [libraryLectures, setLibraryLectures] = useState(lectures);
   const [busyLectureId, setBusyLectureId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -307,6 +311,9 @@ export function HomeDashboard({
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        mobileCreateMenuDragStartYRef.current = null;
+        mobileCreateMenuDragOffsetRef.current = 0;
+        setMobileCreateMenuDragOffset(0);
         setIsMobileCreateMenuOpen(false);
       }
     }
@@ -322,13 +329,71 @@ export function HomeDashboard({
     }
   }
 
+  function closeMobileCreateMenu() {
+    mobileCreateMenuDragStartYRef.current = null;
+    mobileCreateMenuDragOffsetRef.current = 0;
+    setMobileCreateMenuDragOffset(0);
+    setIsMobileCreateMenuOpen(false);
+  }
+
+  function handleMobileCreateMenuHandlePointerDown(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    event.preventDefault();
+    mobileCreateMenuDragStartYRef.current = event.clientY;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function updateMobileCreateMenuDragOffset(clientY: number) {
+    if (mobileCreateMenuDragStartYRef.current === null) {
+      return;
+    }
+
+    const nextOffset = Math.max(0, clientY - mobileCreateMenuDragStartYRef.current);
+    mobileCreateMenuDragOffsetRef.current = nextOffset;
+    setMobileCreateMenuDragOffset(nextOffset);
+  }
+
+  useEffect(() => {
+    if (!isMobileCreateMenuOpen) {
+      return;
+    }
+
+    function handleWindowPointerMove(event: PointerEvent) {
+      updateMobileCreateMenuDragOffset(event.clientY);
+    }
+
+    function handleWindowPointerEnd() {
+      if (mobileCreateMenuDragOffsetRef.current > 80) {
+        mobileCreateMenuDragStartYRef.current = null;
+        mobileCreateMenuDragOffsetRef.current = 0;
+        setMobileCreateMenuDragOffset(0);
+        setIsMobileCreateMenuOpen(false);
+        return;
+      }
+
+      mobileCreateMenuDragStartYRef.current = null;
+      mobileCreateMenuDragOffsetRef.current = 0;
+      setMobileCreateMenuDragOffset(0);
+    }
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerEnd);
+    window.addEventListener("pointercancel", handleWindowPointerEnd);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerEnd);
+      window.removeEventListener("pointercancel", handleWindowPointerEnd);
+    };
+  }, [isMobileCreateMenuOpen]);
+
   function openQuickAction(mode: NoteSourceMode) {
     if (!canCreateNotes) {
       router.push("/app/start");
       return;
     }
 
-    setIsMobileCreateMenuOpen(false);
+    closeMobileCreateMenu();
     setManualModal(mode);
   }
 
@@ -669,7 +734,7 @@ export function HomeDashboard({
             <button
               type="button"
               className="mobile-create-menu-backdrop"
-              onClick={() => setIsMobileCreateMenuOpen(false)}
+              onClick={closeMobileCreateMenu}
               aria-label="Zapri meni za nov zapisek"
             />
             <section
@@ -677,7 +742,18 @@ export function HomeDashboard({
               role="dialog"
               aria-modal="true"
               aria-labelledby="mobile-create-menu-title"
+              style={
+                mobileCreateMenuDragOffset > 0
+                  ? { transform: `translateY(${mobileCreateMenuDragOffset}px)` }
+                  : undefined
+              }
             >
+              <button
+                type="button"
+                className="mobile-sheet-drag-handle mobile-create-menu-drag-handle"
+                onPointerDown={handleMobileCreateMenuHandlePointerDown}
+                aria-label="Povleci navzdol za zapiranje"
+              />
               <div className="mobile-create-menu-header">
                 <h2 id="mobile-create-menu-title" className="dashboard-section-title">
                   Nov zapisek
@@ -685,10 +761,10 @@ export function HomeDashboard({
                 <button
                   type="button"
                   className="app-close-button"
-                  onClick={() => setIsMobileCreateMenuOpen(false)}
+                  onClick={closeMobileCreateMenu}
                   aria-label="Zapri meni za nov zapisek"
                 >
-                  <X className="h-4 w-4" />
+                  <EmojiIcon symbol="✖️" size="1rem" />
                 </button>
               </div>
 
