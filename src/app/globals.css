@@ -248,12 +248,14 @@
 }
 
 html {
+  overscroll-behavior-y: none;
   scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  overscroll-behavior-y: none;
   background-color: var(--canvas);
   color: var(--label);
   font-family: var(--font-sans);
@@ -9300,6 +9302,7 @@ select:disabled {
     background: color-mix(in srgb, var(--surface-solid) 96%, var(--canvas));
     box-shadow: 0 -18px 54px rgba(0, 0, 0, 0.2);
     animation: folder-sheet-in 320ms cubic-bezier(0.22, 1, 0.36, 1);
+    touch-action: none;
     transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
@@ -9491,6 +9494,7 @@ select:disabled {
     background: color-mix(in srgb, var(--surface-solid) 96%, var(--canvas));
     box-shadow: 0 -18px 54px rgba(0, 0, 0, 0.2);
     animation: folder-sheet-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+    touch-action: none;
     transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 

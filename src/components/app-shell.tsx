@@ -89,8 +89,8 @@ export function AppShell({
   const showCreateCta = !shouldHideNavigation;
   const showSubscribeCta = !hasPaidAccess && showCreateCta;
   const subscribeLabel = hasTrialLectureAvailable ? "Trial" : "Naročnina";
-  const pullThreshold = 126;
-  const cappedPullDistance = Math.min(pullDistance, 180);
+  const pullThreshold = 168;
+  const cappedPullDistance = Math.min(pullDistance, 220);
   const isLecturePage = pathname.startsWith("/app/lectures/");
 
   useEffect(() => {
@@ -133,14 +133,17 @@ export function AppShell({
       return window.scrollY <= 0;
     }
 
+    const mobileSheetSelector =
+      ".mobile-create-menu, .mobile-create-menu-backdrop, .library-folder-mobile-sheet, .library-folder-mobile-sheet-backdrop, .library-folder-modal, .library-folder-modal-overlay, .note-read-usage-popover, .note-read-usage-mobile-backdrop, .dashboard-note-dialog, .dashboard-note-dialog-backdrop, .note-source-modal-wrap, .note-source-modal-backdrop";
+
+    function hasActiveMobileSheet() {
+      return window.innerWidth < mobileBreakpoint && Boolean(document.querySelector(mobileSheetSelector));
+    }
+
     function isInsideMobileSheet(target: EventTarget | null) {
       return (
         target instanceof HTMLElement &&
-        Boolean(
-          target.closest(
-            ".mobile-create-menu, .library-folder-mobile-sheet, .library-folder-modal, .note-read-usage-popover, .dashboard-note-dialog",
-          ),
-        )
+        Boolean(target.closest(mobileSheetSelector))
       );
     }
 
@@ -149,6 +152,7 @@ export function AppShell({
         window.innerWidth >= mobileBreakpoint ||
         isRefreshing ||
         event.touches.length !== 1 ||
+        hasActiveMobileSheet() ||
         isInsideMobileSheet(event.target)
       ) {
         resetGesture();
@@ -160,6 +164,11 @@ export function AppShell({
     }
 
     function handleTouchMove(event: TouchEvent) {
+      if (hasActiveMobileSheet() || isInsideMobileSheet(event.target)) {
+        resetGesture();
+        return;
+      }
+
       if (!pullEligibleRef.current || touchStartYRef.current == null || isRefreshing) {
         return;
       }
@@ -177,7 +186,7 @@ export function AppShell({
       }
 
       event.preventDefault();
-      const nextPullDistance = Math.min(deltaY * 0.5, 180);
+      const nextPullDistance = Math.min(deltaY * 0.4, 220);
       pullDistanceRef.current = nextPullDistance;
       setIsPulling(true);
       setPullDistance(nextPullDistance);
