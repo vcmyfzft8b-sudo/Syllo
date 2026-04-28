@@ -9385,13 +9385,14 @@ select:disabled {
     min-height: 4.95rem;
     padding: 0.9rem 1rem;
     border-radius: 22px;
+    background: color-mix(in srgb, var(--surface-muted) 88%, var(--surface-solid));
   }
 
   .library-folder-mobile-sheet .library-folder-option-icon {
     width: 2.75rem;
     height: 2.75rem;
     border-radius: 999px;
-    background: var(--surface-muted);
+    background: color-mix(in srgb, var(--surface-solid) 92%, transparent);
   }
 
   .library-folder-mobile-sheet .library-folder-option-meta {
@@ -9568,9 +9569,13 @@ select:disabled {
     padding: 0.75rem 0.9rem;
     border-radius: 20px;
     border-color: color-mix(in srgb, var(--separator) 72%, transparent);
-    background: color-mix(in srgb, var(--surface-solid) 94%, black 6%);
+    background: color-mix(in srgb, var(--surface-muted) 88%, var(--surface-solid));
     box-shadow: none;
     gap: 0.75rem;
+  }
+
+  .mobile-create-action-grid .note-action-card-icon:not(.record) {
+    background: color-mix(in srgb, var(--surface-solid) 92%, transparent);
   }
 
   .mobile-create-action-grid .note-action-card-icon {
@@ -9813,11 +9818,26 @@ select:disabled {
   color: white;
 }
 
+:root[data-theme="dark"] .ios-tabbar.mobile-open .mobile-dock-toggle:not(.active) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--label);
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) .mobile-dock-toggle,
   :root[data-theme="system"] .mobile-dock-toggle {
     background: linear-gradient(135deg, #1b1b1f, #2a2a30);
     color: white;
+  }
+
+  :root:not([data-theme]) .ios-tabbar.mobile-open .mobile-dock-toggle:not(.active),
+  :root[data-theme="system"] .ios-tabbar.mobile-open .mobile-dock-toggle:not(.active) {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    color: var(--label);
   }
 }
 
