@@ -15,19 +15,6 @@ const TAB_ITEMS = [
   { href: "/app/settings", displayLabel: "Nastavitve", icon: "⚙️" },
 ];
 const PULL_REFRESH_SPOKES = Array.from({ length: 8 }, (_, index) => index);
-const HAPTIC_TARGET_SELECTOR = [
-  "button",
-  "a[href]",
-  "[role='button']",
-  "input[type='button']",
-  "input[type='submit']",
-  "input[type='checkbox']",
-  "input[type='radio']",
-  "input[type='range']",
-  "select",
-  "summary",
-  "[data-haptic]",
-].join(",");
 
 function getChrome(pathname: string) {
   if (pathname === "/app/start") {
@@ -131,54 +118,6 @@ export function AppShell({
     window.addEventListener("memoai:mobile-dock-close", handleMobileDockClose);
     return () => {
       window.removeEventListener("memoai:mobile-dock-close", handleMobileDockClose);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof navigator === "undefined") {
-      return;
-    }
-
-    const vibrate = navigator.vibrate?.bind(navigator);
-    const coarsePointerQuery = window.matchMedia?.("(pointer: coarse)");
-
-    if (!vibrate || coarsePointerQuery?.matches === false) {
-      return;
-    }
-
-    let lastHapticAt = 0;
-
-    function handleHapticPointerUp(event: PointerEvent) {
-      if (event.pointerType === "mouse") {
-        return;
-      }
-
-      const target = event.target instanceof Element ? event.target : null;
-      const interactiveTarget = target?.closest(HAPTIC_TARGET_SELECTOR);
-
-      if (!(interactiveTarget instanceof HTMLElement)) {
-        return;
-      }
-
-      if (
-        interactiveTarget.matches(":disabled, [aria-disabled='true'], [data-haptic='off']") ||
-        interactiveTarget.closest("[data-haptic='off']")
-      ) {
-        return;
-      }
-
-      const now = window.performance.now();
-      if (now - lastHapticAt < 80) {
-        return;
-      }
-
-      lastHapticAt = now;
-      vibrate(8);
-    }
-
-    window.addEventListener("pointerup", handleHapticPointerUp, { passive: true });
-    return () => {
-      window.removeEventListener("pointerup", handleHapticPointerUp);
     };
   }, []);
 
