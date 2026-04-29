@@ -125,62 +125,43 @@ export async function POST(request: Request) {
 
     const sourceType = isPdfDocument(inputFile) ? "pdf" : "text";
     let nextLectureId = lectureId;
+    const extracted = await extractTextFromDocument(inputFile);
+    const lectureInput = {
+      userId: user.id,
+      sourceType,
+      text: extracted.text,
+      blocks: extracted.pages.map((page) => ({
+        label: `Stran ${page.pageNumber}`,
+        pageNumber: page.pageNumber,
+        text: page.text,
+      })),
+      titleHint: extracted.title || sourceFileName.replace(/\.[^.]+$/i, ""),
+      languageHint,
+      modelMetadata: {
+        importMode: sourceType === "pdf" ? "pdf" : "document",
+        sourceFileName,
+      },
+    };
 
     if (!nextLectureId) {
-      const extracted = await extractTextFromDocument(inputFile);
       nextLectureId = await prepareLectureFromTextSource({
-        userId: user.id,
-        sourceType,
-        text: extracted.text,
-        blocks: extracted.pages.map((page) => ({
-          label: `Stran ${page.pageNumber}`,
-          pageNumber: page.pageNumber,
-          text: page.text,
-        })),
-        titleHint: extracted.title || sourceFileName.replace(/\.[^.]+$/i, ""),
-        languageHint,
-        modelMetadata: {
-          importMode: sourceType === "pdf" ? "pdf" : "document",
-          sourceFileName,
-        },
-      });
-
-      const queuedLectureId = nextLectureId;
-      after(async () => {
-        try {
-          await enqueueLectureNotesGeneration(queuedLectureId);
-        } catch (error) {
-          await markLecturePipelineFailed({ lectureId: queuedLectureId, error });
-        }
+        ...lectureInput,
       });
     } else {
-      const queuedLectureId = nextLectureId;
-      after(async () => {
-        try {
-          const extracted = await extractTextFromDocument(inputFile);
-          await prepareLectureFromTextSource({
-            lectureId: queuedLectureId,
-            userId: user.id,
-            sourceType,
-            text: extracted.text,
-            blocks: extracted.pages.map((page) => ({
-              label: `Stran ${page.pageNumber}`,
-              pageNumber: page.pageNumber,
-              text: page.text,
-            })),
-            titleHint: extracted.title || sourceFileName.replace(/\.[^.]+$/i, ""),
-            languageHint,
-            modelMetadata: {
-              importMode: sourceType === "pdf" ? "pdf" : "document",
-              sourceFileName,
-            },
-          });
-          await enqueueLectureNotesGeneration(queuedLectureId);
-        } catch (error) {
-          await markLecturePipelineFailed({ lectureId: queuedLectureId, error });
-        }
+      await prepareLectureFromTextSource({
+        ...lectureInput,
+        lectureId: nextLectureId,
       });
     }
+
+    const queuedLectureId = nextLectureId;
+    after(async () => {
+      try {
+        await enqueueLectureNotesGeneration(queuedLectureId);
+      } catch (error) {
+        await markLecturePipelineFailed({ lectureId: queuedLectureId, error });
+      }
+    });
 
     return NextResponse.json({ lectureId: nextLectureId });
   } catch (error) {

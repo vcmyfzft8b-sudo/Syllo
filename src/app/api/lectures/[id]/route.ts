@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { parseAudioChunkManifest } from "@/lib/audio-processing";
 import { ensureUserOwnsLecture, getLectureDetailForUser } from "@/lib/lectures";
-import { enqueueLectureNotesGeneration } from "@/lib/jobs";
+import { enqueueLectureNotesGeneration, enqueueLectureScanProcessing } from "@/lib/jobs";
 import { isRecord } from "@/lib/lecture-source-metadata";
 import { markLecturePipelineFailed } from "@/lib/pipeline";
 import { parseJsonRequest } from "@/lib/request-validation";
@@ -33,6 +33,23 @@ function getLectureProcessingUpdatedAt(processingMetadata: unknown) {
 
   const timestamp = Date.parse(updatedAt);
   return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function hasPendingScanImages(processingMetadata: unknown) {
+  return (
+    isRecord(processingMetadata) &&
+    Array.isArray(processingMetadata.pendingScanImages) &&
+    processingMetadata.pendingScanImages.length > 0
+  );
+}
+
+function hasPreparedManualImportText(processingMetadata: unknown) {
+  return (
+    isRecord(processingMetadata) &&
+    isRecord(processingMetadata.manualImport) &&
+    typeof processingMetadata.manualImport.text === "string" &&
+    processingMetadata.manualImport.text.trim().length > 0
+  );
 }
 
 export async function GET(
@@ -98,6 +115,21 @@ export async function GET(
   ) {
     after(async () => {
       await enqueueLectureNotesGeneration(detail.lecture.id);
+    });
+  } else if (
+    detail.lecture.status === "queued" &&
+    !detail.artifact &&
+    Date.now() - processingUpdatedAt > STALE_NOTES_GENERATION_MS
+  ) {
+    after(async () => {
+      if (hasPendingScanImages(detail.lecture.processing_metadata)) {
+        await enqueueLectureScanProcessing(detail.lecture.id);
+        return;
+      }
+
+      if (hasPreparedManualImportText(detail.lecture.processing_metadata)) {
+        await enqueueLectureNotesGeneration(detail.lecture.id);
+      }
     });
   }
 
