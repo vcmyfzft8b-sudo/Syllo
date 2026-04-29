@@ -1,10 +1,15 @@
 "use client";
 
 import { Loader2, Pause, Play } from "lucide-react";
-import type { CSSProperties } from "react";
+import type {
+  CSSProperties,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
+} from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { EmojiIcon } from "@/components/emoji-icon";
+import { ViewportPortal } from "@/components/viewport-portal";
 import {
   DEFAULT_NOTE_TTS_HIGHLIGHT_COLOR_ID,
   DEFAULT_NOTE_TTS_PLAYBACK_RATE,
@@ -68,6 +73,7 @@ const TTS_FREE_DAILY_LIMIT_MESSAGE =
   "Porabil si današnje brezplačno poslušanje. Nadgradi za več poslušanja.";
 const TTS_PAID_DAILY_LIMIT_MESSAGE =
   "Porabil si današnje poslušanje. Znova lahko poslušaš po ponastavitvi ob 00:00.";
+const READ_SETTINGS_SHEET_CLOSE_MS = 180;
 
 function createReadSessionId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -183,6 +189,133 @@ function QuotaUsageMenu({
   onVoiceChange: (voice: NoteTtsVoice) => void;
   onHighlightColorChange: (colorId: NoteTtsHighlightColorId) => void;
 }) {
+  const menuRef = useRef<HTMLDetailsElement | null>(null);
+  const dragStartYRef = useRef<number | null>(null);
+  const dragOffsetRef = useRef(0);
+  const suppressClickRef = useRef(false);
+  const closeTimerRef = useRef<number | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMenuClosing, setIsMenuClosing] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+
+  const closeMenu = useCallback(() => {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    dragStartYRef.current = null;
+    dragOffsetRef.current = 0;
+    setDragOffset(0);
+    setIsMenuOpen(false);
+    setIsMenuClosing(false);
+    if (menuRef.current) {
+      menuRef.current.open = false;
+    }
+  }, []);
+
+  const animateCloseMenu = useCallback(() => {
+    if (isMenuClosing) {
+      return;
+    }
+
+    dragStartYRef.current = null;
+    dragOffsetRef.current = window.innerHeight;
+    setIsMenuClosing(true);
+    setDragOffset(window.innerHeight);
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null;
+      closeMenu();
+    }, READ_SETTINGS_SHEET_CLOSE_MS);
+  }, [closeMenu, isMenuClosing]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
+  function handleSheetPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    const target = event.target;
+    const interactiveTarget =
+      target instanceof Element
+        ? target.closest("button, input, textarea, select, a, .app-close-button")
+        : null;
+    const dragHandleTarget =
+      target instanceof Element ? target.closest(".note-read-usage-drag-handle") : null;
+
+    if (
+      interactiveTarget &&
+      !dragHandleTarget
+    ) {
+      return;
+    }
+
+    suppressClickRef.current = false;
+    dragStartYRef.current = event.clientY;
+    if (!interactiveTarget || dragHandleTarget) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+  }
+
+  function updateDragOffset(clientY: number) {
+    if (dragStartYRef.current === null) {
+      return;
+    }
+
+    const nextOffset = Math.max(0, clientY - dragStartYRef.current);
+    dragOffsetRef.current = nextOffset;
+    if (nextOffset > 8) {
+      suppressClickRef.current = true;
+    }
+    setDragOffset(nextOffset);
+  }
+
+  function handleSheetClickCapture(event: ReactMouseEvent<HTMLDivElement>) {
+    if (!suppressClickRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    suppressClickRef.current = false;
+  }
+
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return;
+    }
+
+    function handleWindowPointerMove(event: PointerEvent) {
+      updateDragOffset(event.clientY);
+    }
+
+    function handleWindowPointerEnd() {
+      if (dragOffsetRef.current > 80) {
+        animateCloseMenu();
+        return;
+      }
+
+      dragStartYRef.current = null;
+      dragOffsetRef.current = 0;
+      setDragOffset(0);
+    }
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerEnd);
+    window.addEventListener("pointercancel", handleWindowPointerEnd);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerEnd);
+      window.removeEventListener("pointercancel", handleWindowPointerEnd);
+    };
+  }, [animateCloseMenu, isMenuOpen]);
+
   if (!status) {
     return null;
   }
@@ -192,109 +325,160 @@ function QuotaUsageMenu({
   const isLimitReached = !status.hasUnlimitedUsage && status.remainingSeconds <= 0;
   const remainingLabel = status.hasUnlimitedUsage ? "∞" : `${remainingPercent}%`;
 
-  return (
-    <details className={`note-read-usage-menu ${isLimitReached ? "limit" : ""}`}>
-      <summary
-        className="note-read-usage-trigger"
+  const menuContent = (
+    <>
+      <button
+        type="button"
+        className="mobile-sheet-drag-handle note-read-usage-drag-handle"
+        aria-label="Povleci navzdol za zapiranje"
+      />
+      <div
+        className="note-read-usage-bar"
+        role="progressbar"
         aria-label={
           isLimitReached
             ? "Limit poslušanja dosežen"
             : status.hasUnlimitedUsage
               ? "Brez dnevne omejitve poslušanja"
-            : `Preostalo ${remainingPercent} % dnevnega poslušanja`
+              : `Preostalo ${remainingPercent} % dnevnega poslušanja, porabljeno ${usedPercent} %`
         }
-        title="Poraba poslušanja"
+        aria-valuetext={
+          status.hasUnlimitedUsage
+            ? "Brez dnevne omejitve poslušanja"
+            : `${remainingPercent} % preostalo, ${usedPercent} % porabljeno`
+        }
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={remainingPercent}
       >
-        <EmojiIcon
-          className="library-folder-chevron note-read-usage-chevron"
-          symbol="▾"
-          size="0.95rem"
-        />
-      </summary>
-      <div className="note-read-usage-popover">
-        <div
-          className="note-read-usage-bar"
-          role="progressbar"
+        <span className="note-read-usage-fill" style={{ width: `${remainingPercent}%` }} />
+        <span className="note-read-usage-bar-label">{remainingLabel}</span>
+      </div>
+      <div className="note-read-usage-reset">
+        {status.hasUnlimitedUsage ? "Brez dnevne omejitve" : "Ponastavi se ob 00:00"}
+      </div>
+      <div className="note-read-settings-divider" />
+      <div className="note-read-setting-group">
+        <span className="note-read-setting-label">Hitrost</span>
+        <div className="note-read-rate-options" role="group" aria-label="Hitrost branja">
+          {NOTE_TTS_PLAYBACK_RATES.map((rate) => (
+            <button
+              key={rate}
+              type="button"
+              className={`note-read-rate-option ${playbackRate === rate ? "active" : ""}`}
+              onClick={() => onPlaybackRateChange(rate)}
+            >
+              {rate}x
+            </button>
+          ))}
+        </div>
+      </div>
+      <label className="note-read-setting-group">
+        <span className="note-read-setting-label">Glas</span>
+        <span className="note-read-setting-select-wrap">
+          <select
+            className="note-read-setting-select"
+            value={selectedVoice}
+            onChange={(event) => {
+              const nextVoice = NOTE_TTS_VOICES.find((voice) => voice === event.target.value);
+
+              if (nextVoice) {
+                onVoiceChange(nextVoice);
+              }
+            }}
+          >
+            {NOTE_TTS_VOICES.map((voice) => (
+              <option key={voice} value={voice}>
+                {voice}
+              </option>
+            ))}
+          </select>
+        </span>
+      </label>
+      <div className="note-read-setting-group">
+        <span className="note-read-setting-label">Barva</span>
+        <div className="note-read-color-options" role="group" aria-label="Barva označevanja">
+          {NOTE_TTS_HIGHLIGHT_COLORS.map((color) => (
+            <button
+              key={color.id}
+              type="button"
+              className={`note-read-color-option ${
+                highlightColorId === color.id ? "active" : ""
+              }`}
+              onClick={() => onHighlightColorChange(color.id)}
+              aria-label={color.label}
+              title={color.label}
+              style={{ "--note-read-swatch-color": color.currentBackground } as CSSProperties}
+            />
+          ))}
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      <details
+        ref={menuRef}
+        className={`note-read-usage-menu ${isLimitReached ? "limit" : ""}`}
+        onToggle={(event) => {
+          const isOpen = event.currentTarget.open;
+          setIsMenuOpen(isOpen);
+          if (isOpen) {
+            setIsMenuClosing(false);
+            dragStartYRef.current = null;
+            dragOffsetRef.current = 0;
+            setDragOffset(0);
+          }
+        }}
+      >
+        <summary
+          className="note-read-usage-trigger"
           aria-label={
             isLimitReached
               ? "Limit poslušanja dosežen"
               : status.hasUnlimitedUsage
                 ? "Brez dnevne omejitve poslušanja"
-              : `Preostalo ${remainingPercent} % dnevnega poslušanja, porabljeno ${usedPercent} %`
+              : `Preostalo ${remainingPercent} % dnevnega poslušanja`
           }
-          aria-valuetext={
-            status.hasUnlimitedUsage
-              ? "Brez dnevne omejitve poslušanja"
-              : `${remainingPercent} % preostalo, ${usedPercent} % porabljeno`
-          }
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={remainingPercent}
+          title="Poraba poslušanja"
         >
-          <span className="note-read-usage-fill" style={{ width: `${remainingPercent}%` }} />
-          <span className="note-read-usage-bar-label">{remainingLabel}</span>
+          <EmojiIcon
+            className="library-folder-chevron note-read-usage-chevron"
+            symbol="▾"
+            size="0.95rem"
+          />
+        </summary>
+        <div className="note-read-usage-popover note-read-usage-inline-popover">
+          {menuContent}
         </div>
-        <div className="note-read-usage-reset">
-          {status.hasUnlimitedUsage ? "Brez dnevne omejitve" : "Ponastavi se ob 00:00"}
-        </div>
-        <div className="note-read-settings-divider" />
-        <div className="note-read-setting-group">
-          <span className="note-read-setting-label">Hitrost</span>
-          <div className="note-read-rate-options" role="group" aria-label="Hitrost branja">
-            {NOTE_TTS_PLAYBACK_RATES.map((rate) => (
-              <button
-                key={rate}
-                type="button"
-                className={`note-read-rate-option ${playbackRate === rate ? "active" : ""}`}
-                onClick={() => onPlaybackRateChange(rate)}
-              >
-                {rate}x
-              </button>
-            ))}
+      </details>
+      {isMenuOpen ? (
+        <ViewportPortal>
+          <button
+            type="button"
+            className="note-read-usage-mobile-backdrop"
+            onClick={animateCloseMenu}
+            aria-label="Zapri nastavitve poslušanja"
+          />
+          <div
+            className="note-read-usage-popover note-read-usage-mobile-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Nastavitve poslušanja"
+            onPointerDown={handleSheetPointerDown}
+            onClickCapture={handleSheetClickCapture}
+            style={
+              dragOffset > 0
+                ? { transform: `translateY(${dragOffset}px)` }
+                : undefined
+            }
+          >
+            {menuContent}
           </div>
-        </div>
-        <label className="note-read-setting-group">
-          <span className="note-read-setting-label">Glas</span>
-          <span className="note-read-setting-select-wrap">
-            <select
-              className="note-read-setting-select"
-              value={selectedVoice}
-              onChange={(event) => {
-                const nextVoice = NOTE_TTS_VOICES.find((voice) => voice === event.target.value);
-
-                if (nextVoice) {
-                  onVoiceChange(nextVoice);
-                }
-              }}
-            >
-              {NOTE_TTS_VOICES.map((voice) => (
-                <option key={voice} value={voice}>
-                  {voice}
-                </option>
-              ))}
-            </select>
-          </span>
-        </label>
-        <div className="note-read-setting-group">
-          <span className="note-read-setting-label">Barva</span>
-          <div className="note-read-color-options" role="group" aria-label="Barva označevanja">
-            {NOTE_TTS_HIGHLIGHT_COLORS.map((color) => (
-              <button
-                key={color.id}
-                type="button"
-                className={`note-read-color-option ${
-                  highlightColorId === color.id ? "active" : ""
-                }`}
-                onClick={() => onHighlightColorChange(color.id)}
-                aria-label={color.label}
-                title={color.label}
-                style={{ "--note-read-swatch-color": color.currentBackground } as CSSProperties}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-    </details>
+        </ViewportPortal>
+      ) : null}
+    </>
   );
 }
 

@@ -7,11 +7,14 @@ import {
 import {
   memo,
   startTransition,
+  useCallback,
   useDeferredValue,
   useEffect,
   useMemo,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -205,8 +208,17 @@ export function HomeDashboard({
   const router = useRouter();
   const searchParams = useSearchParams();
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const mobileCreateMenuDragStartYRef = useRef<number | null>(null);
+  const mobileCreateMenuDragOffsetRef = useRef(0);
+  const mobileCreateMenuSuppressClickRef = useRef(false);
+  const mobileCreateMenuCloseTimerRef = useRef<number | null>(null);
+  const dashboardDialogDragStartYRef = useRef<number | null>(null);
+  const dashboardDialogDragOffsetRef = useRef(0);
   const [query, setQuery] = useState("");
   const [manualModal, setManualModal] = useState<NoteSourceMode | null>(null);
+  const [isMobileCreateMenuOpen, setIsMobileCreateMenuOpen] = useState(false);
+  const [mobileCreateMenuDragOffset, setMobileCreateMenuDragOffset] = useState(0);
+  const [dashboardDialogDragOffset, setDashboardDialogDragOffset] = useState(0);
   const [libraryLectures, setLibraryLectures] = useState(lectures);
   const [busyLectureId, setBusyLectureId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -306,6 +318,141 @@ export function HomeDashboard({
     }
   }
 
+  const closeMobileCreateMenu = useCallback(() => {
+    if (mobileCreateMenuCloseTimerRef.current !== null) {
+      window.clearTimeout(mobileCreateMenuCloseTimerRef.current);
+      mobileCreateMenuCloseTimerRef.current = null;
+    }
+    mobileCreateMenuDragStartYRef.current = null;
+    mobileCreateMenuDragOffsetRef.current = 0;
+    setMobileCreateMenuDragOffset(0);
+    setIsMobileCreateMenuOpen(false);
+  }, []);
+
+  const animateCloseMobileCreateMenu = useCallback(() => {
+    if (mobileCreateMenuCloseTimerRef.current !== null) {
+      return;
+    }
+
+    mobileCreateMenuDragStartYRef.current = null;
+    mobileCreateMenuDragOffsetRef.current = window.innerHeight;
+    setMobileCreateMenuDragOffset(window.innerHeight);
+    mobileCreateMenuCloseTimerRef.current = window.setTimeout(() => {
+      mobileCreateMenuCloseTimerRef.current = null;
+      closeMobileCreateMenu();
+    }, 180);
+  }, [closeMobileCreateMenu]);
+
+  useEffect(() => {
+    if (!isMobileCreateMenuOpen) {
+      return;
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        animateCloseMobileCreateMenu();
+      }
+    }
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [animateCloseMobileCreateMenu, isMobileCreateMenuOpen]);
+
+  function handleMobileCreateMenuPointerDown(
+    event: ReactPointerEvent<HTMLElement>,
+  ) {
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    const target = event.target;
+    const interactiveTarget =
+      target instanceof Element
+        ? target.closest("button, a, input, textarea, select, .app-close-button")
+        : null;
+    const dragHandleTarget =
+      target instanceof Element ? target.closest(".mobile-create-menu-drag-handle") : null;
+
+    if (
+      interactiveTarget &&
+      !dragHandleTarget &&
+      !(interactiveTarget as Element).closest(".note-action-card")
+    ) {
+      return;
+    }
+
+    mobileCreateMenuSuppressClickRef.current = false;
+    mobileCreateMenuDragStartYRef.current = event.clientY;
+    if (!interactiveTarget || dragHandleTarget) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+  }
+
+  function updateMobileCreateMenuDragOffset(clientY: number) {
+    if (mobileCreateMenuDragStartYRef.current === null) {
+      return;
+    }
+
+    const nextOffset = Math.max(0, clientY - mobileCreateMenuDragStartYRef.current);
+    mobileCreateMenuDragOffsetRef.current = nextOffset;
+    if (nextOffset > 8) {
+      mobileCreateMenuSuppressClickRef.current = true;
+    }
+    setMobileCreateMenuDragOffset(nextOffset);
+  }
+
+  function handleMobileCreateMenuClickCapture(
+    event: ReactMouseEvent<HTMLElement>,
+  ) {
+    if (!mobileCreateMenuSuppressClickRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    mobileCreateMenuSuppressClickRef.current = false;
+  }
+
+  useEffect(() => {
+    if (!isMobileCreateMenuOpen) {
+      return;
+    }
+
+    function handleWindowPointerMove(event: PointerEvent) {
+      updateMobileCreateMenuDragOffset(event.clientY);
+    }
+
+    function handleWindowPointerEnd() {
+      if (mobileCreateMenuDragOffsetRef.current > 80) {
+        animateCloseMobileCreateMenu();
+        return;
+      }
+
+      mobileCreateMenuDragStartYRef.current = null;
+      mobileCreateMenuDragOffsetRef.current = 0;
+      setMobileCreateMenuDragOffset(0);
+    }
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerEnd);
+    window.addEventListener("pointercancel", handleWindowPointerEnd);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerEnd);
+      window.removeEventListener("pointercancel", handleWindowPointerEnd);
+    };
+  }, [animateCloseMobileCreateMenu, isMobileCreateMenuOpen]);
+
+  function openQuickAction(mode: NoteSourceMode) {
+    if (!canCreateNotes) {
+      router.push("/app/start");
+      return;
+    }
+
+    closeMobileCreateMenu();
+    setManualModal(mode);
+  }
+
   function openRenameModal(lecture: AppLectureListItem) {
     setOpenMenuLectureId(null);
     setRenameTarget(lecture);
@@ -317,6 +464,9 @@ export function HomeDashboard({
       return;
     }
 
+    dashboardDialogDragStartYRef.current = null;
+    dashboardDialogDragOffsetRef.current = 0;
+    setDashboardDialogDragOffset(0);
     setRenameTarget(null);
     setRenameValue("");
   }
@@ -331,8 +481,68 @@ export function HomeDashboard({
       return;
     }
 
+    dashboardDialogDragStartYRef.current = null;
+    dashboardDialogDragOffsetRef.current = 0;
+    setDashboardDialogDragOffset(0);
     setDeleteTarget(null);
   }
+
+  function handleDashboardDialogDragHandlePointerDown(
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) {
+    if (busyLectureId) {
+      return;
+    }
+
+    event.preventDefault();
+    dashboardDialogDragStartYRef.current = event.clientY;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function updateDashboardDialogDragOffset(clientY: number) {
+    if (dashboardDialogDragStartYRef.current === null) {
+      return;
+    }
+
+    const nextOffset = Math.max(0, clientY - dashboardDialogDragStartYRef.current);
+    dashboardDialogDragOffsetRef.current = nextOffset;
+    setDashboardDialogDragOffset(nextOffset);
+  }
+
+  useEffect(() => {
+    if (!renameTarget && !deleteTarget) {
+      return;
+    }
+
+    function handleWindowPointerMove(event: PointerEvent) {
+      updateDashboardDialogDragOffset(event.clientY);
+    }
+
+    function handleWindowPointerEnd() {
+      if (dashboardDialogDragOffsetRef.current > 80 && !busyLectureId) {
+        dashboardDialogDragStartYRef.current = null;
+        dashboardDialogDragOffsetRef.current = 0;
+        setDashboardDialogDragOffset(0);
+        setRenameTarget(null);
+        setRenameValue("");
+        setDeleteTarget(null);
+        return;
+      }
+
+      dashboardDialogDragStartYRef.current = null;
+      dashboardDialogDragOffsetRef.current = 0;
+      setDashboardDialogDragOffset(0);
+    }
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerEnd);
+    window.addEventListener("pointercancel", handleWindowPointerEnd);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerEnd);
+      window.removeEventListener("pointercancel", handleWindowPointerEnd);
+    };
+  }, [busyLectureId, deleteTarget, renameTarget]);
 
   async function handleDeleteLecture() {
     if (!deleteTarget) {
@@ -458,7 +668,7 @@ export function HomeDashboard({
           </section>
         ) : null}
 
-        <section className="dashboard-section">
+        <section className="dashboard-section dashboard-create-section">
           <div className="dashboard-section-heading">
             <h2 className="dashboard-section-title">Nov zapisek</h2>
           </div>
@@ -468,14 +678,7 @@ export function HomeDashboard({
               <button
                 key={action.id}
                 type="button"
-                onClick={() => {
-                  if (!canCreateNotes) {
-                    router.push("/app/start");
-                    return;
-                  }
-
-                  setManualModal(action.id);
-                }}
+                onClick={() => openQuickAction(action.id)}
                 className="note-action-card"
               >
                 <span
@@ -495,7 +698,7 @@ export function HomeDashboard({
           </div>
         </section>
 
-        <section className="dashboard-section mt-4">
+        <section className="dashboard-section dashboard-library-section mt-4">
           <div className="dashboard-section-heading mb-4">
             <h2 className="dashboard-section-title">Moji zapiski</h2>
           </div>
@@ -628,7 +831,93 @@ export function HomeDashboard({
             </div>
           )}
         </section>
+
       </div>
+
+      <ViewportPortal>
+        <button
+          type="button"
+          className="mobile-new-note-pill"
+          onClick={() => {
+            window.dispatchEvent(new Event("memoai:mobile-dock-close"));
+            setIsMobileCreateMenuOpen(true);
+          }}
+          aria-haspopup="dialog"
+          aria-expanded={isMobileCreateMenuOpen}
+        >
+          <EmojiIcon symbol="➕" size="1rem" className="mobile-new-note-pill-icon" />
+          <span className="mobile-new-note-pill-label">Nov zapisek</span>
+        </button>
+      </ViewportPortal>
+
+      {isMobileCreateMenuOpen ? (
+        <ViewportPortal>
+          <>
+            <button
+              type="button"
+              className="mobile-create-menu-backdrop"
+              onClick={animateCloseMobileCreateMenu}
+              aria-label="Zapri meni za nov zapisek"
+            />
+            <section
+              className="mobile-create-menu"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="mobile-create-menu-title"
+              onPointerDown={handleMobileCreateMenuPointerDown}
+              onClickCapture={handleMobileCreateMenuClickCapture}
+              style={
+                mobileCreateMenuDragOffset > 0
+                  ? { transform: `translateY(${mobileCreateMenuDragOffset}px)` }
+                  : undefined
+              }
+            >
+              <button
+                type="button"
+                className="mobile-sheet-drag-handle mobile-create-menu-drag-handle"
+                aria-label="Povleci navzdol za zapiranje"
+              />
+              <div className="mobile-create-menu-header">
+                <h2 id="mobile-create-menu-title" className="dashboard-section-title">
+                  Nov zapisek
+                </h2>
+                <button
+                  type="button"
+                  className="app-close-button"
+                  onClick={animateCloseMobileCreateMenu}
+                  aria-label="Zapri meni za nov zapisek"
+                >
+                  <EmojiIcon symbol="✖️" size="1rem" />
+                </button>
+              </div>
+
+              <div className="note-action-grid mobile-create-action-grid">
+                {QUICK_ACTIONS.map((action) => (
+                  <button
+                    key={action.id}
+                    type="button"
+                    onClick={() => openQuickAction(action.id)}
+                    className="note-action-card"
+                  >
+                    <span
+                      className={`note-action-card-icon ${
+                        action.accent === "record" ? "record" : ""
+                      }`}
+                    >
+                      <EmojiIcon symbol={action.icon} size="1.2rem" />
+                    </span>
+                    <span className="note-action-card-copy">
+                      <span className="note-action-card-label">{action.label}</span>
+                      <span className="note-action-card-detail">{action.detail}</span>
+                    </span>
+                    <EmojiIcon className="note-action-card-chevron" symbol="›" size="1.1rem" />
+                  </button>
+                ))}
+              </div>
+            </section>
+          </>
+        </ViewportPortal>
+      ) : null}
 
       <NoteSourceModal
         mode={activeModal}
@@ -648,11 +937,23 @@ export function HomeDashboard({
             <div className="ios-sheet-wrap dashboard-note-dialog-wrap" role="presentation">
               <div className="ios-sheet-stack">
                 <section
-                  className="ios-sheet dashboard-note-dialog"
+                  className="ios-sheet dashboard-note-dialog mobile-draggable-sheet"
                   role="dialog"
                   aria-modal="true"
                   aria-labelledby="rename-note-title"
+                  style={
+                    dashboardDialogDragOffset > 0
+                      ? { transform: `translateY(${dashboardDialogDragOffset}px)` }
+                      : undefined
+                  }
                 >
+                  <button
+                    type="button"
+                    className="mobile-sheet-drag-handle dashboard-note-dialog-drag-handle"
+                    onPointerDown={handleDashboardDialogDragHandlePointerDown}
+                    aria-label="Povleci navzdol za zapiranje"
+                    disabled={busyLectureId === renameTarget.id}
+                  />
                   <div className="ios-sheet-header">
                     <h2 id="rename-note-title" className="ios-sheet-title">
                       Preimenuj zapisek
@@ -733,11 +1034,23 @@ export function HomeDashboard({
             <div className="ios-sheet-wrap dashboard-note-dialog-wrap" role="presentation">
               <div className="ios-sheet-stack">
                 <section
-                  className="ios-sheet dashboard-note-dialog"
+                  className="ios-sheet dashboard-note-dialog mobile-draggable-sheet"
                   role="dialog"
                   aria-modal="true"
                   aria-labelledby="delete-note-title"
+                  style={
+                    dashboardDialogDragOffset > 0
+                      ? { transform: `translateY(${dashboardDialogDragOffset}px)` }
+                      : undefined
+                  }
                 >
+                  <button
+                    type="button"
+                    className="mobile-sheet-drag-handle dashboard-note-dialog-drag-handle"
+                    onPointerDown={handleDashboardDialogDragHandlePointerDown}
+                    aria-label="Povleci navzdol za zapiranje"
+                    disabled={busyLectureId === deleteTarget.id}
+                  />
                   <div className="ios-sheet-header">
                     <h2 id="delete-note-title" className="ios-sheet-title">
                       Izbriši zapisek

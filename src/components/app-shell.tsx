@@ -78,6 +78,7 @@ export function AppShell({
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
+  const [isMobileDockOpen, setIsMobileDockOpen] = useState(false);
   const touchStartYRef = useRef<number | null>(null);
   const pullEligibleRef = useRef(false);
   const pullDistanceRef = useRef(0);
@@ -88,14 +89,37 @@ export function AppShell({
   const showCreateCta = !shouldHideNavigation;
   const showSubscribeCta = !hasPaidAccess && showCreateCta;
   const subscribeLabel = hasTrialLectureAvailable ? "Trial" : "Naročnina";
-  const pullThreshold = 84;
-  const cappedPullDistance = Math.min(pullDistance, 120);
+  const pullThreshold = 168;
+  const cappedPullDistance = Math.min(pullDistance, 220);
+  const isLecturePage = pathname.startsWith("/app/lectures/");
 
   useEffect(() => {
     for (const item of TAB_ITEMS) {
       router.prefetch(item.href);
     }
   }, [router]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    document.body.dataset.mobileDockOpen = isMobileDockOpen ? "true" : "false";
+    return () => {
+      delete document.body.dataset.mobileDockOpen;
+    };
+  }, [isMobileDockOpen]);
+
+  useEffect(() => {
+    function handleMobileDockClose() {
+      setIsMobileDockOpen(false);
+    }
+
+    window.addEventListener("memoai:mobile-dock-close", handleMobileDockClose);
+    return () => {
+      window.removeEventListener("memoai:mobile-dock-close", handleMobileDockClose);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -131,8 +155,28 @@ export function AppShell({
       return window.scrollY <= 0;
     }
 
+    const mobileSheetSelector =
+      ".mobile-create-menu, .mobile-create-menu-backdrop, .library-folder-mobile-sheet, .library-folder-mobile-sheet-backdrop, .library-folder-modal, .library-folder-modal-overlay, .note-read-usage-popover, .note-read-usage-mobile-backdrop, .dashboard-note-dialog, .dashboard-note-dialog-backdrop, .note-source-modal-wrap, .note-source-modal-backdrop";
+
+    function hasActiveMobileSheet() {
+      return window.innerWidth < mobileBreakpoint && Boolean(document.querySelector(mobileSheetSelector));
+    }
+
+    function isInsideMobileSheet(target: EventTarget | null) {
+      return (
+        target instanceof HTMLElement &&
+        Boolean(target.closest(mobileSheetSelector))
+      );
+    }
+
     function handleTouchStart(event: TouchEvent) {
-      if (window.innerWidth >= mobileBreakpoint || isRefreshing || event.touches.length !== 1) {
+      if (
+        window.innerWidth >= mobileBreakpoint ||
+        isRefreshing ||
+        event.touches.length !== 1 ||
+        hasActiveMobileSheet() ||
+        isInsideMobileSheet(event.target)
+      ) {
         resetGesture();
         return;
       }
@@ -142,6 +186,11 @@ export function AppShell({
     }
 
     function handleTouchMove(event: TouchEvent) {
+      if (hasActiveMobileSheet() || isInsideMobileSheet(event.target)) {
+        resetGesture();
+        return;
+      }
+
       if (!pullEligibleRef.current || touchStartYRef.current == null || isRefreshing) {
         return;
       }
@@ -159,7 +208,7 @@ export function AppShell({
       }
 
       event.preventDefault();
-      const nextPullDistance = Math.min(deltaY * 0.5, 120);
+      const nextPullDistance = Math.min(deltaY * 0.4, 220);
       pullDistanceRef.current = nextPullDistance;
       setIsPulling(true);
       setPullDistance(nextPullDistance);
@@ -210,6 +259,23 @@ export function AppShell({
       mobilePullOffset > 0 ? `translate3d(0, ${mobilePullOffset}px, 0)` : undefined,
     transition: isPulling ? "none" : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
   };
+  const isHomePage = pathname === "/app";
+  const mobileDockToggleItem = isHomePage ? TAB_ITEMS[2] : TAB_ITEMS[0];
+  const isTabItemActive = (item: (typeof TAB_ITEMS)[number]) =>
+    item.href === "/app"
+      ? pathname === "/app" || isLecturePage
+      : pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const isMobileDockToggleActive = isTabItemActive(mobileDockToggleItem);
+
+  function handleMobileDockToggle() {
+    if (isMobileDockOpen) {
+      setIsMobileDockOpen(false);
+      router.push(mobileDockToggleItem.href);
+      return;
+    }
+
+    setIsMobileDockOpen((current) => !current);
+  }
 
   function renderPullToRefreshIndicator() {
     return (
@@ -363,20 +429,40 @@ export function AppShell({
         </div>
       </div>
 
-      <nav className="ios-tabbar" aria-label="Glavna navigacija">
+      <nav
+        className={`ios-tabbar ${isMobileDockOpen ? "mobile-open" : "mobile-collapsed"}`}
+        aria-label="Glavna navigacija"
+      >
+        <button
+          type="button"
+          className={`mobile-dock-toggle ${isMobileDockToggleActive ? "active" : ""}`}
+          onClick={handleMobileDockToggle}
+          aria-label={
+            isMobileDockOpen
+              ? `Pojdi na ${mobileDockToggleItem.displayLabel}`
+              : "Odpri navigacijo"
+          }
+          aria-expanded={isMobileDockOpen}
+        >
+          <EmojiIcon symbol={mobileDockToggleItem.icon} size="1.05rem" />
+        </button>
         <div className="ios-tabbar-inner">
           {TAB_ITEMS.map((item) => {
-            const active =
-              item.href === "/app"
-                ? pathname === "/app" || pathname.startsWith("/app/lectures/")
-                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const active = isTabItemActive(item);
 
             return (
               <InstantLink
                 key={item.href}
                 href={item.href}
-                className={`ios-tab-item ${active ? "active" : ""}`}
+                className={`ios-tab-item ${active ? "active" : ""} ${
+                  item.href === mobileDockToggleItem.href ? "mobile-toggle-item" : ""
+                }`}
                 aria-current={active ? "page" : undefined}
+                onClick={(event) => {
+                  event.preventDefault();
+                  setIsMobileDockOpen(false);
+                  router.push(item.href);
+                }}
               >
                 <span className="ios-tab-item-icon">
                   <EmojiIcon symbol={item.icon} size="1.05rem" />

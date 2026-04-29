@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 import { EmojiIcon } from "@/components/emoji-icon";
 import { Folder } from "@/components/folder";
@@ -144,7 +151,15 @@ export function LibraryFolderMenu({
 }) {
   const shellRef = useRef<HTMLDivElement | null>(null);
   const hasRestoredSelectionRef = useRef(false);
+  const folderSheetDragStartYRef = useRef<number | null>(null);
+  const folderSheetDragOffsetRef = useRef(0);
+  const folderSheetSuppressClickRef = useRef(false);
+  const folderModalDragStartYRef = useRef<number | null>(null);
+  const folderModalDragOffsetRef = useRef(0);
+  const folderModalSuppressClickRef = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [folderSheetDragOffset, setFolderSheetDragOffset] = useState(0);
+  const [folderModalDragOffset, setFolderModalDragOffset] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [folders, setFolders] = useState<LibraryFolder[]>(() => readStoredFolders(userId));
   const [folderName, setFolderName] = useState("");
@@ -157,6 +172,9 @@ export function LibraryFolderMenu({
   const isEditModalOpen = editingFolderId !== null;
 
   function handleCancelEdit() {
+    folderModalDragStartYRef.current = null;
+    folderModalDragOffsetRef.current = 0;
+    setFolderModalDragOffset(0);
     setEditingFolderId(null);
     setEditingName("");
     setEditingLectureIds([]);
@@ -201,7 +219,15 @@ export function LibraryFolderMenu({
         return;
       }
 
-      if (!shellRef.current?.contains(event.target as Node)) {
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest(".library-folder-mobile-sheet")
+      ) {
+        return;
+      }
+
+      if (!shellRef.current?.contains(target as Node)) {
         setIsOpen(false);
       }
     }
@@ -239,14 +265,214 @@ export function LibraryFolderMenu({
     setIsOpen((currentValue) => !currentValue);
   }
 
+  function closeCreateModal() {
+    folderModalDragStartYRef.current = null;
+    folderModalDragOffsetRef.current = 0;
+    setFolderModalDragOffset(0);
+    setIsCreateModalOpen(false);
+  }
+
+  const closeFolderSheet = useCallback(() => {
+    folderSheetDragStartYRef.current = null;
+    folderSheetDragOffsetRef.current = 0;
+    setFolderSheetDragOffset(0);
+    setIsOpen(false);
+  }, []);
+
+  const animateCloseFolderSheet = useCallback(() => {
+    folderSheetDragStartYRef.current = null;
+    folderSheetDragOffsetRef.current = window.innerHeight;
+    setFolderSheetDragOffset(window.innerHeight);
+    window.setTimeout(() => {
+      closeFolderSheet();
+    }, 180);
+  }, [closeFolderSheet]);
+
+  function handleFolderSheetPointerDown(
+    event: ReactPointerEvent<HTMLElement>,
+  ) {
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    const target = event.target;
+    const interactiveTarget =
+      target instanceof Element
+        ? target.closest("button, a, input, textarea, select, .app-close-button")
+        : null;
+    const dragHandleTarget =
+      target instanceof Element ? target.closest(".library-folder-mobile-sheet-handle") : null;
+
+    if (
+      interactiveTarget &&
+      !dragHandleTarget &&
+      !(interactiveTarget as Element).closest(".library-folder-option")
+    ) {
+      return;
+    }
+
+    folderSheetSuppressClickRef.current = false;
+    folderSheetDragStartYRef.current = event.clientY;
+    if (!interactiveTarget || dragHandleTarget) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+  }
+
+  function updateFolderSheetDragOffset(clientY: number) {
+    if (folderSheetDragStartYRef.current === null) {
+      return;
+    }
+
+    const nextOffset = Math.max(0, clientY - folderSheetDragStartYRef.current);
+    folderSheetDragOffsetRef.current = nextOffset;
+    if (nextOffset > 8) {
+      folderSheetSuppressClickRef.current = true;
+    }
+    setFolderSheetDragOffset(nextOffset);
+  }
+
+  function handleFolderSheetClickCapture(event: ReactMouseEvent<HTMLElement>) {
+    if (!folderSheetSuppressClickRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    folderSheetSuppressClickRef.current = false;
+  }
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handleWindowPointerMove(event: PointerEvent) {
+      updateFolderSheetDragOffset(event.clientY);
+    }
+
+    function handleWindowPointerEnd() {
+      if (folderSheetDragOffsetRef.current > 80) {
+        animateCloseFolderSheet();
+        return;
+      }
+
+      folderSheetDragStartYRef.current = null;
+      folderSheetDragOffsetRef.current = 0;
+      setFolderSheetDragOffset(0);
+    }
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerEnd);
+    window.addEventListener("pointercancel", handleWindowPointerEnd);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerEnd);
+      window.removeEventListener("pointercancel", handleWindowPointerEnd);
+    };
+  }, [animateCloseFolderSheet, isOpen]);
+
+  function handleFolderModalPointerDown(
+    event: ReactPointerEvent<HTMLElement>,
+  ) {
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    const target = event.target;
+    const interactiveTarget =
+      target instanceof Element
+        ? target.closest("button, a, input, textarea, select, label, .app-close-button")
+        : null;
+    const dragHandleTarget =
+      target instanceof Element ? target.closest(".library-folder-modal-drag-handle") : null;
+
+    if (
+      interactiveTarget &&
+      !dragHandleTarget
+    ) {
+      return;
+    }
+
+    folderModalSuppressClickRef.current = false;
+    folderModalDragStartYRef.current = event.clientY;
+    if (!interactiveTarget || dragHandleTarget) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+  }
+
+  function updateFolderModalDragOffset(clientY: number) {
+    if (folderModalDragStartYRef.current === null) {
+      return;
+    }
+
+    const nextOffset = Math.max(0, clientY - folderModalDragStartYRef.current);
+    folderModalDragOffsetRef.current = nextOffset;
+    if (nextOffset > 8) {
+      folderModalSuppressClickRef.current = true;
+    }
+    setFolderModalDragOffset(nextOffset);
+  }
+
+  function handleFolderModalClickCapture(event: ReactMouseEvent<HTMLElement>) {
+    if (!folderModalSuppressClickRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    folderModalSuppressClickRef.current = false;
+  }
+
+  useEffect(() => {
+    if (!isCreateModalOpen && !isEditModalOpen) {
+      return;
+    }
+
+    function handleWindowPointerMove(event: PointerEvent) {
+      updateFolderModalDragOffset(event.clientY);
+    }
+
+    function handleWindowPointerEnd() {
+      if (folderModalDragOffsetRef.current > 80) {
+        folderModalDragStartYRef.current = null;
+        folderModalDragOffsetRef.current = window.innerHeight;
+        setFolderModalDragOffset(window.innerHeight);
+        if (isCreateModalOpen) {
+          window.setTimeout(() => {
+            closeCreateModal();
+          }, 180);
+          return;
+        }
+
+        window.setTimeout(() => {
+          handleCancelEdit();
+        }, 180);
+        return;
+      }
+
+      folderModalDragStartYRef.current = null;
+      folderModalDragOffsetRef.current = 0;
+      setFolderModalDragOffset(0);
+    }
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", handleWindowPointerEnd);
+    window.addEventListener("pointercancel", handleWindowPointerEnd);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", handleWindowPointerEnd);
+      window.removeEventListener("pointercancel", handleWindowPointerEnd);
+    };
+  }, [isCreateModalOpen, isEditModalOpen]);
+
   function handleSelectAllNotes() {
     onSelectFolder(null, null);
-    setIsOpen(false);
+    closeFolderSheet();
   }
 
   function handleSelectFolder(folder: LibraryFolder) {
     onSelectFolder(folder.id, folder.lectureIds);
-    setIsOpen(false);
+    closeFolderSheet();
   }
 
   function handleCreateFolder() {
@@ -264,7 +490,7 @@ export function LibraryFolderMenu({
     onSelectFolder(nextFolder.id, nextFolder.lectureIds);
     setFolderName("");
     setDraftLectureIds([]);
-    setIsCreateModalOpen(false);
+    closeCreateModal();
     setIsOpen(false);
   }
 
@@ -331,6 +557,92 @@ export function LibraryFolderMenu({
     setIsOpen(false);
   }
 
+  function renderFolderMenuOptions() {
+    return (
+      <div className="library-folder-menu-primary">
+      <div className="library-folder-actions">
+        <button
+          type="button"
+          className={`library-folder-option library-folder-option-folder ${selectedFolderId === null ? "active" : ""}`}
+          onClick={handleSelectAllNotes}
+        >
+          <span className="library-folder-option-copy">
+            <span className="library-folder-option-icon">
+              <Folder open={false} size={0.34} />
+            </span>
+            <span className="library-folder-option-text">
+              <span>Vsi zapiski</span>
+              <span className="library-folder-option-meta">
+                {lectureSummary(lectures.length)}
+              </span>
+            </span>
+          </span>
+        </button>
+
+        {folders.map((folder) => (
+          <button
+            type="button"
+            key={folder.id}
+            className={`library-folder-option library-folder-option-folder ${selectedFolderId === folder.id ? "active" : ""}`}
+            onClick={() => handleSelectFolder(folder)}
+          >
+            <span className="library-folder-option-copy">
+              <span className="library-folder-option-icon">
+                <Folder open={false} size={0.34} />
+              </span>
+              <span className="library-folder-option-text">
+                <span>{folder.name}</span>
+                <span className="library-folder-option-meta">
+                  {lectureSummary(folder.lectureIds.length)}
+                </span>
+              </span>
+            </span>
+          </button>
+        ))}
+
+        <div className="library-folder-menu-divider" />
+
+        <button
+          type="button"
+          className="library-folder-option library-folder-option-action"
+          onClick={() => {
+            setFolderName("");
+            setDraftLectureIds([]);
+            setIsOpen(false);
+            setIsCreateModalOpen(true);
+          }}
+        >
+          <span className="library-folder-option-copy">
+            <span className="library-folder-option-icon">
+              <EmojiIcon symbol="➕" size="0.95rem" />
+            </span>
+            <span>Nova mapa</span>
+          </span>
+          <span className="library-folder-option-icon">
+            <EmojiIcon symbol="›" size="1.1rem" />
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className="library-folder-option library-folder-option-action"
+          onClick={handleOpenEditModal}
+        >
+          <span className="library-folder-option-copy">
+            <span className="library-folder-option-icon">
+              <EmojiIcon symbol="✏️" size="0.95rem" />
+            </span>
+            <span>Uredi mape</span>
+          </span>
+          <span className="library-folder-option-icon">
+            <EmojiIcon symbol="›" size="1.1rem" />
+          </span>
+        </button>
+      </div>
+      </div>
+    );
+  }
+
   return (
     <div className="library-folder-shell" ref={shellRef}>
       <button
@@ -349,79 +661,53 @@ export function LibraryFolderMenu({
       </button>
 
       {isOpen ? (
-        <div className="library-folder-menu">
-          <div className="library-folder-menu-primary">
-            <div className="library-folder-actions">
+        <>
+          <div className="library-folder-menu library-folder-menu-desktop">
+            {renderFolderMenuOptions()}
+          </div>
+          <ViewportPortal>
+            <div
+              className="library-folder-mobile-sheet-backdrop"
+              role="presentation"
+              onClick={animateCloseFolderSheet}
+            />
+            <section
+              className="library-folder-mobile-sheet"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="folders-sheet-title"
+              onPointerDown={handleFolderSheetPointerDown}
+              onClickCapture={handleFolderSheetClickCapture}
+              style={
+                folderSheetDragOffset > 0
+                  ? { transform: `translateY(${folderSheetDragOffset}px)` }
+                  : undefined
+              }
+            >
               <button
                 type="button"
-                className={`library-folder-option library-folder-option-folder ${selectedFolderId === null ? "active" : ""}`}
-                onClick={handleSelectAllNotes}
-              >
-                <span className="library-folder-option-copy">
-                  <span className="library-folder-option-icon">
-                    <Folder open={false} size={0.34} />
-                  </span>
-                  <span>Vsi zapiski</span>
-                </span>
-              </button>
-
-              {folders.map((folder) => (
+                className="mobile-sheet-drag-handle library-folder-mobile-sheet-handle"
+                aria-label="Povleci navzdol za zapiranje map"
+              />
+              <div className="library-folder-mobile-sheet-header">
+                <h2 id="folders-sheet-title" className="library-folder-mobile-sheet-title">
+                  Mape
+                </h2>
                 <button
                   type="button"
-                  key={folder.id}
-                  className={`library-folder-option library-folder-option-folder ${selectedFolderId === folder.id ? "active" : ""}`}
-                  onClick={() => handleSelectFolder(folder)}
+              className="app-close-button library-folder-mobile-sheet-close"
+                  onClick={animateCloseFolderSheet}
+                  aria-label="Zapri mape"
                 >
-                  <span className="library-folder-option-copy">
-                    <span className="library-folder-option-icon">
-                      <Folder open={false} size={0.34} />
-                    </span>
-                    <span>{folder.name}</span>
-                  </span>
+                  <EmojiIcon symbol="✖️" size="1rem" />
                 </button>
-              ))}
-
-              <div className="library-folder-menu-divider" />
-
-              <button
-                type="button"
-                className="library-folder-option library-folder-option-action"
-                onClick={() => {
-                  setFolderName("");
-                  setDraftLectureIds([]);
-                  setIsOpen(false);
-                  setIsCreateModalOpen(true);
-                }}
-              >
-                <span className="library-folder-option-copy">
-                  <span className="library-folder-option-icon">
-                    <EmojiIcon symbol="➕" size="0.95rem" />
-                  </span>
-                  <span>Nova mapa</span>
-                </span>
-                <span className="library-folder-option-icon">
-                  <EmojiIcon symbol="›" size="1.1rem" />
-                </span>
-              </button>
-
-              <button
-                type="button"
-                className="library-folder-option library-folder-option-action"
-                onClick={handleOpenEditModal}
-              >
-                <span className="library-folder-option-copy">
-                  <span className="library-folder-option-icon">
-                    <EmojiIcon symbol="✏️" size="0.95rem" />
-                  </span>
-                  <span>Uredi mape</span>
-                </span>
-                <span className="library-folder-option-icon">
-                  <EmojiIcon symbol="›" size="1.1rem" />
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
+              </div>
+              <div className="library-folder-mobile-sheet-body">
+                {renderFolderMenuOptions()}
+              </div>
+            </section>
+          </ViewportPortal>
+        </>
       ) : null}
 
       {isCreateModalOpen ? (
@@ -429,19 +715,31 @@ export function LibraryFolderMenu({
           <div
             className="library-folder-modal-overlay"
             role="presentation"
-            onClick={() => setIsCreateModalOpen(false)}
+            onClick={closeCreateModal}
           >
             <div
-              className="library-folder-modal"
+              className="library-folder-modal mobile-draggable-sheet"
               role="dialog"
               aria-modal="true"
               aria-labelledby="new-folder-title"
               onClick={(event) => event.stopPropagation()}
+              onPointerDown={handleFolderModalPointerDown}
+              onClickCapture={handleFolderModalClickCapture}
+              style={
+                folderModalDragOffset > 0
+                  ? { transform: `translateY(${folderModalDragOffset}px)` }
+                  : undefined
+              }
             >
               <button
                 type="button"
+                className="mobile-sheet-drag-handle library-folder-modal-drag-handle"
+                aria-label="Povleci navzdol za zapiranje"
+              />
+              <button
+                type="button"
                 className="app-close-button library-folder-modal-close"
-                onClick={() => setIsCreateModalOpen(false)}
+                onClick={closeCreateModal}
                 aria-label="Zapri okno za novo mapo"
               >
                 <EmojiIcon symbol="✖️" size="1rem" />
@@ -521,12 +819,24 @@ export function LibraryFolderMenu({
             onClick={handleCancelEdit}
           >
             <div
-              className="library-folder-modal"
+              className="library-folder-modal mobile-draggable-sheet"
               role="dialog"
               aria-modal="true"
               aria-labelledby="edit-folder-title"
               onClick={(event) => event.stopPropagation()}
+              onPointerDown={handleFolderModalPointerDown}
+              onClickCapture={handleFolderModalClickCapture}
+              style={
+                folderModalDragOffset > 0
+                  ? { transform: `translateY(${folderModalDragOffset}px)` }
+                  : undefined
+              }
             >
+            <button
+              type="button"
+              className="mobile-sheet-drag-handle library-folder-modal-drag-handle"
+              aria-label="Povleci navzdol za zapiranje"
+            />
             <button
               type="button"
               className="app-close-button library-folder-modal-close"
