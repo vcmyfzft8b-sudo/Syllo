@@ -82,6 +82,7 @@ export function AppShell({
   const touchStartYRef = useRef<number | null>(null);
   const pullEligibleRef = useRef(false);
   const pullDistanceRef = useRef(0);
+  const mobileDockRef = useRef<HTMLElement | null>(null);
   const shouldHideNavigation = pathname === "/app/start";
   const chrome = getChrome(pathname);
   const createHref = "/app?mode=record";
@@ -120,6 +121,30 @@ export function AppShell({
       window.removeEventListener("memoai:mobile-dock-close", handleMobileDockClose);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isMobileDockOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (
+        target instanceof Node &&
+        mobileDockRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setIsMobileDockOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+    };
+  }, [isMobileDockOpen]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -430,6 +455,7 @@ export function AppShell({
       </div>
 
       <nav
+        ref={mobileDockRef}
         className={`ios-tabbar ${isMobileDockOpen ? "mobile-open" : "mobile-collapsed"}`}
         aria-label="Glavna navigacija"
       >

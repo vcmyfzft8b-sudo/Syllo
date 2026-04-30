@@ -1188,14 +1188,23 @@ export function NoteReadAloud({
     !status?.available ||
     status.remainingSeconds <= 0 ||
     chunks.length === 0;
+  const isPreparingPlayback = isFetchingChunk || isLoadingStatus;
   const playButtonLabel =
-    isFetchingChunk || isLoadingStatus
+    isPreparingPlayback
       ? "Pripravljam..."
       : isPlaying
         ? "Premor"
         : activeChunk
           ? "Nadaljuj"
           : "Poslušaj";
+  const renderPlaybackIcon = (className: string) =>
+    isPreparingPlayback ? (
+      <Loader2 className={`${className} animate-spin`} />
+    ) : isPlaying ? (
+      <Pause className={className} />
+    ) : (
+      <Play className={className} />
+    );
 
   return (
     <>
@@ -1209,13 +1218,7 @@ export function NoteReadAloud({
           disabled={disabled}
           aria-label={playButtonLabel}
         >
-          {isFetchingChunk || isLoadingStatus ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : isPlaying ? (
-            <Pause className="h-4 w-4" />
-          ) : (
-            <Play className="h-4 w-4" />
-          )}
+          {renderPlaybackIcon("h-4 w-4")}
           <span>{playButtonLabel}</span>
         </button>
         <QuotaUsageMenu
@@ -1237,6 +1240,21 @@ export function NoteReadAloud({
         onPause={() => setIsPlaying(false)}
         className="note-read-audio"
       />
+      <ViewportPortal>
+        <button
+          type="button"
+          className="mobile-note-read-pill"
+          onClick={() => {
+            window.dispatchEvent(new Event("memoai:mobile-dock-close"));
+            void handlePlayPause();
+          }}
+          disabled={disabled}
+          aria-label={playButtonLabel}
+        >
+          {renderPlaybackIcon("mobile-note-read-pill-icon h-5 w-5")}
+          <span className="mobile-note-read-pill-label">{playButtonLabel}</span>
+        </button>
+      </ViewportPortal>
       <div ref={contentRef} style={readAlongStyle}>
         <ReadAlongMarkdown
           document={document}

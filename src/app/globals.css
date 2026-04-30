@@ -2450,6 +2450,7 @@ select:disabled {
 }
 
 .mobile-new-note-pill,
+.mobile-note-read-pill,
 .mobile-create-menu-backdrop,
 .mobile-create-menu {
   display: none;
@@ -9209,6 +9210,7 @@ select:disabled {
   }
 
   .mobile-new-note-pill,
+  .mobile-note-read-pill,
   .mobile-dock-toggle,
   .ios-tab-item,
   .library-folder-trigger,
@@ -9444,7 +9446,16 @@ select:disabled {
     height: 2.25rem;
   }
 
-  .mobile-new-note-pill {
+  .note-read-toolbar .note-read-button {
+    display: none;
+  }
+
+  .note-read-toolbar {
+    min-height: 2rem;
+  }
+
+  .mobile-new-note-pill,
+  .mobile-note-read-pill {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -9457,11 +9468,9 @@ select:disabled {
     min-width: min(11.1rem, calc(100vw - 5.9rem));
     padding: 0 1.1rem;
     border-radius: 999px;
-    background: linear-gradient(135deg, #ff6d68, #f45f5a);
     color: white;
     font-size: 1.01rem;
     font-weight: 650;
-    box-shadow: 0 12px 24px rgba(244, 95, 90, 0.24);
     transition:
       min-width 220ms cubic-bezier(0.22, 1, 0.36, 1),
       width 220ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -9470,12 +9479,30 @@ select:disabled {
       transform var(--motion-duration-fast) var(--motion-curve-soft);
   }
 
-  .mobile-new-note-pill-icon {
+  .mobile-new-note-pill {
+    background: linear-gradient(135deg, #ff6d68, #f45f5a);
+    box-shadow: 0 12px 24px rgba(244, 95, 90, 0.24);
+  }
+
+  .mobile-note-read-pill {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.24);
+  }
+
+  .mobile-note-read-pill:disabled {
+    cursor: not-allowed;
+    opacity: 0.58;
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.14);
+  }
+
+  .mobile-new-note-pill-icon,
+  .mobile-note-read-pill-icon {
     flex: 0 0 auto;
     opacity: 1;
   }
 
-  .mobile-new-note-pill-label {
+  .mobile-new-note-pill-label,
+  .mobile-note-read-pill-label {
     max-width: 8rem;
     overflow: hidden;
     white-space: nowrap;
@@ -9485,19 +9512,22 @@ select:disabled {
       opacity 150ms ease;
   }
 
-  body[data-mobile-dock-open="true"] .mobile-new-note-pill {
+  body[data-mobile-dock-open="true"] .mobile-new-note-pill,
+  body[data-mobile-dock-open="true"] .mobile-note-read-pill {
     width: 3.2rem;
     min-width: 3.2rem;
     padding: 0;
     gap: 0;
   }
 
-  body[data-mobile-dock-open="true"] .mobile-new-note-pill .mobile-new-note-pill-label {
+  body[data-mobile-dock-open="true"] .mobile-new-note-pill .mobile-new-note-pill-label,
+  body[data-mobile-dock-open="true"] .mobile-note-read-pill .mobile-note-read-pill-label {
     max-width: 0;
     opacity: 0;
   }
 
-  .mobile-new-note-pill:active {
+  .mobile-new-note-pill:active,
+  .mobile-note-read-pill:active:not(:disabled) {
     opacity: 0.88;
     transform: scale(0.97);
   }
