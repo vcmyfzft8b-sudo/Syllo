@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import {
   ChevronLeft,
   ChevronDown,
@@ -26,6 +27,8 @@ import {
 import { parseApiResponse, redirectToBillingIfNeeded } from "@/lib/billing-client";
 import {
   createSafeTransportFileName,
+  getLowercaseExtension,
+  isLegacyPowerPointDocument,
   isSupportedDocumentFile,
 } from "@/lib/document-files";
 import { NOTE_LANGUAGE_OPTIONS } from "@/lib/languages";
@@ -985,8 +988,22 @@ export function NoteSourceModal({
   }
 
   function prepareDocumentFile(file: File) {
+    if (isLegacyPowerPointDocument(file)) {
+      Sentry.captureMessage("Legacy PowerPoint upload rejected", {
+        level: "info",
+        tags: {
+          fileExtension: getLowercaseExtension(file.name) || "unknown",
+          fileType: file.type || "unknown",
+        },
+        extra: {
+          sizeBytes: file.size,
+        },
+      });
+      throw new Error("Stare PowerPoint datoteke .ppt še niso podprte. Shrani jo kot .pptx ali PDF in poskusi znova.");
+    }
+
     if (!isSupportedDocumentFile(file)) {
-      throw new Error("Uporabi PDF, TXT, Markdown, HTML, RTF ali DOCX.");
+      throw new Error("Uporabi PDF, TXT, Markdown, HTML, RTF, DOCX ali PPTX.");
     }
 
     if (file.size > MAX_DOCUMENT_BYTES) {

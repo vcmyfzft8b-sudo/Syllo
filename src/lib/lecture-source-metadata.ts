@@ -35,12 +35,34 @@ export function isScanArtifactMetadata(metadata: unknown) {
   );
 }
 
+const MANUAL_SOURCE_TYPES = new Set(["text", "pdf", "link", "presentation"]);
+
+export function getManualImportSourceType(metadata: unknown) {
+  if (!isRecord(metadata) || !isRecord(metadata.manualImport)) {
+    return null;
+  }
+
+  const sourceType = metadata.manualImport.sourceType;
+
+  return typeof sourceType === "string" && MANUAL_SOURCE_TYPES.has(sourceType)
+    ? sourceType
+    : null;
+}
+
+export function getEffectiveLectureSourceType(
+  lecture: Pick<LectureRow, "source_type" | "processing_metadata">,
+) {
+  return getManualImportSourceType(lecture.processing_metadata) ?? lecture.source_type;
+}
+
 export function lectureShowsTranscript(params: {
   lecture: Pick<LectureRow, "source_type" | "processing_metadata">;
   artifact?: Pick<LectureArtifactRow, "model_metadata"> | null;
 }) {
+  const sourceType = getEffectiveLectureSourceType(params.lecture);
+
   return (
-    params.lecture.source_type === "audio" ||
+    sourceType === "audio" ||
     isScanLectureMetadata(params.lecture.processing_metadata) ||
     isScanArtifactMetadata(params.artifact?.model_metadata)
   );

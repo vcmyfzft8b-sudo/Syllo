@@ -140,7 +140,7 @@ function parsePageNumber(label: string | null) {
     return null;
   }
 
-  const match = label.match(/page\s+(\d+)/i);
+  const match = label.match(/(?:page|slide)\s+(\d+)/i);
   return match ? Number(match[1]) : null;
 }
 
@@ -271,7 +271,9 @@ function buildDocumentSourceUnits(params: {
       label ||
       (params.lecture.source_type === "pdf"
         ? `Page ${pageNumber ?? currentSectionIndex + 1}`
-        : `Section ${currentSectionIndex + 1}`);
+        : params.lecture.source_type === "presentation"
+          ? `Slide ${pageNumber ?? currentSectionIndex + 1}`
+          : `Section ${currentSectionIndex + 1}`);
 
     units.push({
       lectureId: params.lecture.id,
@@ -282,6 +284,8 @@ function buildDocumentSourceUnits(params: {
       locatorLabel:
         params.lecture.source_type === "pdf"
           ? label || `Page ${pageNumber ?? currentSectionIndex + 1}`
+          : params.lecture.source_type === "presentation"
+            ? label || `Slide ${pageNumber ?? currentSectionIndex + 1}`
           : label || `Section ${currentSectionIndex + 1}`,
       startMs: segment.start_ms,
       endMs: segment.end_ms,

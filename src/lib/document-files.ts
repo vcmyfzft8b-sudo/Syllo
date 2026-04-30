@@ -1,4 +1,6 @@
 import {
+  LEGACY_POWERPOINT_EXTENSIONS,
+  LEGACY_POWERPOINT_MIME_TYPES,
   SUPPORTED_DOCUMENT_EXTENSIONS,
   SUPPORTED_DOCUMENT_MIME_TYPES,
 } from "@/lib/constants";
@@ -53,6 +55,29 @@ export function isDocxDocument(file: Pick<File, "name" | "type">) {
     mimeType ===
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     getLowercaseExtension(file.name) === "docx"
+  );
+}
+
+export function isPptxDocument(file: Pick<File, "name" | "type">) {
+  const mimeType = normalizeDocumentMimeType(file.type);
+  return (
+    mimeType ===
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+    getLowercaseExtension(file.name) === "pptx"
+  );
+}
+
+export function isLegacyPowerPointDocument(file: Pick<File, "name" | "type">) {
+  const mimeType = normalizeDocumentMimeType(file.type);
+  const extension = getLowercaseExtension(file.name);
+
+  return (
+    LEGACY_POWERPOINT_MIME_TYPES.includes(
+      mimeType as (typeof LEGACY_POWERPOINT_MIME_TYPES)[number],
+    ) ||
+    LEGACY_POWERPOINT_EXTENSIONS.includes(
+      extension as (typeof LEGACY_POWERPOINT_EXTENSIONS)[number],
+    )
   );
 }
 

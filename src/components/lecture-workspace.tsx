@@ -16,7 +16,11 @@ import { NoteReadAloud } from "@/components/note-read-aloud";
 import { StudyCompletionCard } from "@/components/study-completion-card";
 import { parseApiResponse, redirectToBillingIfNeeded } from "@/lib/billing-client";
 import type { FlashcardConfidenceBucket, StudyAssetStatus } from "@/lib/database.types";
-import { isRecord, lectureShowsTranscript } from "@/lib/lecture-source-metadata";
+import {
+  getEffectiveLectureSourceType,
+  isRecord,
+  lectureShowsTranscript,
+} from "@/lib/lecture-source-metadata";
 import { stripLeadingRedundantHeading } from "@/lib/note-tts-text";
 import {
   POLL_INTERVAL_MS,
@@ -308,14 +312,20 @@ function sourceLabel(sourceType: string) {
     return "PDF dokument";
   }
 
+  if (sourceType === "presentation") {
+    return "PowerPoint predstavitev";
+  }
+
   return "Zvočni posnetek";
 }
 
 function isScanImport(detail: LectureDetail) {
+  const sourceType = getEffectiveLectureSourceType(detail.lecture);
+
   return lectureShowsTranscript({
     lecture: detail.lecture,
     artifact: detail.artifact,
-  }) && detail.lecture.source_type !== "audio";
+  }) && sourceType !== "audio";
 }
 
 function getScanTranscriptFallback(detail: LectureDetail) {
@@ -3204,7 +3214,9 @@ export function LectureWorkspace({
                 {detail.lecture.title ?? "Predavanje v obdelavi"}
               </h1>
               <div className="lecture-meta-row">
-                <span className="lecture-meta-pill">{sourceLabel(detail.lecture.source_type)}</span>
+                <span className="lecture-meta-pill">
+                  {sourceLabel(getEffectiveLectureSourceType(detail.lecture))}
+                </span>
                 <span className="lecture-meta-copy">{formatCalendarDate(detail.lecture.created_at)}</span>
               </div>
             </div>

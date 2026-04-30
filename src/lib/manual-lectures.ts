@@ -4,6 +4,7 @@ import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
 import { PartMediaResolutionLevel, type ThinkingConfig } from "@google/genai";
+import JSZip from "jszip";
 import mammoth from "mammoth";
 import { z } from "zod";
 
@@ -17,6 +18,7 @@ import {
   isHtmlDocument,
   isPdfDocument,
   isPlainTextDocument,
+  isPptxDocument,
   isRtfDocument,
 } from "@/lib/document-files";
 import { generateNotesFromTranscript } from "@/lib/note-generation";
@@ -43,6 +45,16 @@ const pdfExtractionSchema = z.object({
   text: z.string().min(120),
 });
 
+const pptxVisualExtractionSchema = z.object({
+  title: z.string().min(1),
+  slides: z.array(
+    z.object({
+      slideNumber: z.number().int().positive(),
+      text: z.string().min(20),
+    }),
+  ),
+});
+
 const MAX_LINK_FETCH_REDIRECTS = 3;
 const MAX_LINK_FETCH_BYTES = 1_000_000;
 const MAX_LINK_READABLE_TEXT_CHARS = 45_000;
@@ -50,6 +62,7 @@ const LINK_FETCH_TIMEOUT_MS = 10_000;
 const TRANSCRIPT_SEGMENT_INSERT_BATCH_SIZE = 25;
 const OCR_PRIMARY_MAX_OUTPUT_TOKENS = 3500;
 const OCR_RESCUE_MAX_OUTPUT_TOKENS = 6000;
+const PPTX_VISUAL_EXTRACTION_MAX_OUTPUT_TOKENS = 9000;
 const OCR_MIN_ACCEPTED_TEXT_CHARS = 120;
 const OCR_THINKING_CONFIG: ThinkingConfig = {
   includeThoughts: false,
@@ -219,6 +232,208 @@ function rtfToText(rtf: string) {
       .replace(/[{}]/g, " ")
       .replace(/\s+/g, " "),
   );
+}
+
+function decodeXmlText(value: string) {
+  return value
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) =>
+      String.fromCodePoint(Number.parseInt(hex, 16)),
+    )
+    .replace(/&#([0-9]+);/g, (_, decimal: string) =>
+      String.fromCodePoint(Number.parseInt(decimal, 10)),
+    )
+    .replace(/&quot;/g, "\"")
+    .replace(/&apos;/g, "'")
+    .replace(/&gt;/g, ">")
+    .replace(/&lt;/g, "<")
+    .replace(/&amp;/g, "&");
+}
+
+function extractPptxXmlText(xml: string) {
+  const textRuns = Array.from(xml.matchAll(/<a:t(?:\s[^>]*)?>([\s\S]*?)<\/a:t>/g))
+    .map((match) => decodeXmlText(match[1] ?? "").trim())
+    .filter(Boolean);
+
+  return normalizeWhitespace(textRuns.join(" "));
+}
+
+function getPptxPartNumber(path: string) {
+  return Number.parseInt(path.match(/(\d+)\.xml$/)?.[1] ?? "0", 10);
+}
+
+function getSortedPptxParts(zip: JSZip, pattern: RegExp) {
+  const parts: string[] = [];
+
+  zip.forEach((path, file) => {
+    if (!file.dir && pattern.test(path)) {
+      parts.push(path);
+    }
+  });
+
+  return parts.sort((left, right) => getPptxPartNumber(left) - getPptxPartNumber(right));
+}
+
+function countWords(value: string) {
+  return value.split(/\s+/).filter(Boolean).length;
+}
+
+function shouldUsePptxVisualExtraction(params: {
+  slideCount: number;
+  mediaCount: number;
+  slides: Array<{ text: string }>;
+}) {
+  if (params.slideCount === 0 || params.mediaCount === 0) {
+    return false;
+  }
+
+  const totalWords = params.slides.reduce((sum, slide) => sum + countWords(slide.text), 0);
+  const averageWordsPerSlide = totalWords / Math.max(params.slideCount, 1);
+  const weakSlideCount = params.slides.filter((slide) => countWords(slide.text) < 18).length;
+  const weakSlideRatio = weakSlideCount / Math.max(params.slideCount, 1);
+
+  return (
+    totalWords < 120 ||
+    averageWordsPerSlide < 30 ||
+    weakSlideRatio >= 0.35 ||
+    params.mediaCount >= Math.ceil(params.slideCount / 2)
+  );
+}
+
+function mergePptxVisualSlides(params: {
+  extractedSlides: Array<{ pageNumber: number; text: string }>;
+  visualSlides: Array<{ slideNumber: number; text: string }>;
+}) {
+  const extractedBySlide = new Map(
+    params.extractedSlides.map((slide) => [slide.pageNumber, slide.text]),
+  );
+  const visualBySlide = new Map(
+    params.visualSlides.map((slide) => [slide.slideNumber, normalizeWhitespace(slide.text)]),
+  );
+  const slideNumbers = Array.from(
+    new Set([...extractedBySlide.keys(), ...visualBySlide.keys()]),
+  ).sort((left, right) => left - right);
+
+  return slideNumbers.flatMap((slideNumber) => {
+    const extractedText = extractedBySlide.get(slideNumber) ?? "";
+    const visualText = visualBySlide.get(slideNumber) ?? "";
+    const text = extractedText
+      ? [extractedText, visualText ? `Visual context: ${visualText}` : ""]
+          .filter(Boolean)
+          .join("\n")
+      : visualText;
+    const normalized = normalizeWhitespace(text);
+
+    return normalized
+      ? [
+          {
+            pageNumber: slideNumber,
+            text: normalized,
+          },
+        ]
+      : [];
+  });
+}
+
+async function extractVisualTextFromPptx(file: File, slideCount: number) {
+  const env = getServerEnv();
+  return generateStructuredObjectWithGeminiFile({
+    schema: pptxVisualExtractionSchema,
+    instructions: `Analyze this PowerPoint presentation slide by slide.
+
+For each slide, extract the full study-relevant meaning, not just editable text.
+Include:
+- visible text, labels, captions, tables, and speaker notes
+- text inside screenshots or images
+- diagram relationships, arrows, sequences, cause/effect, comparisons, and visual groupings
+- concise descriptions of important visual-only information
+
+Preserve the source language. Do not summarize the whole deck into one answer. Return one item per slide, using slideNumber 1 through ${slideCount}. If a slide is decorative or empty, return a short factual note that it has no study-relevant content.`,
+    file,
+    model: env.GEMINI_TEXT_MODEL,
+    maxOutputTokens: PPTX_VISUAL_EXTRACTION_MAX_OUTPUT_TOKENS,
+    maxAttempts: 2,
+    mediaResolution: PartMediaResolutionLevel.MEDIA_RESOLUTION_HIGH,
+  });
+}
+
+async function extractTextFromPptx(file: File) {
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  const slidePaths = getSortedPptxParts(zip, /^ppt\/slides\/slide\d+\.xml$/);
+  const notePaths = getSortedPptxParts(zip, /^ppt\/notesSlides\/notesSlide\d+\.xml$/);
+  const mediaPaths = getSortedPptxParts(zip, /^ppt\/media\/.+/);
+  const notesBySlideNumber = new Map<number, string>();
+
+  await Promise.all(
+    notePaths.map(async (path) => {
+      const noteXml = await zip.file(path)?.async("string");
+      const noteText = noteXml ? extractPptxXmlText(noteXml) : "";
+
+      if (noteText) {
+        notesBySlideNumber.set(getPptxPartNumber(path), noteText);
+      }
+    }),
+  );
+
+  const slides = (
+    await Promise.all(
+      slidePaths.map(async (path) => {
+        const slideNumber = getPptxPartNumber(path);
+        const slideXml = await zip.file(path)?.async("string");
+        const slideText = slideXml ? extractPptxXmlText(slideXml) : "";
+        const noteText = notesBySlideNumber.get(slideNumber);
+        const text = [slideText, noteText ? `Speaker notes: ${noteText}` : ""]
+          .filter(Boolean)
+          .join("\n");
+
+        return {
+          pageNumber: slideNumber,
+          text: normalizeWhitespace(text),
+        };
+      }),
+    )
+  ).filter((slide) => slide.text.length > 0);
+  const slideCount = slidePaths.length;
+  const shouldUseVisualExtraction = shouldUsePptxVisualExtraction({
+    slideCount,
+    mediaCount: mediaPaths.length,
+    slides,
+  });
+  let titleFromVisual: string | null = null;
+  let mergedSlides = slides;
+
+  if (shouldUseVisualExtraction) {
+    try {
+      const visualExtraction = await extractVisualTextFromPptx(file, slideCount);
+      titleFromVisual = visualExtraction.title;
+      mergedSlides = mergePptxVisualSlides({
+        extractedSlides: slides,
+        visualSlides: visualExtraction.slides,
+      });
+    } catch (error) {
+      console.warn("PPTX visual extraction failed; using editable slide text only.", error);
+    }
+  }
+
+  const text = normalizeWhitespace(
+    mergedSlides
+      .map((slide) => `Slide ${slide.pageNumber}\n${slide.text}`)
+      .join("\n\n"),
+  );
+  const title =
+    titleFromVisual ||
+    mergedSlides[0]?.text
+      .split(/[.!?\n]/)
+      .map((line) => line.trim())
+      .find((line) => line.length >= 4 && line.length <= 120) ||
+    file.name.replace(/\.pptx$/i, "") ||
+    "PowerPoint presentation";
+
+  return {
+    title,
+    text,
+    pages: mergedSlides,
+  };
 }
 
 async function createEmbeddings(texts: string[]) {
@@ -826,7 +1041,11 @@ export async function extractTextFromDocument(file: File) {
     };
   }
 
-  throw new Error("Nepodprta vrsta dokumenta. Uporabi PDF, TXT, Markdown, HTML, RTF ali DOCX.");
+  if (isPptxDocument(file)) {
+    return extractTextFromPptx(file);
+  }
+
+  throw new Error("Nepodprta vrsta dokumenta. Uporabi PDF, TXT, Markdown, HTML, RTF, DOCX ali PPTX.");
 }
 
 export async function extractTextFromImage(file: File, context?: ImageOcrContext) {

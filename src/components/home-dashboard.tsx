@@ -25,6 +25,7 @@ import { LibraryFolderMenu } from "@/components/library-folder-menu";
 import { InstantLink } from "@/components/instant-link";
 import { ViewportPortal } from "@/components/viewport-portal";
 import { POLL_INTERVAL_MS } from "@/lib/constants";
+import { getEffectiveLectureSourceType } from "@/lib/lecture-source-metadata";
 import type { AppLectureListItem } from "@/lib/types";
 import { formatCalendarDate } from "@/lib/utils";
 
@@ -72,6 +73,10 @@ function sourceLabel(sourceType: string) {
     return "PDF";
   }
 
+  if (sourceType === "presentation") {
+    return "Predstavitev";
+  }
+
   return "Zvok";
 }
 
@@ -80,7 +85,7 @@ function SourceIcon({ sourceType }: { sourceType: string }) {
     return <EmojiIcon symbol="🔗" size="1rem" />;
   }
 
-  if (sourceType === "text" || sourceType === "pdf") {
+  if (sourceType === "text" || sourceType === "pdf" || sourceType === "presentation") {
     return <EmojiIcon symbol="📄" size="1rem" />;
   }
 
@@ -115,6 +120,8 @@ const NoteRow = memo(function NoteRow({
   onOpenDelete,
   attachMenuRef,
 }: NoteRowProps) {
+  const sourceType = getEffectiveLectureSourceType(lecture);
+
   return (
     <div className={`ios-row-note-card ${isMenuOpen ? "menu-open" : ""}`}>
       <InstantLink
@@ -122,13 +129,13 @@ const NoteRow = memo(function NoteRow({
         className="ios-row-note-card-link"
       >
         <div className="ios-row-icon" style={{ backgroundColor: "var(--surface-muted)" }}>
-          <SourceIcon sourceType={lecture.source_type} />
+          <SourceIcon sourceType={sourceType} />
         </div>
 
         <div className="min-w-0 flex-1">
           <p className="ios-row-title truncate font-medium">{lecture.title ?? "Neimenovan zapisek"}</p>
           <p className="ios-row-subtitle mt-1">
-            {sourceLabel(lecture.source_type)} • {formatCalendarDate(lecture.created_at)}
+            {sourceLabel(sourceType)} • {formatCalendarDate(lecture.created_at)}
           </p>
         </div>
 
@@ -628,7 +635,7 @@ export function HomeDashboard({
     return (
       lecture.title?.toLowerCase().includes(search) ||
       lecture.error_message?.toLowerCase().includes(search) ||
-      sourceLabel(lecture.source_type).toLowerCase().includes(search)
+      sourceLabel(getEffectiveLectureSourceType(lecture)).toLowerCase().includes(search)
     );
   });
 
@@ -809,7 +816,7 @@ export function HomeDashboard({
                   ? "Poskusi krajši iskalni izraz ali počisti iskanje."
                   : selectedFolderId
                     ? "Dodaj predavanja v to mapo ali se vrni na vse zapiske."
-                    : "Začni s posnetkom, zvočno datoteko, PDF-jem, besedilom ali povezavo."}
+                    : "Začni s posnetkom, zvočno datoteko, PDF-jem, PPTX-om, besedilom ali povezavo."}
               </p>
               {!search && !selectedFolderId ? (
                 <button

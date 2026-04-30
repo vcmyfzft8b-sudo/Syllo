@@ -79,6 +79,7 @@ export const SUPPORTED_DOCUMENT_MIME_TYPES = [
   "application/rtf",
   "text/rtf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ] as const;
 
 export const SUPPORTED_DOCUMENT_EXTENSIONS = [
@@ -90,11 +91,22 @@ export const SUPPORTED_DOCUMENT_EXTENSIONS = [
   "htm",
   "rtf",
   "docx",
+  "pptx",
 ] as const;
+
+export const LEGACY_POWERPOINT_MIME_TYPES = [
+  "application/vnd.ms-powerpoint",
+  "application/mspowerpoint",
+  "application/powerpoint",
+] as const;
+
+export const LEGACY_POWERPOINT_EXTENSIONS = ["ppt"] as const;
 
 export const DOCUMENT_FILE_INPUT_ACCEPT = [
   ...SUPPORTED_DOCUMENT_MIME_TYPES,
   ...SUPPORTED_DOCUMENT_EXTENSIONS.map((extension) => `.${extension}`),
+  ...LEGACY_POWERPOINT_MIME_TYPES,
+  ...LEGACY_POWERPOINT_EXTENSIONS.map((extension) => `.${extension}`),
 ].join(",");
 
 export const SCAN_IMAGE_INPUT_ACCEPT = [

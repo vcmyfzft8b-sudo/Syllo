@@ -2,7 +2,7 @@ import { after, NextResponse } from "next/server";
 
 import { enqueueLectureNotesGeneration, enqueueLectureProcessing } from "@/lib/jobs";
 import { ensureUserOwnsLecture } from "@/lib/lectures";
-import { isRecord } from "@/lib/lecture-source-metadata";
+import { getEffectiveLectureSourceType, isRecord } from "@/lib/lecture-source-metadata";
 import { fetchReadableWebpage, prepareLectureFromTextSource } from "@/lib/manual-lectures";
 import { markLecturePipelineFailed } from "@/lib/pipeline";
 import { enforceRateLimit, rateLimitPresets } from "@/lib/rate-limit";
@@ -72,15 +72,16 @@ export async function POST(
   }
 
   const hasManualImport = Boolean(getManualImportMetadata(lecture.processing_metadata));
+  const effectiveSourceType = getEffectiveLectureSourceType(lecture);
 
-  if (lecture.source_type !== "audio" && !hasManualImport) {
+  if (effectiveSourceType !== "audio" && !hasManualImport) {
     return NextResponse.json(
       { error: "Ponovni poskus za ta zapisek ni na voljo." },
       { status: 400 },
     );
   }
 
-  if (lecture.source_type === "link") {
+  if (effectiveSourceType === "link") {
     const sourceUrl = getLinkSourceUrl(lecture.processing_metadata);
 
     if (!sourceUrl) {
@@ -126,15 +127,18 @@ export async function POST(
   }
 
   const nextStatus = "queued";
+  const updatePayload: Record<string, unknown> = {
+    status: nextStatus,
+    error_message: null,
+  };
+
+  if (lecture.source_type !== effectiveSourceType) {
+    updatePayload.source_type = effectiveSourceType;
+  }
 
   const { error } = await supabase
     .from("lectures")
-    .update(
-      {
-        status: nextStatus,
-        error_message: null,
-      } as never,
-    )
+    .update(updatePayload as never)
     .eq("id", id)
     .eq("user_id", user.id);
 
@@ -144,7 +148,7 @@ export async function POST(
 
   after(async () => {
     try {
-      if (lecture.source_type === "audio") {
+      if (effectiveSourceType === "audio") {
         await enqueueLectureProcessing(id);
         return;
       }
