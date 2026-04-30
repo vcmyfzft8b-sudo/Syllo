@@ -18,18 +18,27 @@ const INTERNAL_LECTURE_PROCESSING_PATH = "/api/internal/lectures/process";
 const INTERNAL_LECTURE_SCAN_PATH = "/api/internal/lectures/scan";
 const INTERNAL_LECTURE_PRACTICE_TEST_PATH = "/api/internal/lectures/practice-test";
 
+function getInternalJobBaseUrl(publicSiteUrl?: string) {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  return publicSiteUrl;
+}
+
 export async function enqueueLectureProcessingStage(params: {
   lectureId: string;
   stage: LectureProcessingStage;
 }) {
   const env = getServerEnv();
+  const internalJobBaseUrl = getInternalJobBaseUrl(env.NEXT_PUBLIC_SITE_URL);
 
-  if (!env.NEXT_PUBLIC_SITE_URL || !env.INTERNAL_JOB_SECRET) {
+  if (!internalJobBaseUrl || !env.INTERNAL_JOB_SECRET) {
     return false;
   }
 
   const response = await fetch(
-    new URL(INTERNAL_LECTURE_PROCESSING_PATH, env.NEXT_PUBLIC_SITE_URL),
+    new URL(INTERNAL_LECTURE_PROCESSING_PATH, internalJobBaseUrl),
     {
       method: "POST",
       headers: {
@@ -42,7 +51,7 @@ export async function enqueueLectureProcessingStage(params: {
   );
 
   if (!response.ok) {
-    let message = `Lecture processing stage ${params.stage} could not be started.`;
+    let message = `Lecture processing stage ${params.stage} could not be started (${response.status}).`;
 
     try {
       const data = (await response.json()) as { error?: string };
@@ -79,12 +88,13 @@ async function enqueueInternalLectureJob(params: {
   regenerate?: boolean;
 }) {
   const env = getServerEnv();
+  const internalJobBaseUrl = getInternalJobBaseUrl(env.NEXT_PUBLIC_SITE_URL);
 
-  if (!env.NEXT_PUBLIC_SITE_URL || !env.INTERNAL_JOB_SECRET) {
+  if (!internalJobBaseUrl || !env.INTERNAL_JOB_SECRET) {
     return false;
   }
 
-  const response = await fetch(new URL(params.path, env.NEXT_PUBLIC_SITE_URL), {
+  const response = await fetch(new URL(params.path, internalJobBaseUrl), {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -98,7 +108,7 @@ async function enqueueInternalLectureJob(params: {
   });
 
   if (!response.ok) {
-    let message = `Lecture background job could not be started for ${params.path}.`;
+    let message = `Lecture background job could not be started for ${params.path} (${response.status}).`;
 
     try {
       const data = (await response.json()) as { error?: string };
