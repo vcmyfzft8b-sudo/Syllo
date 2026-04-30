@@ -3,7 +3,12 @@ import { z } from "zod";
 
 import { createBillingRequiredResponse, getUserEntitlementState } from "@/lib/billing";
 import { MAX_DOCUMENT_BYTES } from "@/lib/constants";
-import { isPdfDocument, isSupportedDocumentFile } from "@/lib/document-files";
+import {
+  isLegacyPowerPointDocument,
+  isPdfDocument,
+  isPptxDocument,
+  isSupportedDocumentFile,
+} from "@/lib/document-files";
 import { validateDocumentFileSignature } from "@/lib/file-validation";
 import { enqueueLectureNotesGeneration } from "@/lib/jobs";
 import {
@@ -88,10 +93,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Manjka datoteka dokumenta." }, { status: 400 });
   }
 
+  if (isLegacyPowerPointDocument(inputFile)) {
+    return NextResponse.json(
+      {
+        error: "Stare PowerPoint datoteke .ppt še niso podprte. Shrani jo kot .pptx ali PDF in poskusi znova.",
+      },
+      { status: 400 },
+    );
+  }
+
   if (!isSupportedDocumentFile(inputFile)) {
     return NextResponse.json(
       {
-        error: "Nepodprta vrsta dokumenta. Uporabi PDF, TXT, Markdown, HTML, RTF ali DOCX.",
+        error: "Nepodprta vrsta dokumenta. Uporabi PDF, TXT, Markdown, HTML, RTF, DOCX ali PPTX.",
       },
       { status: 400 },
     );
@@ -123,7 +137,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const sourceType = isPdfDocument(inputFile) ? "pdf" : "text";
+    const sourceType = isPdfDocument(inputFile)
+      ? "pdf"
+      : isPptxDocument(inputFile)
+        ? "presentation"
+        : "text";
     let nextLectureId = lectureId;
     const extracted = await extractTextFromDocument(inputFile);
     const lectureInput = {
@@ -131,14 +149,19 @@ export async function POST(request: Request) {
       sourceType,
       text: extracted.text,
       blocks: extracted.pages.map((page) => ({
-        label: `Stran ${page.pageNumber}`,
+        label: sourceType === "presentation" ? `Prosojnica ${page.pageNumber}` : `Stran ${page.pageNumber}`,
         pageNumber: page.pageNumber,
         text: page.text,
       })),
       titleHint: extracted.title || sourceFileName.replace(/\.[^.]+$/i, ""),
       languageHint,
       modelMetadata: {
-        importMode: sourceType === "pdf" ? "pdf" : "document",
+        importMode:
+          sourceType === "pdf"
+            ? "pdf"
+            : sourceType === "presentation"
+              ? "presentation"
+              : "document",
         sourceFileName,
       },
     };

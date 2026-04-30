@@ -164,6 +164,7 @@ export function buildSyntheticTranscriptFromTextSource(params: {
   const segments: TranscriptSegmentInput[] = [];
   let startMs = 0;
   let elapsedMs = 0;
+  const pageLabel = params.sourceType === "presentation" ? "Slide" : "Page";
 
   for (const block of blocks) {
     const durationMs = Math.max(
@@ -178,8 +179,8 @@ export function buildSyntheticTranscriptFromTextSource(params: {
       speakerLabel:
         block.pageNumber != null
           ? block.label
-            ? `Page ${block.pageNumber} · ${block.label}`
-            : `Page ${block.pageNumber}`
+            ? `${pageLabel} ${block.pageNumber} · ${block.label}`
+            : `${pageLabel} ${block.pageNumber}`
           : block.label,
       text: block.text,
     });

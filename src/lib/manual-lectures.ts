@@ -4,6 +4,7 @@ import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
 import { PartMediaResolutionLevel, type ThinkingConfig } from "@google/genai";
+import JSZip from "jszip";
 import mammoth from "mammoth";
 import { z } from "zod";
 
@@ -17,6 +18,7 @@ import {
   isHtmlDocument,
   isPdfDocument,
   isPlainTextDocument,
+  isPptxDocument,
   isRtfDocument,
 } from "@/lib/document-files";
 import { generateNotesFromTranscript } from "@/lib/note-generation";
@@ -219,6 +221,102 @@ function rtfToText(rtf: string) {
       .replace(/[{}]/g, " ")
       .replace(/\s+/g, " "),
   );
+}
+
+function decodeXmlText(value: string) {
+  return value
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) =>
+      String.fromCodePoint(Number.parseInt(hex, 16)),
+    )
+    .replace(/&#([0-9]+);/g, (_, decimal: string) =>
+      String.fromCodePoint(Number.parseInt(decimal, 10)),
+    )
+    .replace(/&quot;/g, "\"")
+    .replace(/&apos;/g, "'")
+    .replace(/&gt;/g, ">")
+    .replace(/&lt;/g, "<")
+    .replace(/&amp;/g, "&");
+}
+
+function extractPptxXmlText(xml: string) {
+  const textRuns = Array.from(xml.matchAll(/<a:t(?:\s[^>]*)?>([\s\S]*?)<\/a:t>/g))
+    .map((match) => decodeXmlText(match[1] ?? "").trim())
+    .filter(Boolean);
+
+  return normalizeWhitespace(textRuns.join(" "));
+}
+
+function getPptxPartNumber(path: string) {
+  return Number.parseInt(path.match(/(\d+)\.xml$/)?.[1] ?? "0", 10);
+}
+
+function getSortedPptxParts(zip: JSZip, pattern: RegExp) {
+  const parts: string[] = [];
+
+  zip.forEach((path, file) => {
+    if (!file.dir && pattern.test(path)) {
+      parts.push(path);
+    }
+  });
+
+  return parts.sort((left, right) => getPptxPartNumber(left) - getPptxPartNumber(right));
+}
+
+async function extractTextFromPptx(file: File) {
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  const slidePaths = getSortedPptxParts(zip, /^ppt\/slides\/slide\d+\.xml$/);
+  const notePaths = getSortedPptxParts(zip, /^ppt\/notesSlides\/notesSlide\d+\.xml$/);
+  const notesBySlideNumber = new Map<number, string>();
+
+  await Promise.all(
+    notePaths.map(async (path) => {
+      const noteXml = await zip.file(path)?.async("string");
+      const noteText = noteXml ? extractPptxXmlText(noteXml) : "";
+
+      if (noteText) {
+        notesBySlideNumber.set(getPptxPartNumber(path), noteText);
+      }
+    }),
+  );
+
+  const slides = (
+    await Promise.all(
+      slidePaths.map(async (path) => {
+        const slideNumber = getPptxPartNumber(path);
+        const slideXml = await zip.file(path)?.async("string");
+        const slideText = slideXml ? extractPptxXmlText(slideXml) : "";
+        const noteText = notesBySlideNumber.get(slideNumber);
+        const text = [slideText, noteText ? `Speaker notes: ${noteText}` : ""]
+          .filter(Boolean)
+          .join("\n");
+
+        return {
+          pageNumber: slideNumber,
+          text: normalizeWhitespace(text),
+        };
+      }),
+    )
+  ).filter((slide) => slide.text.length > 0);
+
+  const text = normalizeWhitespace(
+    slides
+      .map((slide) => `Slide ${slide.pageNumber}\n${slide.text}`)
+      .join("\n\n"),
+  );
+  const title =
+    slides[0]?.text
+      .split(/[.!?\n]/)
+      .map((line) => line.trim())
+      .find((line) => line.length >= 4 && line.length <= 120) ||
+    file.name.replace(/\.pptx$/i, "") ||
+    "PowerPoint presentation";
+
+  return {
+    title,
+    text,
+    pages: slides,
+  };
 }
 
 async function createEmbeddings(texts: string[]) {
@@ -826,7 +924,11 @@ export async function extractTextFromDocument(file: File) {
     };
   }
 
-  throw new Error("Nepodprta vrsta dokumenta. Uporabi PDF, TXT, Markdown, HTML, RTF ali DOCX.");
+  if (isPptxDocument(file)) {
+    return extractTextFromPptx(file);
+  }
+
+  throw new Error("Nepodprta vrsta dokumenta. Uporabi PDF, TXT, Markdown, HTML, RTF, DOCX ali PPTX.");
 }
 
 export async function extractTextFromImage(file: File, context?: ImageOcrContext) {

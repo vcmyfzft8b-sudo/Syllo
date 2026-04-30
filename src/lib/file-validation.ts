@@ -11,6 +11,7 @@ import {
   isHtmlDocument,
   isPdfDocument,
   isPlainTextDocument,
+  isPptxDocument,
   isRtfDocument,
 } from "@/lib/document-files";
 import {
@@ -85,6 +86,14 @@ function isDocxSignature(bytes: Uint8Array) {
     isZipSignature(bytes) &&
     findAscii(bytes, "[Content_Types].xml") &&
     findAscii(bytes, "word/document.xml")
+  );
+}
+
+function isPptxSignature(bytes: Uint8Array) {
+  return (
+    isZipSignature(bytes) &&
+    findAscii(bytes, "[Content_Types].xml") &&
+    findAscii(bytes, "ppt/presentation.xml")
   );
 }
 
@@ -239,6 +248,14 @@ export async function validateDocumentFileSignature(file: File) {
       : { ok: false, error: "Naložena datoteka ni veljaven dokument DOCX." };
   }
 
+  if (isPptxDocument(file)) {
+    const documentBytes = new Uint8Array(await file.arrayBuffer());
+
+    return isPptxSignature(documentBytes)
+      ? { ok: true }
+      : { ok: false, error: "Naložena datoteka ni veljavna predstavitev PPTX." };
+  }
+
   if (isRtfDocument(file)) {
     return isRtfSignature(sniffBytes)
       ? { ok: true }
@@ -259,7 +276,7 @@ export async function validateDocumentFileSignature(file: File) {
 
   return {
     ok: false,
-    error: "Nepodprta vrsta dokumenta. Uporabi PDF, TXT, Markdown, HTML, RTF ali DOCX.",
+    error: "Nepodprta vrsta dokumenta. Uporabi PDF, TXT, Markdown, HTML, RTF, DOCX ali PPTX.",
   };
 }
 

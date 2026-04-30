@@ -72,6 +72,10 @@ function sourceLabel(sourceType: string) {
     return "PDF";
   }
 
+  if (sourceType === "presentation") {
+    return "Predstavitev";
+  }
+
   return "Zvok";
 }
 
@@ -80,7 +84,7 @@ function SourceIcon({ sourceType }: { sourceType: string }) {
     return <EmojiIcon symbol="🔗" size="1rem" />;
   }
 
-  if (sourceType === "text" || sourceType === "pdf") {
+  if (sourceType === "text" || sourceType === "pdf" || sourceType === "presentation") {
     return <EmojiIcon symbol="📄" size="1rem" />;
   }
 
@@ -809,7 +813,7 @@ export function HomeDashboard({
                   ? "Poskusi krajši iskalni izraz ali počisti iskanje."
                   : selectedFolderId
                     ? "Dodaj predavanja v to mapo ali se vrni na vse zapiske."
-                    : "Začni s posnetkom, zvočno datoteko, PDF-jem, besedilom ali povezavo."}
+                    : "Začni s posnetkom, zvočno datoteko, PDF-jem, PPTX-om, besedilom ali povezavo."}
               </p>
               {!search && !selectedFolderId ? (
                 <button

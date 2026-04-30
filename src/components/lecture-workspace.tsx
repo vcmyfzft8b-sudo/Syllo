@@ -308,6 +308,10 @@ function sourceLabel(sourceType: string) {
     return "PDF dokument";
   }
 
+  if (sourceType === "presentation") {
+    return "PowerPoint predstavitev";
+  }
+
   return "Zvočni posnetek";
 }
 
