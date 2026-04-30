@@ -804,7 +804,7 @@ export async function listLecturesForUser(userId: string): Promise<AppLectureLis
   const { data, error } = await supabase
     .from("lectures")
     .select(
-      "id, user_id, title, source_type, duration_seconds, status, language_hint, error_message, created_at, updated_at, access_tier",
+      "id, user_id, title, source_type, duration_seconds, status, language_hint, error_message, created_at, updated_at, access_tier, processing_metadata",
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
