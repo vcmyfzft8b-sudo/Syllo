@@ -40,6 +40,7 @@ import {
   isRecord,
   lectureShowsTranscript,
 } from "@/lib/lecture-source-metadata";
+import { hasInitialNoteTtsChunk } from "@/lib/note-tts";
 import { buildPracticeTestHistorySummary, mapAttemptWithAnswers } from "@/lib/practice-test";
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { uuidSchema } from "@/lib/validation";
@@ -153,6 +154,17 @@ async function reconcileLectureWithArtifact(
     error_message: null,
     processing_metadata: buildReadyProcessingMetadata(processingMetadata),
   };
+
+  const hasInitialTtsChunk = await hasInitialNoteTtsChunk({
+    lectureId: lecture.id,
+    content: artifact.structured_notes_md,
+    title: nextTitle,
+    languageHint: lecture.language_hint,
+  });
+
+  if (!hasInitialTtsChunk) {
+    return lecture;
+  }
 
   const { error } = await createSupabaseServiceRoleClient()
     .from("lectures")

@@ -28,6 +28,7 @@ import {
 } from "@/lib/scan-ocr-errors";
 import { getServerEnv } from "@/lib/server-env";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { prepareInitialNoteTtsChunk } from "@/lib/note-tts";
 import {
   buildSyntheticTranscriptFromTextSource,
   estimateTextSourceDurationSeconds,
@@ -1325,6 +1326,14 @@ export async function createLectureFromTextSource(params: {
     if (artifactError) {
       throw new Error(artifactError.message);
     }
+
+    await prepareInitialNoteTtsChunk({
+      userId: params.userId,
+      lectureId,
+      content: notes.structuredNotesMd,
+      title: notes.title,
+      languageHint: params.languageHint ?? "sl",
+    });
 
     const { data: updatedLecture, error: updateError } = await supabase
       .from("lectures")

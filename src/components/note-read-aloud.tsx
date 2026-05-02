@@ -668,7 +668,17 @@ export function NoteReadAloud({
         const payload = await parseResponse<TtsStatusResponse>(response);
 
         if (!cancelled) {
-          setStatus(payload);
+          setStatus(
+            payload.reason === "notes_not_ready" && chunks.length > 0
+              ? {
+                  ...payload,
+                  available: true,
+                  reason: null,
+                  chunkCount: chunks.length,
+                  totalWords: document.words.length,
+                }
+              : payload,
+          );
           setError(null);
         }
       } catch (statusError) {
@@ -687,13 +697,27 @@ export function NoteReadAloud({
     return () => {
       cancelled = true;
     };
-  }, [lectureId]);
+  }, [chunks.length, document.words.length, lectureId]);
 
   useEffect(() => {
     setPlaybackRate(getStoredPlaybackRate());
     setSelectedVoice(getStoredVoice());
     setHighlightColorId(getStoredHighlightColorId());
     setHasHydratedSettings(true);
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    return () => {
+      if (!audio) {
+        return;
+      }
+
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+    };
   }, []);
 
   useEffect(() => {
@@ -819,7 +843,9 @@ export function NoteReadAloud({
             ? getDailyLimitDisplayMessage(status)
             : message;
 
-          setError(displayMessage);
+          if (!options?.silent) {
+            setError(displayMessage);
+          }
 
           if (isDailyLimit) {
             setStatus((current) =>
@@ -925,25 +951,6 @@ export function NoteReadAloud({
   );
 
   useEffect(() => {
-    if (
-      !hasHydratedSettings ||
-      !status?.available ||
-      status.remainingSeconds <= 0 ||
-      chunks.length === 0
-    ) {
-      return;
-    }
-
-    prefetchChunk(0);
-  }, [
-    chunks.length,
-    hasHydratedSettings,
-    prefetchChunk,
-    status?.available,
-    status?.remainingSeconds,
-  ]);
-
-  useEffect(() => {
     const markUserInteraction = () => {
       lastUserInteractionRef.current = Date.now();
     };
@@ -1041,7 +1048,7 @@ export function NoteReadAloud({
   const handlePlayPause = useCallback(async () => {
     const audio = audioRef.current;
 
-    if (!audio || isFetchingChunk || isLoadingStatus || !status?.available || status.remainingSeconds <= 0) {
+    if (!audio || isFetchingChunk || chunks.length === 0) {
       return;
     }
 
@@ -1061,13 +1068,56 @@ export function NoteReadAloud({
       return;
     }
 
+    let playbackStatus = status;
+
+    if (!playbackStatus || isLoadingStatus) {
+      setIsFetchingChunk(true);
+      setError(null);
+
+      try {
+        const response = await fetch(`/api/lectures/${lectureId}/tts/status`, {
+          cache: "no-store",
+        });
+        const payload = await parseResponse<TtsStatusResponse>(response);
+        playbackStatus =
+          payload.reason === "notes_not_ready" && chunks.length > 0
+            ? {
+                ...payload,
+                available: true,
+                reason: null,
+                chunkCount: chunks.length,
+                totalWords: document.words.length,
+              }
+            : payload;
+        setStatus(playbackStatus);
+      } catch (statusError) {
+        setError(statusError instanceof Error ? statusError.message : "Poslušanje ni na voljo.");
+        return;
+      } finally {
+        setIsFetchingChunk(false);
+      }
+    }
+
+    if (!playbackStatus.available) {
+      setError("Poslušanje ni na voljo.");
+      return;
+    }
+
+    if (!playbackStatus.hasUnlimitedUsage && playbackStatus.remainingSeconds <= 0) {
+      setError(getDailyLimitDisplayMessage(playbackStatus));
+      return;
+    }
+
     await playChunk(activeChunkIndex);
   }, [
     activeChunk,
     activeChunkIndex,
+    chunks.length,
+    document.words.length,
     isFetchingChunk,
     isLoadingStatus,
     isPlaying,
+    lectureId,
     playChunk,
     status,
   ]);
@@ -1183,12 +1233,10 @@ export function NoteReadAloud({
   ]);
 
   const disabled =
-    isLoadingStatus ||
     isFetchingChunk ||
-    !status?.available ||
-    status.remainingSeconds <= 0 ||
+    Boolean(status && (!status.available || (!status.hasUnlimitedUsage && status.remainingSeconds <= 0))) ||
     chunks.length === 0;
-  const isPreparingPlayback = isFetchingChunk || isLoadingStatus;
+  const isPreparingPlayback = isFetchingChunk;
   const playButtonLabel =
     isPreparingPlayback
       ? "Pripravljam..."

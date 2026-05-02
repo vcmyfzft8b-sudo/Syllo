@@ -286,6 +286,37 @@ function mergeLectureDetailWithStoredStudySession(detail: LectureDetail) {
   };
 }
 
+function detailSectionFailed(detail: LectureDetail, section: string) {
+  return detail.degraded?.failedSections.includes(section) ?? false;
+}
+
+function mergeLectureDetailForRefresh(current: LectureDetail, next: LectureDetail) {
+  const merged = mergeLectureDetailWithStoredStudySession(next);
+
+  if (
+    current.lecture.id === merged.lecture.id &&
+    current.lecture.status === "ready" &&
+    merged.lecture.status !== "ready" &&
+    toTimestamp(merged.lecture.updated_at) <= toTimestamp(current.lecture.updated_at)
+  ) {
+    return current;
+  }
+
+  if (
+    current.lecture.id === merged.lecture.id &&
+    current.artifact?.structured_notes_md?.trim() &&
+    !merged.artifact?.structured_notes_md?.trim() &&
+    detailSectionFailed(merged, "artifact")
+  ) {
+    return {
+      ...merged,
+      artifact: current.artifact,
+    };
+  }
+
+  return merged;
+}
+
 function confidenceLabel(value: FlashcardConfidenceBucket) {
   if (value === "again") {
     return "Nisem vedel";
@@ -1012,7 +1043,8 @@ export function LectureWorkspace({
           return;
         }
 
-        setDetail(mergeLectureDetailWithStoredStudySession((await refresh.json()) as LectureDetail));
+        const nextDetail = (await refresh.json()) as LectureDetail;
+        setDetail((current) => mergeLectureDetailForRefresh(current, nextDetail));
       } catch {
         return;
       }
@@ -1383,6 +1415,10 @@ export function LectureWorkspace({
       detail.lecture.title,
     );
   }, [detail.artifact?.structured_notes_md, detail.lecture.title]);
+  const notesArtifactLoadFailed =
+    !cleanedStructuredNotes &&
+    detail.lecture.status === "ready" &&
+    detailSectionFailed(detail, "artifact");
   const studyStage =
     detail.studyAsset?.model_metadata &&
     typeof detail.studyAsset.model_metadata === "object" &&
@@ -2286,15 +2322,19 @@ export function LectureWorkspace({
       return (
         <div className="workspace-panel-stack lecture-panel-stack">
           <div className="ios-card lecture-notes-card">
-            {cleanedStructuredNotes ? (
+            {cleanedStructuredNotes && detail.lecture.status === "ready" ? (
               <div className="markdown lecture-markdown">
                 <NoteReadAloud lectureId={detail.lecture.id} content={cleanedStructuredNotes} />
               </div>
-            ) : shouldPollLecture(detail.lecture.status) ? (
+            ) : shouldPollLecture(detail.lecture.status) || notesArtifactLoadFailed ? (
               <div className="lecture-notes-processing">
                 <StudyGenerationNotice
-                  stageCopy={lectureProcessingStageCopy}
-                  bodyCopy="Obdelava teče v ozadju. Lahko zapreš ta pogled in se vrneš čez nekaj minut."
+                  stageCopy={notesArtifactLoadFailed ? "Nalaganje zapiskov" : lectureProcessingStageCopy}
+                  bodyCopy={
+                    notesArtifactLoadFailed
+                      ? "Zapiski so pripravljeni, vendar se niso naložili v tem poskusu. Poskušamo znova."
+                      : "Obdelava teče v ozadju. Lahko zapreš ta pogled in se vrneš čez nekaj minut."
+                  }
                 />
               </div>
             ) : (
