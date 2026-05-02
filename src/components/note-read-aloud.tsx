@@ -619,6 +619,7 @@ export function NoteReadAloud({
   const prefetchedChunksRef = useRef(new Map<string, TtsChunkResponse>());
   const pendingChunkRequestsRef = useRef(new Map<string, Promise<TtsChunkResponse | null>>());
   const prefetchQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const playbackRequestIdRef = useRef(0);
   const playbackWordStateRef = useRef<{
     completedWordIndex: number;
     currentWordIndex: number | null;
@@ -643,6 +644,7 @@ export function NoteReadAloud({
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
   const [isFetchingChunk, setIsFetchingChunk] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isStartingPlayback, setIsStartingPlayback] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const highlightColor =
     NOTE_TTS_HIGHLIGHT_COLORS.find((color) => color.id === highlightColorId) ??
@@ -763,6 +765,7 @@ export function NoteReadAloud({
   );
 
   const resetPlaybackToStart = useCallback(() => {
+    playbackRequestIdRef.current += 1;
     sessionIdRef.current = createReadSessionId();
     prefetchedChunksRef.current.clear();
     pendingChunkRequestsRef.current.clear();
@@ -780,6 +783,7 @@ export function NoteReadAloud({
     setActiveChunk(null);
     setActiveChunkIndex(0);
     setIsPlaying(false);
+    setIsStartingPlayback(false);
     setPlaybackWordState({
       completedWordIndex: -1,
       currentWordIndex: null,
@@ -1018,10 +1022,21 @@ export function NoteReadAloud({
         return;
       }
 
+      const requestId = playbackRequestIdRef.current + 1;
+      playbackRequestIdRef.current = requestId;
+      setIsStartingPlayback(true);
+
       const payload = await loadChunk(chunkIndex);
 
       if (!payload) {
-        setIsPlaying(false);
+        if (playbackRequestIdRef.current === requestId) {
+          setIsPlaying(false);
+          setIsStartingPlayback(false);
+        }
+        return;
+      }
+
+      if (playbackRequestIdRef.current !== requestId) {
         return;
       }
 
@@ -1036,10 +1051,16 @@ export function NoteReadAloud({
 
       try {
         await audio.play();
-        setIsPlaying(true);
+        if (playbackRequestIdRef.current !== requestId) {
+          audio.pause();
+          return;
+        }
       } catch {
-        setError("Za začetek poslušanja pritisni še enkrat.");
-        setIsPlaying(false);
+        if (playbackRequestIdRef.current === requestId) {
+          setError("Za začetek poslušanja pritisni še enkrat.");
+          setIsPlaying(false);
+          setIsStartingPlayback(false);
+        }
       }
     },
     [loadChunk, playbackRate, setPlaybackWordState],
@@ -1048,22 +1069,38 @@ export function NoteReadAloud({
   const handlePlayPause = useCallback(async () => {
     const audio = audioRef.current;
 
-    if (!audio || isFetchingChunk || chunks.length === 0) {
+    if (!audio || chunks.length === 0) {
+      return;
+    }
+
+    if (isStartingPlayback) {
       return;
     }
 
     if (isPlaying) {
+      playbackRequestIdRef.current += 1;
       audio.pause();
       setIsPlaying(false);
       return;
     }
 
+    if (isFetchingChunk) {
+      return;
+    }
+
     if (activeChunk && audio.src && audio.paused) {
+      const requestId = playbackRequestIdRef.current + 1;
+      playbackRequestIdRef.current = requestId;
+      setIsStartingPlayback(true);
+      setError(null);
+
       try {
         await audio.play();
-        setIsPlaying(true);
       } catch {
-        setError("Za začetek poslušanja pritisni še enkrat.");
+        if (playbackRequestIdRef.current === requestId) {
+          setError("Za začetek poslušanja pritisni še enkrat.");
+          setIsStartingPlayback(false);
+        }
       }
       return;
     }
@@ -1117,6 +1154,7 @@ export function NoteReadAloud({
     isFetchingChunk,
     isLoadingStatus,
     isPlaying,
+    isStartingPlayback,
     lectureId,
     playChunk,
     status,
@@ -1234,9 +1272,10 @@ export function NoteReadAloud({
 
   const disabled =
     isFetchingChunk ||
+    isStartingPlayback ||
     Boolean(status && (!status.available || (!status.hasUnlimitedUsage && status.remainingSeconds <= 0))) ||
     chunks.length === 0;
-  const isPreparingPlayback = isFetchingChunk;
+  const isPreparingPlayback = isFetchingChunk || isStartingPlayback;
   const playButtonLabel =
     isPreparingPlayback
       ? "Pripravljam..."
@@ -1285,7 +1324,14 @@ export function NoteReadAloud({
         preload="none"
         onTimeUpdate={updatePlaybackPosition}
         onEnded={handleEnded}
-        onPause={() => setIsPlaying(false)}
+        onPlaying={() => {
+          setIsPlaying(true);
+          setIsStartingPlayback(false);
+        }}
+        onPause={() => {
+          setIsPlaying(false);
+          setIsStartingPlayback(false);
+        }}
         className="note-read-audio"
       />
       <ViewportPortal>
