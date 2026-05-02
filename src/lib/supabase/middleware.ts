@@ -23,6 +23,10 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return response;
+  }
+
   const supabase = createServerClient<Database>(
     env.supabaseUrl,
     env.supabaseAnonKey,
