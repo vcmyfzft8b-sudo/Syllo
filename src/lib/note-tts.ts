@@ -8,7 +8,13 @@ import { STORAGE_BUCKET } from "@/lib/constants";
 import type { Json, LectureTtsChunkRow } from "@/lib/database.types";
 import { normalizeNoteLanguage } from "@/lib/languages";
 import { DEFAULT_NOTE_TTS_VOICE, type NoteTtsVoice } from "@/lib/note-tts-settings";
-import type { NoteTtsChunkPlan, NoteTtsWord } from "@/lib/note-tts-text";
+import {
+  buildNoteTtsChunks,
+  parseNoteTtsDocument,
+  stripLeadingRedundantHeading,
+  type NoteTtsChunkPlan,
+  type NoteTtsWord,
+} from "@/lib/note-tts-text";
 import { getServerEnv, requireSonioxEnv } from "@/lib/server-env";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 
@@ -756,4 +762,78 @@ export async function getOrCreateTtsChunk(params: {
     audioUrl: signedUrl.signedUrl,
     alignment: parseStoredAlignment(row.alignment_json),
   };
+}
+
+export async function prepareInitialNoteTtsChunk(params: {
+  userId: string;
+  lectureId: string;
+  content: string;
+  title?: string | null;
+  languageHint: string | null;
+  voice?: NoteTtsVoice;
+}) {
+  const content = stripLeadingRedundantHeading(params.content, params.title).trim();
+
+  if (!content) {
+    return null;
+  }
+
+  const document = parseNoteTtsDocument(content);
+  const chunks = buildNoteTtsChunks(document);
+  const firstChunk = chunks[0];
+
+  if (!firstChunk) {
+    return null;
+  }
+
+  return getOrCreateTtsChunk({
+    userId: params.userId,
+    lectureId: params.lectureId,
+    contentHash: hashNoteTtsContent(content),
+    chunk: firstChunk,
+    allWords: document.words,
+    languageHint: params.languageHint,
+    voice: params.voice,
+  });
+}
+
+export async function hasInitialNoteTtsChunk(params: {
+  lectureId: string;
+  content: string;
+  title?: string | null;
+  languageHint: string | null;
+  voice?: NoteTtsVoice;
+}) {
+  const content = stripLeadingRedundantHeading(params.content, params.title).trim();
+
+  if (!content) {
+    return false;
+  }
+
+  const document = parseNoteTtsDocument(content);
+  const firstChunk = buildNoteTtsChunks(document)[0];
+
+  if (!firstChunk) {
+    return false;
+  }
+
+  const env = getServerEnv();
+  const language = normalizeNoteLanguage(params.languageHint);
+  const voice = params.voice ?? DEFAULT_NOTE_TTS_VOICE;
+  const { data, error } = await createSupabaseServiceRoleClient()
+    .from("lecture_tts_chunks")
+    .select("id")
+    .eq("lecture_id", params.lectureId)
+    .eq("content_hash", hashNoteTtsContent(content))
+    .eq("chunk_index", firstChunk.chunkIndex)
+    .eq("language", language)
+    .eq("voice", voice)
+    .eq("model", env.SONIOX_TTS_MODEL)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return Boolean(data);
 }

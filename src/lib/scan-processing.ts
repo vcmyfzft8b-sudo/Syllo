@@ -12,6 +12,7 @@ import {
   type ScanOcrImageDiagnostics,
 } from "@/lib/scan-ocr-errors";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { prepareInitialNoteTtsChunk } from "@/lib/note-tts";
 
 const SCAN_OCR_CONCURRENCY = 3;
 
@@ -130,7 +131,7 @@ export async function processStoredScanLecture(
   const supabase = createSupabaseServiceRoleClient();
   const { data: lecture, error: lectureError } = await supabase
     .from("lectures")
-    .select("id, user_id, source_type, language_hint, processing_metadata")
+    .select("id, user_id, source_type, title, language_hint, processing_metadata")
     .eq("id", params.lectureId)
     .single();
 
@@ -142,6 +143,7 @@ export async function processStoredScanLecture(
     id: string;
     user_id: string;
     source_type: string | null;
+    title: string | null;
     language_hint: string | null;
     processing_metadata: unknown;
   };
@@ -167,7 +169,7 @@ export async function processStoredScanLecture(
     if (hasPreparedScanImport) {
       const { data: artifact, error: artifactError } = await supabase
         .from("lecture_artifacts")
-        .select("lecture_id")
+        .select("lecture_id, structured_notes_md")
         .eq("lecture_id", lectureRow.id)
         .maybeSingle();
 
@@ -176,6 +178,14 @@ export async function processStoredScanLecture(
       }
 
       if (artifact) {
+        await prepareInitialNoteTtsChunk({
+          userId: lectureRow.user_id,
+          lectureId: lectureRow.id,
+          content: (artifact as { structured_notes_md: string }).structured_notes_md,
+          title: lectureRow.title,
+          languageHint: lectureRow.language_hint,
+        });
+
         const { error: updateError } = await supabase
           .from("lectures")
           .update(

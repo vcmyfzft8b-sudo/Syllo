@@ -17,6 +17,7 @@ import {
 } from "@/lib/text-source-processing";
 import type { ChatMessageWithCitations } from "@/lib/types";
 import { generateNotesFromTranscript } from "@/lib/note-generation";
+import { prepareInitialNoteTtsChunk } from "@/lib/note-tts";
 import { NoReadableScanTextError } from "@/lib/scan-ocr-errors";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { normalizeMimeType } from "@/lib/storage";
@@ -30,6 +31,7 @@ const TRANSCRIPT_SEGMENT_INSERT_BATCH_SIZE = 25;
 
 type LecturePipelineRow = {
   id: string;
+  user_id: string;
   storage_path: string | null;
   language_hint: string | null;
   duration_seconds: number | null;
@@ -455,6 +457,14 @@ export async function generateLectureNotesFromStoredTranscript(params: { lecture
   if (artifactError) {
     throw artifactError;
   }
+
+  await prepareInitialNoteTtsChunk({
+    userId: lecture.user_id,
+    lectureId: lecture.id,
+    content: notes.structuredNotesMd,
+    title: notes.title,
+    languageHint: lecture.language_hint,
+  });
 
   await updateLectureProcessingState({
     lectureId: lecture.id,
