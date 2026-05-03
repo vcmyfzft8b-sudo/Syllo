@@ -113,6 +113,9 @@ type StudySessionSnapshot = {
 
 const STUDY_SESSION_STORAGE_KEY_PREFIX = "lecture-study-session:";
 const NETWORK_REQUEST_ERROR_MESSAGE = "Povezava je bila prekinjena. Poskusi znova.";
+const FAST_DETAIL_POLL_INTERVAL_MS = 5000;
+const MIN_DETAIL_REFRESH_INTERVAL_MS = 3000;
+const STUDY_SESSION_SAVE_DEBOUNCE_MS = 5000;
 
 function ignoreBackgroundRequestError() {
   return null;
@@ -1017,13 +1020,13 @@ export function LectureWorkspace({
   const detailPollIntervalMs =
     (detail.flashcards.length === 0 && shouldPollAsset(detail.studyAsset?.status)) ||
     shouldPollAsset(detail.quizAsset?.status)
-      ? 2000
+      ? FAST_DETAIL_POLL_INTERVAL_MS
       : POLL_INTERVAL_MS;
 
   const refreshLectureDetail = useCallback(async (options?: { force?: boolean }) => {
     const now = Date.now();
 
-    if (!options?.force && now - lastDetailRefreshAtRef.current < 1000) {
+    if (!options?.force && now - lastDetailRefreshAtRef.current < MIN_DETAIL_REFRESH_INTERVAL_MS) {
       return detailRefreshInFlightRef.current ?? undefined;
     }
 
@@ -1340,7 +1343,7 @@ export function LectureWorkspace({
 
     const timeoutId = window.setTimeout(() => {
       persistStudySessionPayload(payload);
-    }, 1000);
+    }, STUDY_SESSION_SAVE_DEBOUNCE_MS);
 
     return () => {
       window.clearTimeout(timeoutId);

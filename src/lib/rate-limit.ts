@@ -10,6 +10,7 @@ type RateLimitRule = {
   maxRequests: number;
   windowSeconds: number;
   scope?: RateLimitScope;
+  storage?: "database" | "memory";
 };
 
 type RateLimitResult = {
@@ -25,6 +26,15 @@ type AbortableQuery<T> = PromiseLike<T> & {
 };
 
 const RATE_LIMIT_TIMEOUT_MS = 1_200;
+const MEMORY_LIMIT_CLEANUP_INTERVAL_MS = 60_000;
+
+type MemoryRateLimitEntry = {
+  count: number;
+  resetAt: number;
+};
+
+const memoryRateLimitBuckets = new Map<string, MemoryRateLimitEntry>();
+let lastMemoryLimitCleanupAt = 0;
 
 function buildTimeoutError(timeoutMs: number) {
   const error = new Error(`Rate limit check timed out after ${timeoutMs}ms`);
@@ -65,9 +75,15 @@ export const rateLimitPresets = {
     { windowSeconds: 60, maxRequests: 240, scope: "ip" },
     { windowSeconds: 3600, maxRequests: 5000, scope: "ip" },
   ] satisfies RateLimitRule[],
-  health: [{ windowSeconds: 60, maxRequests: 120, scope: "ip" }] satisfies RateLimitRule[],
-  listRead: [{ windowSeconds: 60, maxRequests: 180, scope: "user_or_ip" }] satisfies RateLimitRule[],
-  detailRead: [{ windowSeconds: 60, maxRequests: 180, scope: "user_or_ip" }] satisfies RateLimitRule[],
+  health: [
+    { windowSeconds: 60, maxRequests: 120, scope: "ip", storage: "memory" },
+  ] satisfies RateLimitRule[],
+  listRead: [
+    { windowSeconds: 60, maxRequests: 120, scope: "user_or_ip", storage: "memory" },
+  ] satisfies RateLimitRule[],
+  detailRead: [
+    { windowSeconds: 60, maxRequests: 90, scope: "user_or_ip", storage: "memory" },
+  ] satisfies RateLimitRule[],
   create: [{ windowSeconds: 600, maxRequests: 24, scope: "user" }] satisfies RateLimitRule[],
   expensiveCreate: [
     { windowSeconds: 600, maxRequests: 8, scope: "user" },
@@ -100,9 +116,15 @@ export const rateLimitPresets = {
     { windowSeconds: 300, maxRequests: 12, scope: "user" },
     { windowSeconds: 3600, maxRequests: 60, scope: "user" },
   ] satisfies RateLimitRule[],
-  studySession: [{ windowSeconds: 300, maxRequests: 240, scope: "user" }] satisfies RateLimitRule[],
-  progress: [{ windowSeconds: 300, maxRequests: 240, scope: "user" }] satisfies RateLimitRule[],
-  ttsStatus: [{ windowSeconds: 60, maxRequests: 120, scope: "user" }] satisfies RateLimitRule[],
+  studySession: [
+    { windowSeconds: 300, maxRequests: 120, scope: "user", storage: "memory" },
+  ] satisfies RateLimitRule[],
+  progress: [
+    { windowSeconds: 300, maxRequests: 120, scope: "user", storage: "memory" },
+  ] satisfies RateLimitRule[],
+  ttsStatus: [
+    { windowSeconds: 60, maxRequests: 60, scope: "user", storage: "memory" },
+  ] satisfies RateLimitRule[],
   ttsChunk: [
     { windowSeconds: 300, maxRequests: 20, scope: "user" },
     { windowSeconds: 3600, maxRequests: 120, scope: "user" },
@@ -156,13 +178,77 @@ function buildRateKey(params: {
   return params.userId ? `user:${params.userId}` : `ip:${ip}`;
 }
 
+function cleanupMemoryRateLimitBuckets(now: number) {
+  if (now - lastMemoryLimitCleanupAt < MEMORY_LIMIT_CLEANUP_INTERVAL_MS) {
+    return;
+  }
+
+  lastMemoryLimitCleanupAt = now;
+
+  for (const [key, entry] of memoryRateLimitBuckets.entries()) {
+    if (entry.resetAt <= now) {
+      memoryRateLimitBuckets.delete(key);
+    }
+  }
+}
+
+function consumeMemoryRateLimit(params: {
+  route: string;
+  rateKey: string;
+  rule: RateLimitRule;
+}): RateLimitResult {
+  const now = Date.now();
+  cleanupMemoryRateLimitBuckets(now);
+
+  const windowMs = Math.max(params.rule.windowSeconds, 1) * 1000;
+  const bucketStart = Math.floor(now / windowMs) * windowMs;
+  const resetAt = bucketStart + windowMs;
+  const bucketKey = [
+    params.route,
+    params.rateKey,
+    params.rule.windowSeconds,
+    bucketStart,
+  ].join(":");
+  const current = memoryRateLimitBuckets.get(bucketKey);
+  const nextCount = (current?.count ?? 0) + 1;
+
+  memoryRateLimitBuckets.set(bucketKey, {
+    count: nextCount,
+    resetAt,
+  });
+
+  return {
+    allowed: nextCount <= params.rule.maxRequests,
+    remaining: Math.max(params.rule.maxRequests - nextCount, 0),
+    retry_after_seconds: Math.max(Math.ceil((resetAt - now) / 1000), 1),
+    limit_count: params.rule.maxRequests,
+    window_seconds: params.rule.windowSeconds,
+  };
+}
+
+function buildRateLimitedResponse(result: RateLimitResult | null, rule: RateLimitRule) {
+  return NextResponse.json(
+    {
+      error: "Preveč zahtevkov.",
+      retryAfterSeconds: result?.retry_after_seconds ?? rule.windowSeconds,
+    },
+    {
+      status: 429,
+      headers: {
+        "Cache-Control": "no-store",
+        "Retry-After": String(result?.retry_after_seconds ?? rule.windowSeconds),
+      },
+    },
+  );
+}
+
 export async function enforceRateLimit(params: {
   request: Request;
   route: string;
   rules: RateLimitRule[];
   userId?: string | null;
 }) {
-  const supabase = createSupabaseServiceRoleClient();
+  let supabase: ReturnType<typeof createSupabaseServiceRoleClient> | null = null;
 
   for (const rule of params.rules) {
     const scope = rule.scope ?? "user_or_ip";
@@ -171,6 +257,22 @@ export async function enforceRateLimit(params: {
       userId: params.userId,
       scope,
     });
+
+    if (rule.storage === "memory") {
+      const result = consumeMemoryRateLimit({
+        route: params.route,
+        rateKey,
+        rule,
+      });
+
+      if (!result.allowed) {
+        return buildRateLimitedResponse(result, rule);
+      }
+
+      continue;
+    }
+
+    supabase ??= createSupabaseServiceRoleClient();
 
     let rateLimitResponse: Awaited<
       ReturnType<typeof runRateLimitQuery<{
@@ -213,19 +315,7 @@ export async function enforceRateLimit(params: {
     const result = (Array.isArray(data) ? data[0] : data) as RateLimitResult | null;
 
     if (!result?.allowed) {
-      return NextResponse.json(
-        {
-          error: "Preveč zahtevkov.",
-          retryAfterSeconds: result?.retry_after_seconds ?? rule.windowSeconds,
-        },
-        {
-          status: 429,
-          headers: {
-            "Cache-Control": "no-store",
-            "Retry-After": String(result?.retry_after_seconds ?? rule.windowSeconds),
-          },
-        },
-      );
+      return buildRateLimitedResponse(result, rule);
     }
   }
 

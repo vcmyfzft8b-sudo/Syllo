@@ -123,5 +123,5 @@ export const LECTURE_STATUS = [
   "failed",
 ] as const;
 
-export const POLL_INTERVAL_MS = 4000;
+export const POLL_INTERVAL_MS = 8000;
 export const CHAT_MATCH_COUNT = 6;
